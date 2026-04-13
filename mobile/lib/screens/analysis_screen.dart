@@ -140,76 +140,70 @@ class _AnalysisScreenState extends State<AnalysisScreen> {
           ),
         ),
         child: SafeArea(
-          child: Padding(
-            padding: const EdgeInsets.all(20),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  'Smart Labs Analyzer',
-                  style: theme.textTheme.headlineMedium?.copyWith(
-                    fontWeight: FontWeight.w800,
-                    letterSpacing: -0.8,
+          child: Column(
+            children: [
+              // Header
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Smart Labs',
+                      style: theme.textTheme.headlineSmall?.copyWith(fontWeight: FontWeight.w800),
+                    ),
+                    Text(
+                      'AI Lab Analysis',
+                      style: theme.textTheme.bodySmall?.copyWith(color: Colors.white70),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 8),
+              // Main Content: scrollable
+              Expanded(
+                child: SingleChildScrollView(
+                  padding: const EdgeInsets.symmetric(horizontal: 16),
+                  child: Column(
+                    children: [
+                      // Upload Section
+                      _UploadSection(
+                        selectedFile: _selectedFile,
+                        busy: _busy,
+                        onPickFile: _pickFile,
+                        onAnalyze: _runAnalysis,
+                      ),
+                      const SizedBox(height: 24),
+                      // Body Scene (Organ Visualization)
+                      BodyScenePanel(highlightedOrgans: highlightedOrgans),
+                      const SizedBox(height: 24),
+                      // Analysis Results
+                      if (_analysis != null)
+                        _ResultsPanel(analysis: _analysis!)
+                      else if (_busy)
+                        _LoadingPanel(status: _status)
+                      else
+                        Container(
+                          padding: const EdgeInsets.all(16),
+                          decoration: BoxDecoration(
+                            color: const Color(0xFF0B1729).withValues(alpha: 0.6),
+                            borderRadius: BorderRadius.circular(16),
+                            border: Border.all(color: Colors.white.withValues(alpha: 0.08)),
+                          ),
+                          child: Text(
+                            'Upload a file to begin analysis',
+                            style: theme.textTheme.bodySmall?.copyWith(color: Colors.white70),
+                          ),
+                        ),
+                      const SizedBox(height: 24),
+                      // Stream Log
+                      if (_streamLines.isNotEmpty)
+                        StreamLogPanel(lines: _streamLines),
+                    ],
                   ),
                 ),
-                const SizedBox(height: 8),
-                Text(
-                  'Upload lab results and get instant AI analysis with 3D organ highlighting',
-                  style: theme.textTheme.bodyMedium?.copyWith(color: Colors.white70),
-                ),
-                const SizedBox(height: 20),
-                Expanded(
-                  child: LayoutBuilder(
-                    builder: (context, constraints) {
-                      final isWide = constraints.maxWidth >= 1200;
-
-                      if (isWide) {
-                        return Row(
-                          children: [
-                            Expanded(
-                              child: BodyScenePanel(highlightedOrgans: highlightedOrgans),
-                            ),
-                            const SizedBox(width: 20),
-                            SizedBox(
-                              width: 480,
-                              child: _ControlPanel(
-                                selectedFile: _selectedFile,
-                                busy: _busy,
-                                status: _status,
-                                onPickFile: _pickFile,
-                                onAnalyze: _runAnalysis,
-                                streamLines: _streamLines,
-                              ),
-                            ),
-                          ],
-                        );
-                      }
-
-                      return Column(
-                        children: [
-                          Expanded(
-                            flex: 2,
-                            child: BodyScenePanel(highlightedOrgans: highlightedOrgans),
-                          ),
-                          const SizedBox(height: 20),
-                          Expanded(
-                            flex: 1,
-                            child: _ControlPanel(
-                              selectedFile: _selectedFile,
-                              busy: _busy,
-                              status: _status,
-                              onPickFile: _pickFile,
-                              onAnalyze: _runAnalysis,
-                              streamLines: _streamLines,
-                            ),
-                          ),
-                        ],
-                      );
-                    },
-                  ),
-                ),
-              ],
-            ),
+              ),
+            ],
           ),
         ),
       ),
@@ -217,96 +211,248 @@ class _AnalysisScreenState extends State<AnalysisScreen> {
   }
 }
 
-class _ControlPanel extends StatelessWidget {
-  const _ControlPanel({
+/// Upload form section
+class _UploadSection extends StatelessWidget {
+  const _UploadSection({
     required this.selectedFile,
     required this.busy,
-    required this.status,
     required this.onPickFile,
     required this.onAnalyze,
-    required this.streamLines,
   });
 
   final File? selectedFile;
   final bool busy;
-  final String status;
   final Future<void> Function() onPickFile;
   final Future<void> Function() onAnalyze;
-  final List<String> streamLines;
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
 
     return Container(
-      padding: const EdgeInsets.all(18),
+      padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: const Color(0xFF0B1729).withValues(alpha: 0.92),
-        borderRadius: BorderRadius.circular(28),
+        color: const Color(0xFF0B1729).withValues(alpha: 0.7),
+        borderRadius: BorderRadius.circular(16),
         border: Border.all(color: Colors.white.withValues(alpha: 0.08)),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(
-            'Upload & Analyze',
-            style: theme.textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w800),
-          ),
-          const SizedBox(height: 16),
-          if (selectedFile != null)
-            Container(
-              padding: const EdgeInsets.all(12),
-              decoration: BoxDecoration(
-                color: Colors.green.withValues(alpha: 0.1),
-                borderRadius: BorderRadius.circular(12),
-                border: Border.all(color: Colors.green.withValues(alpha: 0.3)),
-              ),
-              child: Row(
-                children: [
-                  const Icon(Icons.check_circle, color: Colors.green, size: 20),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: Text(
-                      selectedFile!.path.split('/').last,
-                      style: theme.textTheme.bodySmall?.copyWith(color: Colors.white),
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                  ),
-                ],
-              ),
-            )
-          else
-            Container(
-              padding: const EdgeInsets.all(12),
-              decoration: BoxDecoration(
-                color: Colors.grey.withValues(alpha: 0.1),
-                borderRadius: BorderRadius.circular(12),
-              ),
-              child: Text(
-                'No file selected',
-                style: theme.textTheme.bodySmall?.copyWith(color: Colors.grey),
-              ),
-            ),
-          const SizedBox(height: 16),
-          FilledButton.icon(
-            onPressed: busy ? null : onPickFile,
-            icon: const Icon(Icons.folder_open),
-            label: const Text('Pick File'),
-          ),
-          const SizedBox(height: 8),
-          FilledButton.tonal(
-            onPressed: (busy || selectedFile == null) ? null : onAnalyze,
-            child: Text(busy ? 'Analyzing...' : 'Analyze'),
-          ),
-          const SizedBox(height: 16),
-          Text(
-            'Status: $status',
-            style: theme.textTheme.bodyMedium?.copyWith(color: Colors.white70),
+            'Upload Lab Result',
+            style: theme.textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w700),
           ),
           const SizedBox(height: 12),
-          Expanded(
-            child: StreamLogPanel(lines: streamLines),
+          // File Status
+          Container(
+            padding: const EdgeInsets.all(12),
+            decoration: BoxDecoration(
+              color: selectedFile != null
+                  ? Colors.green.withValues(alpha: 0.1)
+                  : Colors.grey.withValues(alpha: 0.1),
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(
+                color: selectedFile != null
+                    ? Colors.green.withValues(alpha: 0.3)
+                    : Colors.white.withValues(alpha: 0.1),
+              ),
+            ),
+            child: Row(
+              children: [
+                Icon(
+                  selectedFile != null ? Icons.check_circle : Icons.file_present,
+                  color: selectedFile != null ? Colors.green : Colors.white54,
+                  size: 20,
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Text(
+                    selectedFile != null
+                        ? selectedFile!.path.split('/').last
+                        : 'No file selected',
+                    style: theme.textTheme.bodySmall?.copyWith(
+                      color: selectedFile != null ? Colors.white : Colors.white54,
+                    ),
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ),
+              ],
+            ),
           ),
+          const SizedBox(height: 12),
+          // Buttons
+          Row(
+            children: [
+              Expanded(
+                child: FilledButton.icon(
+                  onPressed: busy ? null : onPickFile,
+                  icon: const Icon(Icons.upload_file),
+                  label: const Text('Pick File'),
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: FilledButton(
+                  onPressed: (busy || selectedFile == null) ? null : onAnalyze,
+                  child: Text(busy ? 'Analyzing...' : 'Analyze'),
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+/// Loading state panel
+class _LoadingPanel extends StatelessWidget {
+  const _LoadingPanel({required this.status});
+
+  final String status;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: const Color(0xFF0B1729).withValues(alpha: 0.6),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: Colors.blue.withValues(alpha: 0.3)),
+      ),
+      child: Column(
+        children: [
+          const SizedBox(
+            width: 40,
+            height: 40,
+            child: CircularProgressIndicator(strokeWidth: 2),
+          ),
+          const SizedBox(height: 12),
+          Text(
+            status,
+            style: theme.textTheme.bodySmall?.copyWith(color: Colors.blue),
+            textAlign: TextAlign.center,
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+/// Results panel showing analysis
+class _ResultsPanel extends StatelessWidget {
+  const _ResultsPanel({required this.analysis});
+
+  final LabAnalysis analysis;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: const Color(0xFF0B1729).withValues(alpha: 0.6),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: Colors.white.withValues(alpha: 0.08)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            'Analysis Results',
+            style: theme.textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w700),
+          ),
+          const SizedBox(height: 12),
+          Text(
+            'Date: ${analysis.analysisDate}',
+            style: theme.textTheme.bodySmall?.copyWith(color: Colors.white70),
+          ),
+          const SizedBox(height: 12),
+          // Results list
+          for (final result in analysis.results) ...[
+            _ResultItem(result: result),
+            const SizedBox(height: 8),
+          ],
+        ],
+      ),
+    );
+  }
+}
+
+/// Individual result item
+class _ResultItem extends StatelessWidget {
+  const _ResultItem({required this.result});
+
+  final LabResult result;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final isAbnormal = result.severity != 'normal';
+    final color = isAbnormal ? Colors.red : Colors.green;
+
+    return Container(
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: 0.08),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: color.withValues(alpha: 0.2)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Expanded(
+                child: Text(
+                  result.indicatorName,
+                  style: theme.textTheme.bodySmall?.copyWith(
+                    fontWeight: FontWeight.w600,
+                    color: Colors.white,
+                  ),
+                ),
+              ),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                decoration: BoxDecoration(
+                  color: color.withValues(alpha: 0.2),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Text(
+                  result.severity.replaceAll('_', ' ').toUpperCase(),
+                  style: theme.textTheme.labelSmall?.copyWith(
+                    color: color,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 8),
+          Text(
+            '${result.value} ${result.unit}',
+            style: theme.textTheme.bodySmall?.copyWith(
+              color: Colors.white,
+              fontWeight: FontWeight.w500,
+            ),
+          ),
+          Text(
+            'Ref: ${result.referenceRange}',
+            style: theme.textTheme.bodySmall?.copyWith(color: Colors.white60),
+          ),
+          if (result.patientAdvice != null && result.patientAdvice!.isNotEmpty) ...[
+            const SizedBox(height: 8),
+            Text(
+              result.patientAdvice!,
+              style: theme.textTheme.bodySmall?.copyWith(color: Colors.white70),
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
+            ),
+          ],
         ],
       ),
     );
