@@ -33,7 +33,7 @@ API_URL = os.environ.get(
     "DASHSCOPE_URL",
     "https://dashscope-intl.aliyuncs.com/api/v1/services/aigc/multimodal-generation/generation",
 )
-MODEL = os.environ.get("DASHSCOPE_MODEL", "qwen-vl-max")
+MODEL = os.environ.get("DASHSCOPE_MODEL", "qwen3.5-omni-flash-realtime-2026-03-15")
 
 SEVERITY_RANK = {
     "normal": 0,
@@ -59,7 +59,9 @@ def read_env_file() -> dict:
 
 def get_api_key() -> str:
     env_file = read_env_file()
-    return os.environ.get("DASHSCOPE_API_KEY", "") or env_file.get("DASHSCOPE_API_KEY", "")
+    return os.environ.get("DASHSCOPE_API_KEY", "") or env_file.get(
+        "DASHSCOPE_API_KEY", ""
+    )
 
 
 def to_data_url(file_path: Path) -> str:
@@ -74,12 +76,22 @@ def to_data_url(file_path: Path) -> str:
     return f"data:{mime};base64,{enc}"
 
 
-def call_qwen(api_key: str, system_prompt: str, user_text: str, image_path: Path, max_tokens: int = 1200, temperature: float = 0.0) -> str:
+def call_qwen(
+    api_key: str,
+    system_prompt: str,
+    user_text: str,
+    image_path: Path,
+    max_tokens: int = 1200,
+    temperature: float = 0.0,
+) -> str:
     payload = {
         "model": MODEL,
         "input": {
             "messages": [
-                {"role": "system", "content": [{"type": "text", "text": system_prompt}]},
+                {
+                    "role": "system",
+                    "content": [{"type": "text", "text": system_prompt}],
+                },
                 {
                     "role": "user",
                     "content": [
@@ -140,7 +152,9 @@ def convert_pdf_to_png(pdf_path: Path, out_dir: Path) -> list[Path]:
 
     pdftoppm_bin = shutil.which("pdftoppm")
     if not pdftoppm_bin:
-        raise RuntimeError("Missing PDF renderer. Install pymupdf or ensure pdftoppm is available.")
+        raise RuntimeError(
+            "Missing PDF renderer. Install pymupdf or ensure pdftoppm is available."
+        )
 
     prefix = out_dir / pdf_path.stem.replace(" ", "_")
     subprocess.run(
@@ -220,7 +234,11 @@ def merge_results(page_results: list[dict]) -> dict:
         organ = item.get("organ_id", "unknown")
         sev = item.get("severity", "unknown")
         if organ not in organ_stats:
-            organ_stats[organ] = {"worst_severity": sev, "indicator_count": 0, "abnormal_count": 0}
+            organ_stats[organ] = {
+                "worst_severity": sev,
+                "indicator_count": 0,
+                "abnormal_count": 0,
+            }
         organ_stats[organ]["indicator_count"] += 1
         if sev in ("abnormal_high", "abnormal_low"):
             organ_stats[organ]["abnormal_count"] += 1
@@ -245,13 +263,29 @@ def merge_results(page_results: list[dict]) -> dict:
 
 
 def main():
-    parser = argparse.ArgumentParser(description="Member2 pipeline: PDF->PNG->classify->extract->summary")
+    parser = argparse.ArgumentParser(
+        description="Member2 pipeline: PDF->PNG->classify->extract->summary"
+    )
     parser.add_argument("--pdf", default=str(DEFAULT_PDF), help="Input PDF path")
-    parser.add_argument("--max-pages", type=int, default=0, help="Limit processed pages (0 = all)")
-    parser.add_argument("--images-dir", default=str(IMAGES_DIR), help="Directory for extracted page images")
-    parser.add_argument("--page-output-dir", default=str(PAGE_OUTPUT_DIR), help="Directory for per-page JSON outputs")
-    parser.add_argument("--summary-out", default=str(SUMMARY_PATH), help="Path for merged summary JSON")
-    parser.add_argument("--stdout-json", action="store_true", help="Print final summary JSON to stdout")
+    parser.add_argument(
+        "--max-pages", type=int, default=0, help="Limit processed pages (0 = all)"
+    )
+    parser.add_argument(
+        "--images-dir",
+        default=str(IMAGES_DIR),
+        help="Directory for extracted page images",
+    )
+    parser.add_argument(
+        "--page-output-dir",
+        default=str(PAGE_OUTPUT_DIR),
+        help="Directory for per-page JSON outputs",
+    )
+    parser.add_argument(
+        "--summary-out", default=str(SUMMARY_PATH), help="Path for merged summary JSON"
+    )
+    parser.add_argument(
+        "--stdout-json", action="store_true", help="Print final summary JSON to stdout"
+    )
     args = parser.parse_args()
 
     api_key = get_api_key()
@@ -316,8 +350,17 @@ def main():
         )
         payload = extract_json(raw)
         out_file = page_output_dir / f"page_{idx:02d}.json"
-        out_file.write_text(json.dumps(payload, ensure_ascii=False, indent=2), encoding="utf-8")
-        page_runs.append({"page_number": idx, "image": str(image_path), "payload": payload, "output": str(out_file)})
+        out_file.write_text(
+            json.dumps(payload, ensure_ascii=False, indent=2), encoding="utf-8"
+        )
+        page_runs.append(
+            {
+                "page_number": idx,
+                "image": str(image_path),
+                "payload": payload,
+                "output": str(out_file),
+            }
+        )
 
     merged = merge_results(page_runs)
     merged["pages"] = page_meta
@@ -325,7 +368,9 @@ def main():
     merged["summary"]["selected_pages"] = len(page_runs)
     merged["summary"]["skipped_pages"] = len(pages) - len(page_runs)
 
-    summary_out.write_text(json.dumps(merged, ensure_ascii=False, indent=2), encoding="utf-8")
+    summary_out.write_text(
+        json.dumps(merged, ensure_ascii=False, indent=2), encoding="utf-8"
+    )
     print(f"Summary written: {summary_out}", file=log_stream)
     print(f"Page outputs dir: {page_output_dir}", file=log_stream)
 
