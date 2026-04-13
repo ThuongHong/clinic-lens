@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../models/lab_analysis.dart';
+import 'lab_visuals.dart';
 
 class BodyScenePanel extends StatelessWidget {
   const BodyScenePanel({super.key, required this.highlightedOrgans});
@@ -48,66 +49,72 @@ class BodyScenePanel extends StatelessWidget {
     final organResults = <String, LabResult>{
       for (final result in highlightedOrgans) result.organId: result,
     };
+    final focusResults = _focusResults(highlightedOrgans);
     final abnormalCount = highlightedOrgans.where((result) => result.severity != 'normal').length;
     final criticalCount = highlightedOrgans.where((result) => result.severity == 'critical').length;
 
     return Container(
-      padding: const EdgeInsets.all(24),
+      padding: const EdgeInsets.all(28),
       decoration: BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.circular(28),
+        borderRadius: BorderRadius.circular(32),
         border: Border.all(color: const Color(0xFFE2E8F0)),
         boxShadow: const <BoxShadow>[
           BoxShadow(
-            color: Color(0x0C000000),
-            blurRadius: 34,
-            offset: Offset(0, 18),
+            color: Color(0x0A000000),
+            blurRadius: 28,
+            offset: Offset(0, 14),
           ),
         ],
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: <Widget>[
-          Wrap(
-            alignment: WrapAlignment.spaceBetween,
-            runSpacing: 12,
-            spacing: 12,
-            crossAxisAlignment: WrapCrossAlignment.center,
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: <Widget>[
-              Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: <Widget>[
-                  Text(
-                    'Body response map',
-                    style: theme.textTheme.titleLarge?.copyWith(
-                      fontWeight: FontWeight.w800,
-                      color: const Color(0xFF0F172A),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: <Widget>[
+                    Text(
+                      'Body visualization',
+                      style: theme.textTheme.titleLarge?.copyWith(
+                        fontWeight: FontWeight.w800,
+                        color: const Color(0xFF0F172A),
+                        letterSpacing: -0.6,
+                      ),
                     ),
-                  ),
-                  const SizedBox(height: 4),
-                  Text(
-                    '2D silhouette with animated organ states and quick clinical cues.',
-                    style: theme.textTheme.bodyMedium?.copyWith(
-                      color: const Color(0xFF64748B),
+                    const SizedBox(height: 4),
+                    Text(
+                      'Silhouette-first map with organ-level highlights and severity cues.',
+                      style: theme.textTheme.bodyMedium?.copyWith(
+                        color: const Color(0xFF64748B),
+                        fontWeight: FontWeight.w500,
+                      ),
                     ),
-                  ),
-                ],
+                  ],
+                ),
               ),
+              const SizedBox(width: 12),
               Wrap(
                 spacing: 10,
                 runSpacing: 10,
                 children: <Widget>[
                   _MetricChip(
-                    label: 'Tracked organs',
+                    icon: Icons.category_rounded,
+                    label: 'Tracked',
                     value: '${_organSpecs.length}',
                     tone: const Color(0xFF0284C7),
                   ),
                   _MetricChip(
+                    icon: Icons.warning_rounded,
                     label: 'Alerts',
                     value: '$abnormalCount',
                     tone: abnormalCount == 0 ? const Color(0xFF059669) : const Color(0xFFD97706),
                   ),
                   _MetricChip(
+                    icon: Icons.priority_high_rounded,
                     label: 'Critical',
                     value: '$criticalCount',
                     tone: criticalCount == 0 ? const Color(0xFF64748B) : const Color(0xFFFF007F),
@@ -117,10 +124,10 @@ class BodyScenePanel extends StatelessWidget {
             ],
           ),
           const SizedBox(height: 18),
-          const Wrap(
+          Wrap(
             spacing: 10,
             runSpacing: 10,
-            children: <Widget>[
+            children: const <Widget>[
               _LegendChip(label: 'Normal', color: Color(0xFF10B981)),
               _LegendChip(label: 'Low', color: Color(0xFF0284C7)),
               _LegendChip(label: 'High', color: Color(0xFFD97706)),
@@ -131,44 +138,50 @@ class BodyScenePanel extends StatelessWidget {
           LayoutBuilder(
             builder: (BuildContext context, BoxConstraints constraints) {
               final compact = constraints.maxWidth < 640;
-              final diagramHeight = compact ? 500.0 : 560.0;
+              final diagramHeight = compact ? 480.0 : 540.0;
 
-              return SizedBox(
-                height: diagramHeight,
-                child: Stack(
-                  clipBehavior: Clip.none,
-                  children: <Widget>[
-                    Positioned.fill(
-                      child: DecoratedBox(
-                        decoration: BoxDecoration(
-                          borderRadius: BorderRadius.circular(24),
-                          gradient: RadialGradient(
-                            center: const Alignment(-0.1, -0.6),
-                            radius: 1.15,
-                            colors: <Color>[
-                              const Color(0xFFF8FAFC),
-                              const Color(0xFFF1F5F9).withValues(alpha: 0.5),
-                              Colors.transparent,
-                            ],
+              return Column(
+                children: <Widget>[
+                  SizedBox(
+                    height: diagramHeight,
+                    child: Stack(
+                      clipBehavior: Clip.none,
+                      children: <Widget>[
+                        Positioned.fill(
+                          child: DecoratedBox(
+                            decoration: BoxDecoration(
+                              borderRadius: BorderRadius.circular(28),
+                              gradient: RadialGradient(
+                                center: const Alignment(-0.1, -0.6),
+                                radius: 1.15,
+                                colors: <Color>[
+                                  const Color(0xFFF8FAFC),
+                                  const Color(0xFFF1F5F9).withValues(alpha: 0.5),
+                                  Colors.transparent,
+                                ],
+                              ),
+                            ),
                           ),
                         ),
-                      ),
+                        Align(
+                          child: SizedBox(
+                            width: compact ? constraints.maxWidth * 0.64 : 310,
+                            height: compact ? diagramHeight * 0.86 : 460,
+                            child: _BodyCanvas(organResults: organResults),
+                          ),
+                        ),
+                        for (final spec in _organSpecs)
+                          _OrganTag(
+                            spec: spec,
+                            result: organResults[spec.organId],
+                            compact: compact,
+                          ),
+                      ],
                     ),
-                    Align(
-                      child: SizedBox(
-                        width: compact ? constraints.maxWidth * 0.64 : 310,
-                        height: compact ? diagramHeight * 0.86 : 460,
-                        child: _BodyCanvas(organResults: organResults),
-                      ),
-                    ),
-                    for (final spec in _organSpecs)
-                      _OrganTag(
-                        spec: spec,
-                        result: organResults[spec.organId],
-                        compact: compact,
-                      ),
-                  ],
-                ),
+                  ),
+                  const SizedBox(height: 18),
+                  _FocusRail(results: focusResults),
+                ],
               );
             },
           ),
@@ -350,8 +363,8 @@ class _OrganTag extends StatelessWidget {
               ),
               child: Padding(
                 padding: EdgeInsets.symmetric(
-                  horizontal: compact ? 12 : 14,
-                  vertical: compact ? 10 : 12,
+                  horizontal: compact ? 10 : 12,
+                  vertical: compact ? 9 : 10,
                 ),
                 child: Column(
                   mainAxisSize: MainAxisSize.min,
@@ -402,18 +415,6 @@ class _OrganTag extends StatelessWidget {
                         ),
                       ),
                     ),
-                    const SizedBox(height: 8),
-                    Text(
-                      active
-                          ? '${result!.indicatorName}: ${result!.value} ${result!.unit}'
-                          : 'Tap to view expected mapping for this organ.',
-                      maxLines: 2,
-                      overflow: TextOverflow.ellipsis,
-                      style: theme.textTheme.bodySmall?.copyWith(
-                        color: const Color(0xFF475569),
-                        height: 1.35,
-                      ),
-                    ),
                   ],
                 ),
               ),
@@ -442,11 +443,13 @@ class _OrganTag extends StatelessWidget {
 
 class _MetricChip extends StatelessWidget {
   const _MetricChip({
+    required this.icon,
     required this.label,
     required this.value,
     required this.tone,
   });
 
+  final IconData icon;
   final String label;
   final String value;
   final Color tone;
@@ -458,30 +461,52 @@ class _MetricChip extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
       decoration: BoxDecoration(
-        color: tone.withValues(alpha: 0.1),
+        color: Colors.white,
         borderRadius: BorderRadius.circular(18),
         border: Border.all(color: tone.withValues(alpha: 0.2)),
+        boxShadow: const [
+          BoxShadow(
+            color: Color(0x05000000),
+            blurRadius: 8,
+            offset: Offset(0, 3),
+          )
+        ],
       ),
-      child: RichText(
-        text: TextSpan(
-          children: <InlineSpan>[
-            TextSpan(
-              text: '$value  ',
-              style: theme.textTheme.titleMedium?.copyWith(
-                color: tone.withValues(alpha: 0.8),
-                fontWeight: FontWeight.w800,
-              ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: <Widget>[
+          Container(
+            width: 28,
+            height: 28,
+            decoration: BoxDecoration(
+              color: tone.withValues(alpha: 0.12),
+              shape: BoxShape.circle,
             ),
-            TextSpan(
-              text: label,
-              style: theme.textTheme.bodyMedium?.copyWith(
-                color: const Color(0xFF475569),
-                fontWeight: FontWeight.w600,
-                height: 1.3,
+            child: Icon(icon, size: 16, color: tone),
+          ),
+          const SizedBox(width: 10),
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisSize: MainAxisSize.min,
+            children: <Widget>[
+              Text(
+                value,
+                style: theme.textTheme.titleMedium?.copyWith(
+                  color: const Color(0xFF0F172A),
+                  fontWeight: FontWeight.w800,
+                ),
               ),
-            ),
-          ],
-        ),
+              Text(
+                label,
+                style: theme.textTheme.bodySmall?.copyWith(
+                  color: const Color(0xFF64748B),
+                  fontWeight: FontWeight.w600,
+                  height: 1.2,
+                ),
+              ),
+            ],
+          ),
+        ],
       ),
     );
   }
@@ -542,6 +567,213 @@ class _LegendChip extends StatelessWidget {
   }
 }
 
+class _FocusRail extends StatelessWidget {
+  const _FocusRail({required this.results});
+
+  final List<_OrganFocus> results;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(18),
+      decoration: BoxDecoration(
+        color: const Color(0xFFF8FAFC),
+        borderRadius: BorderRadius.circular(24),
+        border: Border.all(color: const Color(0xFFE2E8F0)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: <Widget>[
+          Row(
+            children: <Widget>[
+              Container(
+                width: 34,
+                height: 34,
+                decoration: BoxDecoration(
+                  color: const Color(0xFFFF007F).withValues(alpha: 0.1),
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: const Icon(
+                  Icons.view_in_ar_rounded,
+                  color: Color(0xFFFF007F),
+                  size: 18,
+                ),
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: <Widget>[
+                    Text(
+                      'Organ focus',
+                      style: theme.textTheme.titleSmall?.copyWith(
+                        color: const Color(0xFF0F172A),
+                        fontWeight: FontWeight.w800,
+                      ),
+                    ),
+                    Text(
+                      'Quick readout of affected systems',
+                      style: theme.textTheme.bodySmall?.copyWith(
+                        color: const Color(0xFF64748B),
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 14),
+          if (results.isEmpty)
+            Text(
+              'No focused organs yet. Run an analysis to populate the map.',
+              style: theme.textTheme.bodyMedium?.copyWith(
+                color: const Color(0xFF64748B),
+                fontWeight: FontWeight.w500,
+              ),
+            )
+          else
+            Wrap(
+              spacing: 10,
+              runSpacing: 10,
+              children: <Widget>[
+                for (final item in results)
+                  _FocusCard(focus: item),
+              ],
+            ),
+        ],
+      ),
+    );
+  }
+}
+
+class _FocusCard extends StatelessWidget {
+  const _FocusCard({required this.focus});
+
+  final _OrganFocus focus;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final severityColor = severityTone(focus.worstSeverity);
+
+    return Container(
+      width: 156,
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(18),
+        border: Border.all(color: focus.visual.tone.withValues(alpha: 0.16)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: <Widget>[
+          Row(
+            children: <Widget>[
+              Container(
+                width: 32,
+                height: 32,
+                decoration: BoxDecoration(
+                  color: focus.visual.tone.withValues(alpha: 0.12),
+                  shape: BoxShape.circle,
+                ),
+                child: Icon(
+                  focus.visual.icon,
+                  size: 17,
+                  color: focus.visual.tone,
+                ),
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Text(
+                  focus.visual.label,
+                  style: theme.textTheme.labelLarge?.copyWith(
+                    color: const Color(0xFF0F172A),
+                    fontWeight: FontWeight.w800,
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 10),
+          Text(
+            '${focus.count} markers',
+            style: theme.textTheme.bodyMedium?.copyWith(
+              color: const Color(0xFF334155),
+              fontWeight: FontWeight.w700,
+            ),
+          ),
+          const SizedBox(height: 6),
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+            decoration: BoxDecoration(
+              color: severityColor.withValues(alpha: 0.1),
+              borderRadius: BorderRadius.circular(999),
+            ),
+            child: Text(
+              severityLabel(focus.worstSeverity).toUpperCase(),
+              style: theme.textTheme.labelSmall?.copyWith(
+                color: severityColor,
+                fontWeight: FontWeight.w800,
+                letterSpacing: 0.4,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _OrganFocus {
+  const _OrganFocus({
+    required this.organId,
+    required this.visual,
+    required this.count,
+    required this.worstSeverity,
+  });
+
+  final String organId;
+  final OrganVisual visual;
+  final int count;
+  final String worstSeverity;
+}
+
+List<_OrganFocus> _focusResults(List<LabResult> results) {
+  final grouped = <String, List<LabResult>>{};
+
+  for (final result in results) {
+    final organId = result.organId.isEmpty ? 'other' : result.organId;
+    grouped.putIfAbsent(organId, () => <LabResult>[]).add(result);
+  }
+
+  final focus = grouped.entries.map((entry) {
+    final visual = organVisualFor(entry.key);
+    return _OrganFocus(
+      organId: entry.key,
+      visual: visual,
+      count: entry.value.length,
+      worstSeverity: _worstSeverity(entry.value),
+    );
+  }).toList(growable: false);
+
+  focus.sort((left, right) {
+    final leftIndex = trackedOrganOrder.indexOf(left.organId);
+    final rightIndex = trackedOrganOrder.indexOf(right.organId);
+    final safeLeft = leftIndex == -1 ? trackedOrganOrder.length : leftIndex;
+    final safeRight = rightIndex == -1 ? trackedOrganOrder.length : rightIndex;
+    if (safeLeft != safeRight) {
+      return safeLeft.compareTo(safeRight);
+    }
+    return right.count.compareTo(left.count);
+  });
+
+  return focus;
+}
+
 class _OrganSpec {
   const _OrganSpec({
     required this.organId,
@@ -594,6 +826,27 @@ String _severityLabel(String severity) {
     default:
       return 'Awaiting data';
   }
+}
+
+String _worstSeverity(List<LabResult> results) {
+  var current = 'normal';
+  var currentRank = 1;
+
+  for (final result in results) {
+    final rank = switch (result.severity) {
+      'critical' => 4,
+      'abnormal_high' || 'abnormal_low' => 3,
+      'normal' => 1,
+      _ => 2,
+    };
+
+    if (rank > currentRank) {
+      current = result.severity;
+      currentRank = rank;
+    }
+  }
+
+  return current;
 }
 
 class _BodySilhouettePainter extends CustomPainter {

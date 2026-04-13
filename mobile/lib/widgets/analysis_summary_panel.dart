@@ -7,9 +7,13 @@ class AnalysisSummaryPanel extends StatelessWidget {
   const AnalysisSummaryPanel({
     super.key,
     required this.analysis,
+    this.selectedOrganId,
+    this.onOrganTap,
   });
 
   final LabAnalysis analysis;
+  final String? selectedOrganId;
+  final ValueChanged<String>? onOrganTap;
 
   @override
   Widget build(BuildContext context) {
@@ -120,8 +124,12 @@ class AnalysisSummaryPanel extends StatelessWidget {
               spacing: 8,
               runSpacing: 8,
               children: [
-                for (final item in summary.organSummary.take(6))
-                  _OrganSummaryChip(summary: item),
+                for (final item in summary.organSummary)
+                  _OrganSummaryChip(
+                    summary: item,
+                    selected: selectedOrganId == item.organId,
+                    onTap: onOrganTap,
+                  ),
               ],
             ),
           ],
@@ -268,9 +276,15 @@ class _PriorityIndicatorRow extends StatelessWidget {
 }
 
 class _OrganSummaryChip extends StatelessWidget {
-  const _OrganSummaryChip({required this.summary});
+  const _OrganSummaryChip({
+    required this.summary,
+    required this.selected,
+    required this.onTap,
+  });
 
   final OrganSummary summary;
+  final bool selected;
+  final ValueChanged<String>? onTap;
 
   @override
   Widget build(BuildContext context) {
@@ -278,66 +292,86 @@ class _OrganSummaryChip extends StatelessWidget {
     final visual = organVisualFor(summary.organId);
     final tone = _toneForSeverity(summary.worstSeverity);
 
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-      decoration: BoxDecoration(
-        color: visual.tone.withValues(alpha: 0.08),
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: visual.tone.withValues(alpha: 0.2)),
-      ),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Container(
-                width: 28,
-                height: 28,
-                decoration: BoxDecoration(
-                  color: visual.tone.withValues(alpha: 0.16),
-                  shape: BoxShape.circle,
-                ),
-                child: Icon(visual.icon, size: 15, color: visual.tone),
-              ),
-              const SizedBox(width: 8),
-              Text(
-                visual.label,
-                style: theme.textTheme.labelMedium?.copyWith(
-                  color: visual.tone.withValues(alpha: 0.9),
-                  fontWeight: FontWeight.w800,
-                ),
-              ),
-            ],
+    return InkWell(
+      onTap: onTap == null ? null : () => onTap!(summary.organId),
+      borderRadius: BorderRadius.circular(16),
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 180),
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+        decoration: BoxDecoration(
+          color: selected
+              ? visual.tone.withValues(alpha: 0.14)
+              : visual.tone.withValues(alpha: 0.08),
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(
+            color: selected
+                ? visual.tone.withValues(alpha: 0.45)
+                : visual.tone.withValues(alpha: 0.2),
+            width: selected ? 1.4 : 1,
           ),
-          const SizedBox(height: 8),
-          Text(
-            '${summary.abnormalCount}/${summary.indicatorCount} alerts',
-            style: theme.textTheme.bodyMedium?.copyWith(color: const Color(0xFF334155), fontWeight: FontWeight.w600),
-          ),
-          const SizedBox(height: 6),
-          Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                decoration: BoxDecoration(
-                  color: tone.withValues(alpha: 0.1),
-                  borderRadius: BorderRadius.circular(999),
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Container(
+                  width: 28,
+                  height: 28,
+                  decoration: BoxDecoration(
+                    color: visual.tone.withValues(alpha: 0.16),
+                    shape: BoxShape.circle,
+                  ),
+                  child: Icon(visual.icon, size: 15, color: visual.tone),
                 ),
-                child: Text(
-                  summary.worstSeverity.replaceAll('_', ' ').toUpperCase(),
-                  style: theme.textTheme.labelSmall?.copyWith(
-                    color: tone,
+                const SizedBox(width: 8),
+                Text(
+                  visual.label,
+                  style: theme.textTheme.labelMedium?.copyWith(
+                    color: visual.tone.withValues(alpha: 0.9),
                     fontWeight: FontWeight.w800,
-                    letterSpacing: 0.3,
                   ),
                 ),
-              ),
-            ],
-          ),
-        ],
+              ],
+            ),
+            const SizedBox(height: 8),
+            Text(
+              '${summary.abnormalCount}/${summary.indicatorCount} alerts',
+              style: theme.textTheme.bodyMedium?.copyWith(color: const Color(0xFF334155), fontWeight: FontWeight.w600),
+            ),
+            const SizedBox(height: 6),
+            Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                  decoration: BoxDecoration(
+                    color: tone.withValues(alpha: 0.1),
+                    borderRadius: BorderRadius.circular(999),
+                  ),
+                  child: Text(
+                    summary.worstSeverity.replaceAll('_', ' ').toUpperCase(),
+                    style: theme.textTheme.labelSmall?.copyWith(
+                      color: tone,
+                      fontWeight: FontWeight.w800,
+                      letterSpacing: 0.3,
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 8),
+                Text(
+                  'View details',
+                  style: theme.textTheme.labelSmall?.copyWith(
+                    color: const Color(0xFF475569),
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+              ],
+            ),
+          ],
+        ),
       ),
     );
   }

@@ -22,9 +22,14 @@ class AnalysisScreen extends StatefulWidget {
   State<AnalysisScreen> createState() => _AnalysisScreenState();
 }
 
-class _AnalysisScreenState extends State<AnalysisScreen> {
+class _AnalysisScreenState extends State<AnalysisScreen>
+    with SingleTickerProviderStateMixin {
   late final BackendApi _backendApi;
   late final FileUploadService _uploadService;
+  late final TabController _tabController;
+  final ScrollController _overallScrollController = ScrollController();
+  final GlobalKey _summaryPanelKey = GlobalKey();
+  final GlobalKey _resultsPanelKey = GlobalKey();
 
   File? _selectedFile;
   String _status = 'Ready';
@@ -33,6 +38,7 @@ class _AnalysisScreenState extends State<AnalysisScreen> {
   final List<String> _streamLines = <String>[];
   String _streamedResponse = '';
   String? _selectedHistoryId;
+  String? _focusedOrganId;
   String? _historyError;
   bool _busy = false;
   bool _historyLoading = false;
@@ -42,12 +48,15 @@ class _AnalysisScreenState extends State<AnalysisScreen> {
     super.initState();
     _backendApi = BackendApi(baseUrl: resolveBackendBaseUrl());
     _uploadService = FileUploadService();
+    _tabController = TabController(length: 3, vsync: this);
     _streamLines.add('Backend: ${_backendApi.baseUrl}');
     _loadHistory();
   }
 
   @override
   void dispose() {
+    _overallScrollController.dispose();
+    _tabController.dispose();
     _backendApi.dispose();
     _uploadService.dispose();
     super.dispose();
@@ -76,6 +85,7 @@ class _AnalysisScreenState extends State<AnalysisScreen> {
     setState(() {
       _selectedFile = File(filePath);
       _analysis = null;
+      _focusedOrganId = null;
       _streamedResponse = '';
       _streamLines
         ..clear()
@@ -96,6 +106,7 @@ class _AnalysisScreenState extends State<AnalysisScreen> {
       _busy = true;
       _status = 'Getting STS token...';
       _analysis = null;
+      _focusedOrganId = null;
       _streamedResponse = '';
       _streamLines.clear();
     });
@@ -328,14 +339,54 @@ class _AnalysisScreenState extends State<AnalysisScreen> {
     setState(() {
       _analysis = entry.analysis;
       _selectedHistoryId = entry.id;
+      _focusedOrganId = null;
       _status = 'Viewing saved analysis from ${entry.analysis.analysisDate}';
+    });
+  }
+
+  void _focusOrganFromOutlook(String organId) {
+    if (_tabController.index != 0) {
+      _tabController.animateTo(0);
+    }
+
+    setState(() {
+      _focusedOrganId = organId;
+    });
+
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      final context = _resultsPanelKey.currentContext;
+      if (context != null) {
+        Scrollable.ensureVisible(
+          context,
+          duration: const Duration(milliseconds: 320),
+          curve: Curves.easeOutCubic,
+          alignment: 0.08,
+        );
+      }
+    });
+  }
+
+  void _backToOutlook() {
+    setState(() {
+      _focusedOrganId = null;
+    });
+
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      final context = _summaryPanelKey.currentContext;
+      if (context != null) {
+        Scrollable.ensureVisible(
+          context,
+          duration: const Duration(milliseconds: 320),
+          curve: Curves.easeOutCubic,
+          alignment: 0.02,
+        );
+      }
     });
   }
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final highlightedOrgans = _analysis?.results ?? const <LabResult>[];
 
     return Scaffold(
       body: Container(
@@ -355,173 +406,605 @@ class _AnalysisScreenState extends State<AnalysisScreen> {
         child: SafeArea(
           child: Column(
             children: [
-              // Header
               Padding(
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      'Smart Labs',
-                      style: theme.textTheme.headlineMedium
-                          ?.copyWith(fontWeight: FontWeight.w800, color: const Color(0xFF0F172A), letterSpacing: -1.0),
-                    ),
-                    Text(
-                      'AI Lab Analysis',
-                      style: theme.textTheme.bodyMedium
-                          ?.copyWith(color: const Color(0xFF64748B), fontWeight: FontWeight.w500),
-                    ),
-                  ],
-                ),
-              ),
-              const SizedBox(height: 8),
-              // Main Content: scrollable
-              Expanded(
-                child: LayoutBuilder(
-                  builder: (context, constraints) {
-                    final isWide = constraints.maxWidth >= 980;
-                    final horizontalPadding =
-                        constraints.maxWidth >= 720 ? 24.0 : 16.0;
-
-                    final rightColumn = Column(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        UploadSection(
-                          selectedFile: _selectedFile,
-                          busy: _busy,
-                          onPickFile: _pickFile,
-                          onAnalyze: _runAnalysis,
-                        ),
-                        const SizedBox(height: 24),
-                        if (_analysis != null) ...[
-                          AnalysisSummaryPanel(analysis: _analysis!),
-                          const SizedBox(height: 24),
-                        ],
-                        if (_analysis != null)
-                          AnalysisResultsPanel(analysis: _analysis!)
-                        else if (_busy)
-                          LoadingPanel(status: _status)
-                        else
+                padding: const EdgeInsets.fromLTRB(16, 8, 16, 8),
+                child: Container(
+                  width: double.infinity,
+                  padding: const EdgeInsets.all(14),
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(22),
+                    border: Border.all(color: const Color(0xFFE2E8F0)),
+                    boxShadow: const [
+                      BoxShadow(
+                        color: Color(0x0A000000),
+                        blurRadius: 24,
+                        offset: Offset(0, 10),
+                      ),
+                    ],
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        children: [
                           Container(
-                            padding: const EdgeInsets.all(24),
+                            width: 36,
+                            height: 36,
                             decoration: BoxDecoration(
-                              color: Colors.white,
-                              borderRadius: BorderRadius.circular(24),
-                              border: Border.all(
-                                  color: const Color(0xFFE2E8F0)),
-                              boxShadow: const [
-                                BoxShadow(
-                                  color: Color(0x08000000),
-                                  blurRadius: 16,
-                                  offset: Offset(0, 4),
-                                )
-                              ],
+                              color: const Color(0xFFFF007F).withValues(alpha: 0.08),
+                              borderRadius: BorderRadius.circular(10),
                             ),
-                            child: Text(
-                              'Upload a file to begin analysis',
-                              style: theme.textTheme.bodyMedium
-                                  ?.copyWith(color: const Color(0xFF64748B), fontWeight: FontWeight.w500),
+                            child: const Icon(
+                              Icons.science_rounded,
+                              color: Color(0xFFFF007F),
+                              size: 18,
                             ),
                           ),
-                        const SizedBox(height: 24),
-                        AnalysisHistoryPanel(
-                          entries: _history,
-                          selectedHistoryId: _selectedHistoryId,
-                          loading: _historyLoading,
-                          errorMessage: _historyError,
-                          onRefresh: _loadHistory,
-                          onSelect: _selectHistoryEntry,
-                        ),
-                        if (_streamedResponse.isNotEmpty) ...[
-                          const SizedBox(height: 24),
-                          StreamingTranscriptPanel(content: _streamedResponse),
-                        ],
-                        if (_streamLines.isNotEmpty) ...[
-                          const SizedBox(height: 24),
-                          StreamLogPanel(lines: _streamLines),
-                        ],
-                      ],
-                    );
-
-                    return SingleChildScrollView(
-                      padding: EdgeInsets.fromLTRB(
-                          horizontalPadding, 8, horizontalPadding, 24),
-                      child: isWide
-                          ? Row(
+                          const SizedBox(width: 10),
+                          Expanded(
+                            child: Column(
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
-                                Expanded(
-                                  flex: 11,
-                                  child: BodyScenePanel(
-                                      highlightedOrgans: highlightedOrgans),
+                                Text(
+                                  'Analysis workspace',
+                                  style: theme.textTheme.titleLarge?.copyWith(
+                                    fontWeight: FontWeight.w800,
+                                    color: const Color(0xFF0F172A),
+                                    letterSpacing: -0.4,
+                                  ),
                                 ),
-                                const SizedBox(width: 24),
-                                Expanded(flex: 9, child: rightColumn),
-                              ],
-                            )
-                          : Column(
-                              children: [
-                                BodyScenePanel(
-                                    highlightedOrgans: highlightedOrgans),
-                                const SizedBox(height: 24),
-                                rightColumn,
+                                Text(
+                                  _status,
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                  style: theme.textTheme.bodySmall?.copyWith(
+                                    color: const Color(0xFF64748B),
+                                    fontWeight: FontWeight.w500,
+                                  ),
+                                ),
                               ],
                             ),
-                    );
-                  },
+                          ),
+                          const SizedBox(width: 8),
+                          if (_selectedFile != null)
+                            _HeaderChip(
+                              icon: Icons.description_rounded,
+                              label: _selectedFile!.path.split('/').last,
+                            )
+                          else
+                            const _HeaderChip(
+                              icon: Icons.cloud_upload_rounded,
+                              label: 'No file loaded',
+                            ),
+                        ],
+                      ),
+                      const SizedBox(height: 10),
+                      Container(
+                        padding: const EdgeInsets.all(3),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFFF8FAFC),
+                          borderRadius: BorderRadius.circular(14),
+                          border: Border.all(color: const Color(0xFFE2E8F0)),
+                        ),
+                        child: TabBar(
+                          controller: _tabController,
+                          indicatorSize: TabBarIndicatorSize.tab,
+                          dividerColor: Colors.transparent,
+                          splashBorderRadius: BorderRadius.circular(12),
+                          indicator: BoxDecoration(
+                            color: const Color(0xFF0F172A),
+                            borderRadius: BorderRadius.circular(12),
+                            boxShadow: const [
+                              BoxShadow(
+                                color: Color(0x12000000),
+                                blurRadius: 8,
+                                offset: Offset(0, 3),
+                              ),
+                            ],
+                          ),
+                          labelColor: Colors.white,
+                          unselectedLabelColor: const Color(0xFF475569),
+                          labelStyle: const TextStyle(
+                            fontWeight: FontWeight.w800,
+                            fontSize: 12,
+                            letterSpacing: -0.1,
+                          ),
+                          unselectedLabelStyle: const TextStyle(
+                            fontWeight: FontWeight.w700,
+                            fontSize: 12,
+                            letterSpacing: -0.1,
+                          ),
+                          tabs: const [
+                            Tab(
+                              height: 40,
+                              icon: Icon(Icons.dashboard_rounded, size: 16),
+                              text: 'Overall',
+                            ),
+                            Tab(
+                              height: 40,
+                              icon: Icon(Icons.accessibility_new_rounded, size: 16),
+                              text: 'Body view',
+                            ),
+                            Tab(
+                              height: 40,
+                              icon: Icon(Icons.history_rounded, size: 16),
+                              text: 'History',
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+              Expanded(
+                child: TabBarView(
+                  controller: _tabController,
+                  children: [
+                    _buildOverallTab(context),
+                    _buildBodyTab(context),
+                    _buildHistoryTab(context),
+                  ],
                 ),
               ),
             ],
           ),
         ),
       ),
-      bottomNavigationBar: BottomNavigationBar(
-        elevation: 0,
-        backgroundColor: Colors.white,
-        selectedItemColor: const Color(0xFFFF007F),
-        unselectedItemColor: const Color(0xFF94A3B8),
-        showSelectedLabels: true,
-        showUnselectedLabels: true,
-        selectedLabelStyle: const TextStyle(fontWeight: FontWeight.w800, fontSize: 12),
-        unselectedLabelStyle: const TextStyle(fontWeight: FontWeight.w600, fontSize: 12),
-        type: BottomNavigationBarType.fixed,
-        items: [
-          BottomNavigationBarItem(
-            icon: Container(
-              margin: const EdgeInsets.only(bottom: 4),
-              padding: const EdgeInsets.all(12),
-              decoration: const BoxDecoration(
-                color: Color(0xFFFF007F),
-                shape: BoxShape.circle,
+    );
+  }
+
+  Widget _buildOverallTab(BuildContext context) {
+    final analysis = _analysis;
+
+    return SingleChildScrollView(
+      controller: _overallScrollController,
+      padding: const EdgeInsets.fromLTRB(16, 12, 16, 24),
+      child: LayoutBuilder(
+        builder: (context, constraints) {
+          final wide = constraints.maxWidth >= 1100;
+
+          final analysisColumn = Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              if (_busy) ...[
+                LoadingPanel(status: _status),
+              ] else if (analysis != null) ...[
+                KeyedSubtree(
+                  key: _summaryPanelKey,
+                  child: AnalysisSummaryPanel(
+                    analysis: analysis,
+                    selectedOrganId: _focusedOrganId,
+                    onOrganTap: _focusOrganFromOutlook,
+                  ),
+                ),
+                const SizedBox(height: 20),
+                KeyedSubtree(
+                  key: _resultsPanelKey,
+                  child: AnalysisResultsPanel(
+                    analysis: analysis,
+                    focusedOrganId: _focusedOrganId,
+                    onBackToOutlook: _backToOutlook,
+                  ),
+                ),
+              ] else ...[
+                _EmptyPanel(
+                  icon: Icons.cloud_upload_rounded,
+                  title: 'Upload a PDF or image',
+                  description:
+                      'Drop in a lab report to start the analysis. The overall tab will show extraction, summary, and result cards here.',
+                  actionLabel: 'Pick file',
+                  onAction: _busy ? null : _pickFile,
+                ),
+              ],
+              const SizedBox(height: 20),
+              if (_streamedResponse.isNotEmpty) ...[
+                StreamingTranscriptPanel(content: _streamedResponse),
+                const SizedBox(height: 20),
+              ],
+              if (_streamLines.isNotEmpty) ...[
+                StreamLogPanel(lines: _streamLines),
+              ],
+            ],
+          );
+
+          final uploadColumn = Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              UploadSection(
+                selectedFile: _selectedFile,
+                busy: _busy,
+                onPickFile: _pickFile,
+                onAnalyze: _runAnalysis,
               ),
-              child: const Icon(Icons.home_filled, color: Colors.white, size: 22),
-            ),
-            label: 'Home',
+              const SizedBox(height: 16),
+              _StatusRibbon(status: _status, analysis: analysis),
+            ],
+          );
+
+          if (!wide) {
+            return Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                uploadColumn,
+                const SizedBox(height: 20),
+                analysisColumn,
+              ],
+            );
+          }
+
+          return Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Expanded(
+                flex: 5,
+                child: uploadColumn,
+              ),
+              const SizedBox(width: 20),
+              Expanded(
+                flex: 7,
+                child: analysisColumn,
+              ),
+            ],
+          );
+        },
+      ),
+    );
+  }
+
+  Widget _buildBodyTab(BuildContext context) {
+    final analysis = _analysis;
+
+    return SingleChildScrollView(
+      padding: const EdgeInsets.fromLTRB(16, 12, 16, 24),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          _SectionHeaderCard(
+            icon: Icons.accessibility_new_rounded,
+            title: 'Body visualization',
+            description:
+                'A focused view of the organs that carry the latest signal in this report.',
+            stats: [
+              _SectionStat(label: 'Tracked', value: '${analysis?.trackedOrganCount ?? 0}'),
+              _SectionStat(label: 'Alerts', value: '${analysis?.abnormalCount ?? 0}'),
+              _SectionStat(label: 'Critical', value: '${analysis?.criticalCount ?? 0}'),
+            ],
           ),
-          BottomNavigationBarItem(
-            icon: Container(
-              margin: const EdgeInsets.only(bottom: 4),
-              padding: const EdgeInsets.all(12),
-              child: const Icon(Icons.show_chart_rounded, size: 24),
+          const SizedBox(height: 18),
+          if (analysis == null) ...[
+            _EmptyPanel(
+              icon: Icons.accessibility_new_rounded,
+              title: 'No analysis loaded yet',
+              description:
+                  'Run an analysis or choose one from history and the body map will highlight affected organs here.',
+              actionLabel: 'Go to Overall',
+              onAction: () => _tabController.animateTo(0),
             ),
-            label: 'Health',
+          ] else ...[
+            BodyScenePanel(highlightedOrgans: analysis.results),
+          ],
+        ],
+      ),
+    );
+  }
+
+  Widget _buildHistoryTab(BuildContext context) {
+    return SingleChildScrollView(
+      padding: const EdgeInsets.fromLTRB(16, 12, 16, 24),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          _SectionHeaderCard(
+            icon: Icons.history_rounded,
+            title: 'History',
+            description:
+                'Saved analyses stay here so you can revisit a prior run without re-uploading the file.',
+            stats: [
+              _SectionStat(label: 'Runs', value: '${_history.length}'),
+              _SectionStat(label: 'Selected', value: _selectedHistoryId != null ? '1' : '0'),
+            ],
           ),
-          BottomNavigationBarItem(
-            icon: Container(
-              margin: const EdgeInsets.only(bottom: 4),
-              padding: const EdgeInsets.all(12),
-              child: const Icon(Icons.medication_liquid_rounded, size: 24),
-            ),
-            label: 'Meds',
+          const SizedBox(height: 18),
+          AnalysisHistoryPanel(
+            entries: _history,
+            selectedHistoryId: _selectedHistoryId,
+            loading: _historyLoading,
+            errorMessage: _historyError,
+            onRefresh: _loadHistory,
+            onSelect: _selectHistoryEntry,
           ),
-          BottomNavigationBarItem(
-            icon: Container(
-              margin: const EdgeInsets.only(bottom: 4),
-              padding: const EdgeInsets.all(12),
-              child: const Icon(Icons.card_giftcard_rounded, size: 24),
+        ],
+      ),
+    );
+  }
+}
+
+class _SectionHeaderCard extends StatelessWidget {
+  const _SectionHeaderCard({
+    required this.icon,
+    required this.title,
+    required this.description,
+    required this.stats,
+  });
+
+  final IconData icon;
+  final String title;
+  final String description;
+  final List<_SectionStat> stats;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(24),
+        border: Border.all(color: const Color(0xFFE2E8F0)),
+        boxShadow: const [
+          BoxShadow(
+            color: Color(0x0A000000),
+            blurRadius: 20,
+            offset: Offset(0, 8),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Container(
+                width: 42,
+                height: 42,
+                decoration: BoxDecoration(
+                  color: const Color(0xFFFF007F).withValues(alpha: 0.1),
+                  borderRadius: BorderRadius.circular(14),
+                ),
+                child: Icon(icon, color: const Color(0xFFFF007F), size: 22),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      title,
+                      style: theme.textTheme.titleMedium?.copyWith(
+                        color: const Color(0xFF0F172A),
+                        fontWeight: FontWeight.w800,
+                      ),
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      description,
+                      style: theme.textTheme.bodySmall?.copyWith(
+                        color: const Color(0xFF64748B),
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 14),
+          Wrap(
+            spacing: 10,
+            runSpacing: 10,
+            children: [for (final stat in stats) stat],
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _SectionStat extends StatelessWidget {
+  const _SectionStat({required this.label, required this.value});
+
+  final String label;
+  final String value;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+      decoration: BoxDecoration(
+        color: const Color(0xFFF8FAFC),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: const Color(0xFFE2E8F0)),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Text(
+            value,
+            style: theme.textTheme.titleMedium?.copyWith(
+              color: const Color(0xFF0F172A),
+              fontWeight: FontWeight.w800,
             ),
-            label: 'Rewards',
+          ),
+          const SizedBox(width: 8),
+          Text(
+            label,
+            style: theme.textTheme.bodySmall?.copyWith(
+              color: const Color(0xFF64748B),
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _HeaderChip extends StatelessWidget {
+  const _HeaderChip({required this.icon, required this.label});
+
+  final IconData icon;
+  final String label;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+
+    return ConstrainedBox(
+      constraints: const BoxConstraints(maxWidth: 180),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+        decoration: BoxDecoration(
+          color: const Color(0xFFF8FAFC),
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(color: const Color(0xFFE2E8F0)),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(icon, size: 14, color: const Color(0xFF64748B)),
+            const SizedBox(width: 6),
+            Flexible(
+              child: Text(
+                label,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: theme.textTheme.labelMedium?.copyWith(
+                  color: const Color(0xFF334155),
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _EmptyPanel extends StatelessWidget {
+  const _EmptyPanel({
+    required this.icon,
+    required this.title,
+    required this.description,
+    required this.actionLabel,
+    this.onAction,
+  });
+
+  final IconData icon;
+  final String title;
+  final String description;
+  final String actionLabel;
+  final VoidCallback? onAction;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(24),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(24),
+        border: Border.all(color: const Color(0xFFE2E8F0)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Container(
+            width: 48,
+            height: 48,
+            decoration: BoxDecoration(
+              color: const Color(0xFFFF007F).withValues(alpha: 0.1),
+              borderRadius: BorderRadius.circular(16),
+            ),
+            child: Icon(icon, color: const Color(0xFFFF007F)),
+          ),
+          const SizedBox(height: 16),
+          Text(
+            title,
+            style: theme.textTheme.titleMedium?.copyWith(
+              color: const Color(0xFF0F172A),
+              fontWeight: FontWeight.w800,
+            ),
+          ),
+          const SizedBox(height: 6),
+          Text(
+            description,
+            style: theme.textTheme.bodyMedium?.copyWith(
+              color: const Color(0xFF64748B),
+              fontWeight: FontWeight.w500,
+              height: 1.5,
+            ),
+          ),
+          const SizedBox(height: 16),
+          FilledButton(
+            onPressed: onAction,
+            child: Text(actionLabel),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _StatusRibbon extends StatelessWidget {
+  const _StatusRibbon({required this.status, required this.analysis});
+
+  final String status;
+  final LabAnalysis? analysis;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final hasAnalysis = analysis != null;
+
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: hasAnalysis ? const Color(0xFFF8FAFC) : const Color(0xFFFFFBEB),
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(
+          color: hasAnalysis ? const Color(0xFFE2E8F0) : const Color(0xFFFDE68A),
+        ),
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Icon(
+            hasAnalysis ? Icons.insights_rounded : Icons.hourglass_bottom_rounded,
+            color: hasAnalysis ? const Color(0xFF10B981) : const Color(0xFFD97706),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  hasAnalysis ? 'Analysis ready' : 'Waiting for analysis',
+                  style: theme.textTheme.bodyMedium?.copyWith(
+                    color: const Color(0xFF0F172A),
+                    fontWeight: FontWeight.w800,
+                  ),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  status,
+                  style: theme.textTheme.bodySmall?.copyWith(
+                    color: const Color(0xFF64748B),
+                    fontWeight: FontWeight.w500,
+                    height: 1.45,
+                  ),
+                ),
+              ],
+            ),
           ),
         ],
       ),

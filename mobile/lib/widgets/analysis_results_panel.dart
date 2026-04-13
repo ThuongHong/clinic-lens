@@ -4,15 +4,28 @@ import '../models/lab_analysis.dart';
 import 'lab_visuals.dart';
 
 class AnalysisResultsPanel extends StatelessWidget {
-  const AnalysisResultsPanel({super.key, required this.analysis});
+  const AnalysisResultsPanel({
+    super.key,
+    required this.analysis,
+    this.focusedOrganId,
+    this.onBackToOutlook,
+  });
 
   final LabAnalysis analysis;
+  final String? focusedOrganId;
+  final VoidCallback? onBackToOutlook;
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final isError = analysis.status == 'error';
-    final groupedResults = _groupResults(analysis.results);
+    final allGroupedResults = _groupResults(analysis.results);
+    final focusedGroup = focusedOrganId == null
+      ? null
+      : allGroupedResults
+        .where((group) => group.organId == focusedOrganId)
+        .firstOrNull;
+    final groupedResults = allGroupedResults;
 
     return Semantics(
       label: 'Analysis Results Panel',
@@ -126,6 +139,38 @@ class AnalysisResultsPanel extends StatelessWidget {
               ),
             ],
             const SizedBox(height: 18),
+            if (focusedGroup != null) ...[
+              Container(
+                width: double.infinity,
+                padding: const EdgeInsets.all(14),
+                decoration: BoxDecoration(
+                  color: focusedGroup.visual.tone.withValues(alpha: 0.08),
+                  borderRadius: BorderRadius.circular(16),
+                  border: Border.all(
+                    color: focusedGroup.visual.tone.withValues(alpha: 0.25),
+                  ),
+                ),
+                child: Row(
+                  children: [
+                    Expanded(
+                      child: Text(
+                        'Viewing ${focusedGroup.visual.label} details from Organ outlook',
+                        style: theme.textTheme.bodyMedium?.copyWith(
+                          color: const Color(0xFF334155),
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
+                    ),
+                    TextButton.icon(
+                      onPressed: onBackToOutlook,
+                      icon: const Icon(Icons.keyboard_return_rounded, size: 18),
+                      label: const Text('Back to outlook'),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 12),
+            ],
             if (isError) ...[
               Container(
                 width: double.infinity,
@@ -167,7 +212,10 @@ class AnalysisResultsPanel extends StatelessWidget {
               ),
             ] else ...[
               for (var index = 0; index < groupedResults.length; index += 1) ...[
-                _OrganGroupCard(group: groupedResults[index]),
+                _OrganGroupCard(
+                  group: groupedResults[index],
+                  isFocused: focusedOrganId == groupedResults[index].organId,
+                ),
                 if (index != groupedResults.length - 1) const SizedBox(height: 12),
               ],
             ],
@@ -255,9 +303,10 @@ class _OrganGroup {
 }
 
 class _OrganGroupCard extends StatelessWidget {
-  const _OrganGroupCard({required this.group});
+  const _OrganGroupCard({required this.group, required this.isFocused});
 
   final _OrganGroup group;
+  final bool isFocused;
 
   @override
   Widget build(BuildContext context) {
@@ -269,9 +318,16 @@ class _OrganGroupCard extends StatelessWidget {
       width: double.infinity,
       padding: const EdgeInsets.all(18),
       decoration: BoxDecoration(
-        color: visual.tone.withValues(alpha: 0.06),
+        color: isFocused
+            ? visual.tone.withValues(alpha: 0.12)
+            : visual.tone.withValues(alpha: 0.06),
         borderRadius: BorderRadius.circular(22),
-        border: Border.all(color: visual.tone.withValues(alpha: 0.18)),
+        border: Border.all(
+          color: isFocused
+              ? visual.tone.withValues(alpha: 0.42)
+              : visual.tone.withValues(alpha: 0.18),
+          width: isFocused ? 1.5 : 1,
+        ),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -526,6 +582,10 @@ List<_OrganGroup> _groupResults(List<LabResult> results) {
   });
 
   return groups;
+}
+
+extension _FirstOrNullExtension<T> on Iterable<T> {
+  T? get firstOrNull => isEmpty ? null : first;
 }
 
 String _worstSeverity(List<LabResult> results) {
