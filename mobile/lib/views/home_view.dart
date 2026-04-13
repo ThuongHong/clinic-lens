@@ -87,7 +87,7 @@ class _HomeViewState extends State<HomeView> {
     final api = BackendApi(baseUrl: _baseUrlController.text.trim());
 
     try {
-      await for (final event in api.streamAnalysis(_fileUrlController.text.trim())) {
+      await for (final event in api.streamAnalysis(fileUrl: _fileUrlController.text.trim())) {
         setState(() {
           _streamLines.add('[${event.event}] ${event.data}');
           _status = 'Streaming ${event.event}';

@@ -9,6 +9,8 @@ environment:
 dependencies:
   flutter:
     sdk: flutter
+  crypto: ^3.0.3
+  file_picker: ^8.1.2
   http: ^1.2.2
 
   # Add flutter_scene once the team pins the exact package version and asset pipeline.

@@ -87,6 +87,13 @@ function writeSseEvent(res, eventName, payload) {
   res.write(`data: ${JSON.stringify(payload)}\n\n`);
 }
 
+function signObjectKey(objectKey, expiresInSeconds = 300) {
+  return ossClient.signatureUrl(objectKey, {
+    method: 'GET',
+    expires: expiresInSeconds
+  });
+}
+
 function isImageUrl(fileUrl) {
   return /\.(png|jpe?g|webp|gif|bmp|tiff?)(\?|$)/i.test(fileUrl);
 }
@@ -137,7 +144,9 @@ app.get('/api/sts-token', async (req, res) => {
       AccessKeyId: result.Credentials.AccessKeyId,
       AccessKeySecret: result.Credentials.AccessKeySecret,
       SecurityToken: result.Credentials.SecurityToken,
-      Expiration: result.Credentials.Expiration
+      Expiration: result.Credentials.Expiration,
+      Bucket: OSS_BUCKET_NAME,
+      Region: OSS_REGION
     });
   } catch (error) {
     console.error('STS Error:', error);
@@ -164,10 +173,7 @@ app.get('/api/sign-url', async (req, res) => {
     }
 
     const expiresInSeconds = Number(req.query.expires_in || 300);
-    const signedUrl = ossClient.signatureUrl(sanitizedObjectKey, {
-      method: 'GET',
-      expires: expiresInSeconds
-    });
+    const signedUrl = signObjectKey(sanitizedObjectKey, expiresInSeconds);
 
     res.json({
       bucket: OSS_BUCKET_NAME,
@@ -188,10 +194,10 @@ app.get('/api/sign-url', async (req, res) => {
  * Server proxy luồng stream từ DashScope về Client theo thời gian thực.
  */
 app.post('/api/analyze', async (req, res) => {
-  const { file_url } = req.body;
+  const { file_url, object_key } = req.body;
 
-  if (!file_url) {
-    return res.status(400).json({ error: 'Thiếu đường dẫn file xét nghiệm (file_url)' });
+  if (!file_url && !object_key) {
+    return res.status(400).json({ error: 'Thiếu file_url hoặc object_key để phân tích' });
   }
 
   res.setHeader('Content-Type', 'text/event-stream; charset=utf-8');
@@ -209,6 +215,24 @@ app.post('/api/analyze', async (req, res) => {
   writeSseEvent(res, 'ready', { message: 'connected' });
 
   try {
+    let analysisUrl = typeof file_url === 'string' ? file_url.trim() : '';
+
+    if (!analysisUrl && typeof object_key === 'string') {
+      const sanitizedObjectKey = object_key.trim().replace(/^\/+/, '');
+      if (!sanitizedObjectKey) {
+        writeSseEvent(res, 'error', { message: 'object_key không hợp lệ' });
+        return res.end();
+      }
+      analysisUrl = signObjectKey(sanitizedObjectKey, 600);
+      writeSseEvent(res, 'signed_url_ready', {
+        object_key: sanitizedObjectKey,
+        expires_in: 600
+      });
+    }
+
+    let streamBuffer = '';
+    let aggregatedText = '';
+
     const qwenResponse = await axios({
       method: 'post',
       url: DASHSCOPE_SG_URL,
@@ -218,7 +242,7 @@ app.post('/api/analyze', async (req, res) => {
       },
       data: {
         model: DASHSCOPE_MODEL,
-        messages: buildQwenMessages(String(file_url).trim()),
+        messages: buildQwenMessages(analysisUrl),
         stream: true
       },
       signal: abortController.signal,
@@ -227,10 +251,78 @@ app.post('/api/analyze', async (req, res) => {
     });
 
     qwenResponse.data.on('data', (chunk) => {
-      res.write(chunk);
+      streamBuffer += chunk.toString('utf8');
+
+      let newlineIndex = streamBuffer.indexOf('\n');
+      while (newlineIndex >= 0) {
+        const rawLine = streamBuffer.slice(0, newlineIndex);
+        streamBuffer = streamBuffer.slice(newlineIndex + 1);
+        const line = rawLine.trim();
+
+        if (!line.startsWith('data:')) {
+          newlineIndex = streamBuffer.indexOf('\n');
+          continue;
+        }
+
+        const data = line.slice(5).trim();
+
+        if (!data) {
+          newlineIndex = streamBuffer.indexOf('\n');
+          continue;
+        }
+
+        if (data === '[DONE]') {
+          writeSseEvent(res, 'done', { message: 'completed' });
+          newlineIndex = streamBuffer.indexOf('\n');
+          continue;
+        }
+
+        try {
+          const payload = JSON.parse(data);
+          const choice = payload.choices?.[0] || {};
+          const delta = choice.delta || {};
+          const content = typeof delta.content === 'string'
+            ? delta.content
+            : typeof choice.message?.content === 'string'
+              ? choice.message.content
+              : '';
+
+          if (content) {
+            aggregatedText += content;
+            writeSseEvent(res, 'token', {
+              text: content,
+              snapshot: aggregatedText
+            });
+          }
+
+          if (choice.finish_reason) {
+            try {
+              const structuredResult = JSON.parse(aggregatedText);
+              writeSseEvent(res, 'result', structuredResult);
+            } catch (parseError) {
+              writeSseEvent(res, 'error', {
+                message: 'Không thể parse JSON cuối từ luồng Qwen',
+                raw_output: aggregatedText
+              });
+            }
+          }
+        } catch (parseError) {
+          writeSseEvent(res, 'raw', { chunk: data });
+        }
+
+        newlineIndex = streamBuffer.indexOf('\n');
+      }
     });
 
     qwenResponse.data.on('end', () => {
+      if (aggregatedText) {
+        try {
+          const structuredResult = JSON.parse(aggregatedText);
+          writeSseEvent(res, 'result', structuredResult);
+        } catch (_) {
+          // Ignore duplicate parse failures; the client still gets the token stream.
+        }
+      }
       res.end();
     });
 

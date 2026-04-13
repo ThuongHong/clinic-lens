@@ -38,10 +38,20 @@ class BackendApi {
     return jsonDecode(response.body) as Map<String, dynamic>;
   }
 
-  Stream<SseEvent> streamAnalysis(String fileUrl) async* {
+  Stream<SseEvent> streamAnalysis({
+    String? fileUrl,
+    String? objectKey,
+  }) async* {
+    if ((fileUrl == null || fileUrl.isEmpty) && (objectKey == null || objectKey.isEmpty)) {
+      throw ArgumentError('Either fileUrl or objectKey must be provided.');
+    }
+
     final request = http.Request('POST', _uri('/api/analyze'));
     request.headers['Content-Type'] = 'application/json';
-    request.body = jsonEncode(<String, dynamic>{'file_url': fileUrl});
+    request.body = jsonEncode(<String, dynamic>{
+      if (fileUrl != null && fileUrl.isNotEmpty) 'file_url': fileUrl,
+      if (objectKey != null && objectKey.isNotEmpty) 'object_key': objectKey,
+    });
 
     final streamed = await _client.send(request);
     if (streamed.statusCode >= 400) {

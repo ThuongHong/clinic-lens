@@ -1,5 +1,6 @@
 import 'dart:io';
 
+import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 
 import '../models/lab_analysis.dart';
@@ -23,13 +24,14 @@ class _AnalysisScreenState extends State<AnalysisScreen> {
   String _status = 'Ready';
   LabAnalysis? _analysis;
   final List<String> _streamLines = <String>[];
+  String _streamedResponse = '';
   bool _busy = false;
 
   @override
   void initState() {
     super.initState();
     _backendApi = BackendApi(baseUrl: 'http://localhost:9000');
-    _uploadService = FileUploadService(baseUrl: 'http://localhost:9000');
+    _uploadService = FileUploadService();
   }
 
   @override
@@ -40,10 +42,33 @@ class _AnalysisScreenState extends State<AnalysisScreen> {
   }
 
   Future<void> _pickFile() async {
-    // Simplified file picker demonstration.
-    // In production, use the file_picker package: https://pub.dev/packages/file_picker
+    final result = await FilePicker.platform.pickFiles(
+      type: FileType.custom,
+      allowedExtensions: const <String>['pdf', 'png', 'jpg', 'jpeg', 'webp'],
+    );
+
+    if (result == null || result.files.isEmpty) {
+      return;
+    }
+
+    final pickedFile = result.files.single;
+    final filePath = pickedFile.path;
+
+    if (filePath == null || filePath.isEmpty) {
+      setState(() {
+        _status = 'Selected file has no readable path on this platform.';
+      });
+      return;
+    }
+
     setState(() {
-      _status = 'File picker not yet implemented. Use file_picker package.';
+      _selectedFile = File(filePath);
+      _analysis = null;
+      _streamedResponse = '';
+      _streamLines
+        ..clear()
+        ..add('✓ Selected file: ${pickedFile.name}');
+      _status = 'Ready to analyze ${pickedFile.name}';
     });
   }
 
@@ -58,6 +83,8 @@ class _AnalysisScreenState extends State<AnalysisScreen> {
     setState(() {
       _busy = true;
       _status = 'Getting STS token...';
+      _analysis = null;
+      _streamedResponse = '';
       _streamLines.clear();
     });
 
@@ -68,8 +95,10 @@ class _AnalysisScreenState extends State<AnalysisScreen> {
       final accessKeyId = stsResponse['AccessKeyId'] as String?;
       final accessKeySecret = stsResponse['AccessKeySecret'] as String?;
       final securityToken = stsResponse['SecurityToken'] as String?;
+      final bucket = stsResponse['Bucket'] as String?;
+      final region = stsResponse['Region'] as String?;
 
-      if (accessKeyId == null || accessKeySecret == null || securityToken == null) {
+      if (accessKeyId == null || accessKeySecret == null || securityToken == null || bucket == null || region == null) {
         throw StateError('Invalid STS response');
       }
 
@@ -78,43 +107,35 @@ class _AnalysisScreenState extends State<AnalysisScreen> {
 
       _streamLines.add('Step 2: Uploading file directly to Alibaba OSS');
 
-      final ossUrl = await _uploadService.uploadFileToOss(
+      final uploadResult = await _uploadService.uploadFileToOss(
         file: _selectedFile!,
         accessKeyId: accessKeyId,
         accessKeySecret: accessKeySecret,
         securityToken: securityToken,
+        bucket: bucket,
+        region: region,
       );
 
-      setState(() => _streamLines.add('✓ File uploaded: $ossUrl'));
+      setState(() {
+        _streamLines.add('✓ File uploaded to OSS');
+        _streamLines.add('Object key: ${uploadResult.objectKey}');
+      });
       setState(() => _status = 'Starting analysis stream...');
 
       _streamLines.add('Step 3: Streaming analysis from Qwen3.6-Plus');
 
-      final bufferedJson = StringBuffer();
-
-      await for (final event in _backendApi.streamAnalysis(ossUrl)) {
-        setState(() {
-          _streamLines.add('[${event.event}] ${event.data.substring(0, (event.data.length > 100 ? 100 : event.data.length))}');
-          _status = 'Streaming ${event.event}';
-        });
-
-        if (event.event == 'message') {
-          try {
-            bufferedJson.write(event.data);
-            final payload = event.asJson();
-            if (payload['status'] != null && payload['results'] is List) {
-              setState(() {
-                _analysis = LabAnalysis.fromJson(payload);
-              });
-            }
-          } catch (_) {
-            // Partial chunks; keep buffering.
-          }
+      await for (final event in _backendApi.streamAnalysis(objectKey: uploadResult.objectKey)) {
+        if (!mounted) {
+          break;
         }
+
+        _handleStreamEvent(event);
       }
 
-      setState(() => _status = 'Analysis complete');
-      _streamLines.add('✓ Stream ended successfully');
+      setState(() {
+        _status = _analysis != null ? 'Analysis complete' : 'Stream ended';
+        _streamLines.add('✓ Stream ended successfully');
+      });
     } catch (error) {
       setState(() {
         _status = 'Error occurred';
@@ -122,6 +143,71 @@ class _AnalysisScreenState extends State<AnalysisScreen> {
       });
     } finally {
       setState(() => _busy = false);
+    }
+  }
+
+  void _handleStreamEvent(SseEvent event) {
+    switch (event.event) {
+      case 'ready':
+        setState(() {
+          _status = 'Connected to analysis stream';
+          _streamLines.add('✓ SSE connection opened');
+        });
+        return;
+      case 'signed_url_ready':
+        final payload = _tryParseEventJson(event);
+        final objectKey = payload?['object_key']?.toString() ?? 'unknown';
+        setState(() {
+          _status = 'Signed URL ready';
+          _streamLines.add('✓ Signed private OSS URL for $objectKey');
+        });
+        return;
+      case 'token':
+        final payload = _tryParseEventJson(event);
+        final token = payload?['text']?.toString() ?? '';
+
+        if (token.isEmpty) {
+          return;
+        }
+
+        setState(() {
+          _streamedResponse += token;
+          _status = 'Streaming AI response...';
+        });
+        return;
+      case 'result':
+        final payload = _tryParseEventJson(event);
+        if (payload == null) {
+          return;
+        }
+        setState(() {
+          _analysis = LabAnalysis.fromJson(payload);
+          _status = 'Structured lab analysis received';
+          _streamLines.add('✓ Parsed final JSON result');
+        });
+        return;
+      case 'done':
+        setState(() {
+          _status = 'Analysis complete';
+        });
+        return;
+      case 'error':
+        final payload = _tryParseEventJson(event);
+        final message = payload?['message']?.toString() ?? event.data;
+        throw StateError(message);
+      default:
+        final preview = event.data.length > 120 ? '${event.data.substring(0, 120)}...' : event.data;
+        setState(() {
+          _streamLines.add('[${event.event}] $preview');
+        });
+    }
+  }
+
+  Map<String, dynamic>? _tryParseEventJson(SseEvent event) {
+    try {
+      return event.asJson();
+    } catch (_) {
+      return null;
     }
   }
 
@@ -194,6 +280,10 @@ class _AnalysisScreenState extends State<AnalysisScreen> {
                               style: theme.textTheme.bodySmall?.copyWith(color: Colors.white70),
                             ),
                           ),
+                        if (_streamedResponse.isNotEmpty) ...[
+                          const SizedBox(height: 24),
+                          _StreamingTranscriptPanel(content: _streamedResponse),
+                        ],
                         if (_streamLines.isNotEmpty) ...[
                           const SizedBox(height: 24),
                           StreamLogPanel(lines: _streamLines),
@@ -358,6 +448,45 @@ class _LoadingPanel extends StatelessWidget {
             status,
             style: theme.textTheme.bodySmall?.copyWith(color: Colors.blue),
             textAlign: TextAlign.center,
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _StreamingTranscriptPanel extends StatelessWidget {
+  const _StreamingTranscriptPanel({required this.content});
+
+  final String content;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: const Color(0xFF08111F).withValues(alpha: 0.78),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: Colors.cyan.withValues(alpha: 0.18)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            'Streaming JSON',
+            style: theme.textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w700),
+          ),
+          const SizedBox(height: 12),
+          SelectableText(
+            content,
+            style: theme.textTheme.bodySmall?.copyWith(
+              color: Colors.white.withValues(alpha: 0.9),
+              fontFamily: 'monospace',
+              height: 1.45,
+            ),
           ),
         ],
       ),
