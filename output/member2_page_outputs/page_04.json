@@ -1,0 +1,124 @@
+{
+  "status": "success",
+  "patient_name": null,
+  "analysis_date": "2026-03-13",
+  "results": [
+    {
+      "indicator_name": "HDL-C",
+      "value": "0.92",
+      "unit": "mmol/L",
+      "reference_range": "Low-risk factor for CHD: ≥ 1.55 High-risk factor for CHD: < 1.04",
+      "organ_id": "heart",
+      "severity": "abnormal_low",
+      "patient_advice": "HDL-C thấp có thể làm tăng nguy cơ bệnh tim mạch. Cần điều chỉnh chế độ ăn uống và tăng hoạt động thể chất để cải thiện."
+    },
+    {
+      "indicator_name": "LDL Cholesterol",
+      "value": "3.13",
+      "unit": "mmol/L",
+      "reference_range": "Optimal: < 2.59 Near optimal: 2.59 - 3.34 Borderline high: 3.35 - 4.13 High: 4.14 - 4.91 Very high: ≥ 4.92",
+      "organ_id": "heart",
+      "severity": "borderline_high",
+      "patient_advice": "LDL cholesterol ở mức cận cao, cần theo dõi và điều chỉnh chế độ ăn ít chất béo bão hòa."
+    },
+    {
+      "indicator_name": "Cholesterol/HDL Ratio",
+      "value": "4.86",
+      "unit": "",
+      "reference_range": "< 5",
+      "organ_id": "heart",
+      "severity": "abnormal_high",
+      "patient_advice": "Tỷ lệ cholesterol/HDL cao, nguy cơ tim mạch tăng. Nên kiểm tra lại sau khi thay đổi lối sống."
+    },
+    {
+      "indicator_name": "Non HDL Cholesterol",
+      "value": "3.55",
+      "unit": "mmol/L",
+      "reference_range": "< 3.37",
+      "organ_id": "heart",
+      "severity": "abnormal_high",
+      "patient_advice": "Non-HDL cholesterol cao, cần giảm lượng cholesterol trong khẩu phần ăn và tăng vận động."
+    },
+    {
+      "indicator_name": "ALT (GPT)",
+      "value": "29",
+      "unit": "U/L",
+      "reference_range": "< 45",
+      "organ_id": "liver",
+      "severity": "normal",
+      "patient_advice": "Chức năng gan bình thường, không có dấu hiệu tổn thương tế bào gan."
+    },
+    {
+      "indicator_name": "AST (GOT)",
+      "value": "33",
+      "unit": "U/L",
+      "reference_range": "< 37",
+      "organ_id": "liver",
+      "severity": "normal",
+      "patient_advice": "Chức năng gan ổn định, không có dấu hiệu viêm hoặc tổn thương."
+    },
+    {
+      "indicator_name": "Gamma GT",
+      "value": "10",
+      "unit": "U/L",
+      "reference_range": "< 55",
+      "organ_id": "liver",
+      "severity": "normal",
+      "patient_advice": "Không có dấu hiệu rối loạn chuyển hóa rượu hoặc gan nhiễm mỡ."
+    },
+    {
+      "indicator_name": "ALP",
+      "value": "58",
+      "unit": "U/L",
+      "reference_range": "50 - 116",
+      "organ_id": "liver",
+      "severity": "normal",
+      "patient_advice": "Hoạt động của enzym ALP trong giới hạn bình thường."
+    },
+    {
+      "indicator_name": "Total Bilirubin",
+      "value": "14.70",
+      "unit": "μmol/L",
+      "reference_range": "5.1 - 20.5",
+      "organ_id": "liver",
+      "severity": "normal",
+      "patient_advice": "Mức bilirubin tổng cộng bình thường, không có dấu hiệu vàng da."
+    },
+    {
+      "indicator_name": "Direct Bilirubin",
+      "value": "4.70",
+      "unit": "μmol/L",
+      "reference_range": "< 8.6",
+      "organ_id": "liver",
+      "severity": "normal",
+      "patient_advice": "Bilirubin trực tiếp ở mức an toàn, không có vấn đề về bài tiết mật."
+    },
+    {
+      "indicator_name": "Indirect Bilirubin",
+      "value": "10.00",
+      "unit": "μmol/L",
+      "reference_range": "3.4 - 13.7",
+      "organ_id": "liver",
+      "severity": "normal",
+      "patient_advice": "Bilirubin gián tiếp trong giới hạn bình thường."
+    },
+    {
+      "indicator_name": "hs CRP",
+      "value": "1.11",
+      "unit": "mg/L",
+      "reference_range": "≤ 5",
+      "organ_id": "immune",
+      "severity": "normal",
+      "patient_advice": "Các yếu tố viêm cấp tính ở mức bình thường, không có dấu hiệu viêm nhiễm rõ rệt."
+    },
+    {
+      "indicator_name": "Iron (Fe)",
+      "value": "17.00",
+      "unit": "μmol/L",
+      "reference_range": "11.6 - 31.3",
+      "organ_id": "blood",
+      "severity": "normal",
+      "patient_advice": "Nồng độ sắt trong máu ở mức bình thường, không thiếu sắt."
+    }
+  ]
+}

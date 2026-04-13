@@ -1,4 +1,7 @@
+.env
+.codex
 /backend/node_modules/
+/backend/__pycache__/
 /backend/data/analysis_history.json
 /mobile/.flutter-plugins-dependencies
 /output/

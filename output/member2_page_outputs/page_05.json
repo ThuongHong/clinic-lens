@@ -1,0 +1,133 @@
+{
+  "status": "success",
+  "patient_name": null,
+  "analysis_date": "2026-03-13",
+  "results": [
+    {
+      "indicator_name": "HBsAb",
+      "value": "916.89",
+      "unit": "mIU/mL",
+      "reference_range": "Not protected against Hepatitis B: < 10, Protected against Hepatitis B: ≥ 10",
+      "organ_id": "immune",
+      "severity": "abnormal_high",
+      "patient_advice": "Mức kháng thể chống viêm gan B cao, cho thấy đã được bảo vệ tốt trước virus. Không cần tiêm vắc xin bổ sung."
+    },
+    {
+      "indicator_name": "HBsAg Qualitative",
+      "value": "0.29",
+      "unit": "COI",
+      "reference_range": "Nonreactive: < 0.90",
+      "organ_id": "immune",
+      "severity": "normal",
+      "patient_advice": "Không phát hiện virus viêm gan B trong máu. Tình trạng miễn dịch ổn định."
+    },
+    {
+      "indicator_name": "HCV Ab",
+      "value": "0.12",
+      "unit": "S/CO",
+      "reference_range": "Nonreactive: < 1, Reactive: ≥ 1",
+      "organ_id": "immune",
+      "severity": "normal",
+      "patient_advice": "Không có kháng thể chống virus viêm gan C. Không bị nhiễm virus này."
+    },
+    {
+      "indicator_name": "CA 19-9 (Carbohydrate Antigen 19-9) [Serum]",
+      "value": "42",
+      "unit": "U/mL",
+      "reference_range": "< 39",
+      "organ_id": "immune",
+      "severity": "abnormal_high",
+      "patient_advice": "Giá trị CA 19-9 hơi cao, có thể liên quan đến các vấn đề về đường tiêu hóa hoặc tuyến tụy. Cần theo dõi thêm nếu có triệu chứng bất thường."
+    },
+    {
+      "indicator_name": "Thyroid-stimulating Hormone (TSH) [Serum]",
+      "value": "1.07",
+      "unit": "μIU/mL",
+      "reference_range": "0.35 - 4.94",
+      "organ_id": "thyroid",
+      "severity": "normal",
+      "patient_advice": "Chỉ số TSH trong ngưỡng bình thường, cho thấy chức năng tuyến giáp hoạt động ổn định."
+    },
+    {
+      "indicator_name": "Free Thyroxine (Free T4) [Serum]",
+      "value": "13.59",
+      "unit": "pmol/L",
+      "reference_range": "9.01 - 19.05",
+      "organ_id": "thyroid",
+      "severity": "normal",
+      "patient_advice": "Nồng độ T4 tự do ở mức bình thường, phù hợp với chức năng tuyến giáp khỏe mạnh."
+    },
+    {
+      "indicator_name": "Free Thyroxine (Free T4) [Serum]",
+      "value": "1.06",
+      "unit": "ng/dL",
+      "reference_range": "0.70 - 1.49",
+      "organ_id": "thyroid",
+      "severity": "normal",
+      "patient_advice": "Nồng độ T4 tự do ở mức bình thường, phù hợp với chức năng tuyến giáp khỏe mạnh."
+    },
+    {
+      "indicator_name": "Testosterone [Serum]",
+      "value": "22.28",
+      "unit": "nmol/L",
+      "reference_range": "8.33 - 30.19",
+      "organ_id": "endocrine",
+      "severity": "normal",
+      "patient_advice": "Nồng độ testosterone trong giới hạn bình thường, phù hợp với nam giới trưởng thành."
+    },
+    {
+      "indicator_name": "Testosterone [Serum]",
+      "value": "642.56",
+      "unit": "ng/dL",
+      "reference_range": "240.24 - 870.68",
+      "organ_id": "endocrine",
+      "severity": "normal",
+      "patient_advice": "Nồng độ testosterone trong giới hạn bình thường, phù hợp với nam giới trưởng thành."
+    },
+    {
+      "indicator_name": "Sex Hormone-binding Globulin (SHBG) [Serum]",
+      "value": "54.60",
+      "unit": "nmol/L",
+      "reference_range": "11.2 - 78.1",
+      "organ_id": "endocrine",
+      "severity": "normal",
+      "patient_advice": "SHBG ở mức bình thường, phản ánh sự cân bằng hormone sinh dục."
+    },
+    {
+      "indicator_name": "Free Testosterone Index",
+      "value": "40.81",
+      "unit": "%",
+      "reference_range": "24.5 - 113.3",
+      "organ_id": "endocrine",
+      "severity": "normal",
+      "patient_advice": "Chỉ số testosterone tự do nằm trong ngưỡng bình thường, cho thấy hoạt động nội tiết tố sinh dục ổn định."
+    },
+    {
+      "indicator_name": "Ferritin [Serum]",
+      "value": "161.86",
+      "unit": "ng/mL",
+      "reference_range": "21.81 - 274.66",
+      "organ_id": "blood",
+      "severity": "normal",
+      "patient_advice": "Mức ferritin bình thường, cho thấy dự trữ sắt trong cơ thể đủ."
+    },
+    {
+      "indicator_name": "Vitamin B12 [Serum]",
+      "value": "385.00",
+      "unit": "pg/mL",
+      "reference_range": "187 - 883",
+      "organ_id": "blood",
+      "severity": "normal",
+      "patient_advice": "Nồng độ vitamin B12 ở mức bình thường, hỗ trợ chức năng thần kinh và tạo máu tốt."
+    },
+    {
+      "indicator_name": "25-OH Vitamin D [Serum]",
+      "value": "25",
+      "unit": "ng/mL",
+      "reference_range": "Deficiency: < 20, Insufficiency: 20 - 29, Sufficiency: 30 - 100, High: 101 - 150, Toxicity: > 150",
+      "organ_id": "bone",
+      "severity": "abnormal_low",
+      "patient_advice": "Mức vitamin D thấp, có thể gây thiếu hụt xương và mệt mỏi. Nên tăng tiếp xúc ánh sáng mặt trời và bổ sung vitamin D theo hướng dẫn bác sĩ."
+    }
+  ]
+}
