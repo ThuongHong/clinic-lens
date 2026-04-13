@@ -336,10 +336,16 @@ class _AnalysisScreenState extends State<AnalysisScreen> {
     return Scaffold(
       body: Container(
         decoration: const BoxDecoration(
+          color: Color(0xFFF9FAFF),
           gradient: LinearGradient(
             begin: Alignment.topLeft,
             end: Alignment.bottomRight,
-            colors: [Color(0xFF07111F), Color(0xFF0B2341), Color(0xFF07111F)],
+            colors: [
+              Color(0xFFFFFFFF),
+              Color(0xFFF4F6FC),
+              Color(0xFFE9EEFA),
+            ],
+            stops: [0.0, 0.4, 1.0],
           ),
         ),
         child: SafeArea(
@@ -354,13 +360,13 @@ class _AnalysisScreenState extends State<AnalysisScreen> {
                   children: [
                     Text(
                       'Smart Labs',
-                      style: theme.textTheme.headlineSmall
-                          ?.copyWith(fontWeight: FontWeight.w800),
+                      style: theme.textTheme.headlineMedium
+                          ?.copyWith(fontWeight: FontWeight.w800, color: const Color(0xFF0F172A), letterSpacing: -1.0),
                     ),
                     Text(
                       'AI Lab Analysis',
-                      style: theme.textTheme.bodySmall
-                          ?.copyWith(color: Colors.white70),
+                      style: theme.textTheme.bodyMedium
+                          ?.copyWith(color: const Color(0xFF64748B), fontWeight: FontWeight.w500),
                     ),
                   ],
                 ),
@@ -394,18 +400,24 @@ class _AnalysisScreenState extends State<AnalysisScreen> {
                           _LoadingPanel(status: _status)
                         else
                           Container(
-                            padding: const EdgeInsets.all(16),
+                            padding: const EdgeInsets.all(24),
                             decoration: BoxDecoration(
-                              color: const Color(0xFF0B1729)
-                                  .withValues(alpha: 0.6),
-                              borderRadius: BorderRadius.circular(16),
+                              color: Colors.white,
+                              borderRadius: BorderRadius.circular(24),
                               border: Border.all(
-                                  color: Colors.white.withValues(alpha: 0.08)),
+                                  color: const Color(0xFFE2E8F0)),
+                              boxShadow: const [
+                                BoxShadow(
+                                  color: Color(0x08000000),
+                                  blurRadius: 16,
+                                  offset: Offset(0, 4),
+                                )
+                              ],
                             ),
                             child: Text(
                               'Upload a file to begin analysis',
-                              style: theme.textTheme.bodySmall
-                                  ?.copyWith(color: Colors.white70),
+                              style: theme.textTheme.bodyMedium
+                                  ?.copyWith(color: const Color(0xFF64748B), fontWeight: FontWeight.w500),
                             ),
                           ),
                         const SizedBox(height: 24),
@@ -460,6 +472,55 @@ class _AnalysisScreenState extends State<AnalysisScreen> {
           ),
         ),
       ),
+      bottomNavigationBar: BottomNavigationBar(
+        elevation: 0,
+        backgroundColor: Colors.white,
+        selectedItemColor: const Color(0xFFFF007F),
+        unselectedItemColor: const Color(0xFF94A3B8),
+        showSelectedLabels: true,
+        showUnselectedLabels: true,
+        selectedLabelStyle: const TextStyle(fontWeight: FontWeight.w800, fontSize: 12),
+        unselectedLabelStyle: const TextStyle(fontWeight: FontWeight.w600, fontSize: 12),
+        type: BottomNavigationBarType.fixed,
+        items: [
+          BottomNavigationBarItem(
+            icon: Container(
+              margin: const EdgeInsets.only(bottom: 4),
+              padding: const EdgeInsets.all(12),
+              decoration: const BoxDecoration(
+                color: Color(0xFFFF007F),
+                shape: BoxShape.circle,
+              ),
+              child: const Icon(Icons.home_filled, color: Colors.white, size: 22),
+            ),
+            label: 'Home',
+          ),
+          BottomNavigationBarItem(
+            icon: Container(
+              margin: const EdgeInsets.only(bottom: 4),
+              padding: const EdgeInsets.all(12),
+              child: const Icon(Icons.show_chart_rounded, size: 24),
+            ),
+            label: 'Health',
+          ),
+          BottomNavigationBarItem(
+            icon: Container(
+              margin: const EdgeInsets.only(bottom: 4),
+              padding: const EdgeInsets.all(12),
+              child: const Icon(Icons.medication_liquid_rounded, size: 24),
+            ),
+            label: 'Meds',
+          ),
+          BottomNavigationBarItem(
+            icon: Container(
+              margin: const EdgeInsets.only(bottom: 4),
+              padding: const EdgeInsets.all(12),
+              child: const Icon(Icons.card_giftcard_rounded, size: 24),
+            ),
+            label: 'Rewards',
+          ),
+        ],
+      ),
     );
   }
 }
@@ -483,43 +544,50 @@ class _UploadSection extends StatelessWidget {
     final theme = Theme.of(context);
 
     return Container(
-      padding: const EdgeInsets.all(16),
+      padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
-        color: const Color(0xFF0B1729).withValues(alpha: 0.7),
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: Colors.white.withValues(alpha: 0.08)),
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(24),
+        border: Border.all(color: const Color(0xFFF1F5F9)),
+        boxShadow: const [
+          BoxShadow(
+            color: Color(0x08000000),
+            blurRadius: 20,
+            offset: Offset(0, 8),
+          )
+        ],
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(
             'Upload Lab Result',
-            style: theme.textTheme.titleSmall
-                ?.copyWith(fontWeight: FontWeight.w700),
+            style: theme.textTheme.titleMedium
+                ?.copyWith(fontWeight: FontWeight.w800, color: const Color(0xFF0F172A)),
           ),
-          const SizedBox(height: 12),
+          const SizedBox(height: 16),
           // File Status
           Container(
             padding: const EdgeInsets.all(12),
             decoration: BoxDecoration(
               color: selectedFile != null
-                  ? Colors.green.withValues(alpha: 0.1)
-                  : Colors.grey.withValues(alpha: 0.1),
-              borderRadius: BorderRadius.circular(12),
+                  ? const Color(0xFFECFDF5)
+                  : const Color(0xFFF8FAFC),
+              borderRadius: BorderRadius.circular(16),
               border: Border.all(
                 color: selectedFile != null
-                    ? Colors.green.withValues(alpha: 0.3)
-                    : Colors.white.withValues(alpha: 0.1),
+                    ? const Color(0xFF6EE7B7)
+                    : const Color(0xFFE2E8F0),
               ),
             ),
             child: Row(
               children: [
                 Icon(
                   selectedFile != null
-                      ? Icons.check_circle
-                      : Icons.file_present,
-                  color: selectedFile != null ? Colors.green : Colors.white54,
-                  size: 20,
+                      ? Icons.check_circle_rounded
+                      : Icons.file_present_rounded,
+                  color: selectedFile != null ? const Color(0xFF10B981) : const Color(0xFF64748B),
+                  size: 24,
                 ),
                 const SizedBox(width: 12),
                 Expanded(
@@ -527,9 +595,10 @@ class _UploadSection extends StatelessWidget {
                     selectedFile != null
                         ? selectedFile!.path.split('/').last
                         : 'No file selected',
-                    style: theme.textTheme.bodySmall?.copyWith(
+                    style: theme.textTheme.bodyMedium?.copyWith(
                       color:
-                          selectedFile != null ? Colors.white : Colors.white54,
+                          selectedFile != null ? const Color(0xFF065F46) : const Color(0xFF64748B),
+                      fontWeight: FontWeight.w500,
                     ),
                     overflow: TextOverflow.ellipsis,
                   ),
@@ -574,23 +643,37 @@ class _LoadingPanel extends StatelessWidget {
     final theme = Theme.of(context);
 
     return Container(
-      padding: const EdgeInsets.all(16),
+      padding: const EdgeInsets.all(24),
       decoration: BoxDecoration(
-        color: const Color(0xFF0B1729).withValues(alpha: 0.6),
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: Colors.blue.withValues(alpha: 0.3)),
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(24),
+        border: Border.all(color: const Color(0xFFE2E8F0)),
+        boxShadow: const [
+          BoxShadow(
+            color: Color(0x0A000000),
+            blurRadius: 18,
+            offset: Offset(0, 6),
+          )
+        ],
       ),
       child: Column(
         children: [
           const SizedBox(
-            width: 40,
-            height: 40,
-            child: CircularProgressIndicator(strokeWidth: 2),
+            width: 44,
+            height: 44,
+            child: CircularProgressIndicator(
+              strokeWidth: 3,
+              color: Color(0xFFFF007F),
+              backgroundColor: Color(0xFFF1F5F9),
+            ),
           ),
-          const SizedBox(height: 12),
+          const SizedBox(height: 16),
           Text(
             status,
-            style: theme.textTheme.bodySmall?.copyWith(color: Colors.blue),
+            style: theme.textTheme.bodyMedium?.copyWith(
+              color: const Color(0xFF0F172A),
+              fontWeight: FontWeight.w600,
+            ),
             textAlign: TextAlign.center,
           ),
         ],
@@ -610,19 +693,26 @@ class _StreamingTranscriptPanel extends StatelessWidget {
 
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.all(16),
+      padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
-        color: const Color(0xFF08111F).withValues(alpha: 0.78),
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: Colors.cyan.withValues(alpha: 0.18)),
+        color: const Color(0xFF1E293B),
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: const Color(0xFF334155)),
+        boxShadow: const [
+          BoxShadow(
+            color: Color(0x11000000),
+            blurRadius: 16,
+            offset: Offset(0, 8),
+          )
+        ],
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(
             'Streaming JSON',
-            style: theme.textTheme.titleSmall
-                ?.copyWith(fontWeight: FontWeight.w700),
+            style: theme.textTheme.titleMedium
+                ?.copyWith(fontWeight: FontWeight.w700, color: Colors.white),
           ),
           const SizedBox(height: 12),
           SelectableText(
@@ -651,26 +741,33 @@ class _ResultsPanel extends StatelessWidget {
     final isError = analysis.status == 'error';
 
     return Container(
-      padding: const EdgeInsets.all(16),
+      padding: const EdgeInsets.all(24),
       decoration: BoxDecoration(
-        color: const Color(0xFF0B1729).withValues(alpha: 0.6),
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: Colors.white.withValues(alpha: 0.08)),
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(24),
+        border: Border.all(color: const Color(0xFFE2E8F0)),
+        boxShadow: const [
+          BoxShadow(
+            color: Color(0x0A000000),
+            blurRadius: 20,
+            offset: Offset(0, 8),
+          )
+        ],
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(
-            'Analysis Results',
-            style: theme.textTheme.titleSmall
-                ?.copyWith(fontWeight: FontWeight.w700),
+            'Analysis Details',
+            style: theme.textTheme.titleMedium
+                ?.copyWith(fontWeight: FontWeight.w800, color: const Color(0xFF0F172A)),
           ),
-          const SizedBox(height: 12),
+          const SizedBox(height: 8),
           Text(
             'Date: ${analysis.analysisDate}',
-            style: theme.textTheme.bodySmall?.copyWith(color: Colors.white70),
+            style: theme.textTheme.bodyMedium?.copyWith(color: const Color(0xFF64748B), fontWeight: FontWeight.w500),
           ),
-          const SizedBox(height: 12),
+          const SizedBox(height: 16),
           if (isError) ...[
             Text(
               analysis.errorMessage ??
@@ -700,64 +797,120 @@ class _ResultItem extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final isAbnormal = result.severity != 'normal';
-    final color = isAbnormal ? Colors.red : Colors.green;
+    final color = isAbnormal ? const Color(0xFFFF007F) : const Color(0xFF10B981); // Magenta vs Emerald
+    final bgColor = isAbnormal ? const Color(0xFFFFF1F8) : const Color(0xFFECFDF5);
+    final borderColor = isAbnormal ? const Color(0xFFFCC2D7) : const Color(0xFFA7F3D0);
 
     return Container(
-      padding: const EdgeInsets.all(12),
+      padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: color.withValues(alpha: 0.08),
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: color.withValues(alpha: 0.2)),
+        color: bgColor,
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: borderColor),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(
             children: [
+              Container(
+                width: 40,
+                height: 40,
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  shape: BoxShape.circle,
+                  boxShadow: [
+                    BoxShadow(
+                      color: color.withValues(alpha: 0.2),
+                      blurRadius: 10,
+                      offset: const Offset(0, 4),
+                    )
+                  ],
+                ),
+                child: Icon(
+                  isAbnormal ? Icons.warning_rounded : Icons.check_rounded,
+                  color: color,
+                  size: 20,
+                ),
+              ),
+              const SizedBox(width: 14),
               Expanded(
                 child: Text(
                   result.indicatorName,
-                  style: theme.textTheme.bodySmall?.copyWith(
-                    fontWeight: FontWeight.w600,
-                    color: Colors.white,
+                  style: theme.textTheme.bodyMedium?.copyWith(
+                    fontWeight: FontWeight.w800,
+                    color: const Color(0xFF0F172A),
+                    fontSize: 16,
                   ),
                 ),
               ),
               Container(
-                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
                 decoration: BoxDecoration(
-                  color: color.withValues(alpha: 0.2),
-                  borderRadius: BorderRadius.circular(8),
+                  color: const Color(0xFF1E293B), // Dark pill
+                  borderRadius: BorderRadius.circular(999),
                 ),
-                child: Text(
-                  result.severity.replaceAll('_', ' ').toUpperCase(),
-                  style: theme.textTheme.labelSmall?.copyWith(
-                    color: color,
-                    fontWeight: FontWeight.w600,
-                  ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(
+                      isAbnormal ? Icons.priority_high_rounded : Icons.done_rounded,
+                      color: isAbnormal ? const Color(0xFFFF007F) : Colors.white,
+                      size: 14,
+                    ),
+                    const SizedBox(width: 4),
+                    Text(
+                      result.severity.replaceAll('_', ' ').toUpperCase(),
+                      style: theme.textTheme.labelMedium?.copyWith(
+                        color: Colors.white,
+                        fontWeight: FontWeight.w800,
+                        letterSpacing: 0.5,
+                      ),
+                    ),
+                  ],
                 ),
               ),
             ],
           ),
-          const SizedBox(height: 8),
-          Text(
-            '${result.value} ${result.unit}',
-            style: theme.textTheme.bodySmall?.copyWith(
-              color: Colors.white,
-              fontWeight: FontWeight.w500,
+          Padding(
+            padding: const EdgeInsets.only(left: 54, top: 4),
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.baseline,
+              textBaseline: TextBaseline.alphabetic,
+              children: [
+                Text(
+                  result.value,
+                  style: theme.textTheme.headlineMedium?.copyWith(
+                    color: color,
+                    fontWeight: FontWeight.w800,
+                    letterSpacing: -1.0,
+                  ),
+                ),
+                const SizedBox(width: 8),
+                Text(
+                  '${result.unit} • Ref: ${result.referenceRange}',
+                  style: theme.textTheme.bodyMedium?.copyWith(
+                    color: const Color(0xFF64748B),
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
+              ],
             ),
           ),
-          Text(
-            'Ref: ${result.referenceRange}',
-            style: theme.textTheme.bodySmall?.copyWith(color: Colors.white60),
-          ),
           if (result.patientAdvice.isNotEmpty) ...[
-            const SizedBox(height: 8),
-            Text(
-              result.patientAdvice,
-              style: theme.textTheme.bodySmall?.copyWith(color: Colors.white70),
-              maxLines: 2,
-              overflow: TextOverflow.ellipsis,
+            const SizedBox(height: 12),
+            Padding(
+              padding: const EdgeInsets.only(left: 54),
+              child: Text(
+                result.patientAdvice,
+                style: theme.textTheme.bodyMedium?.copyWith(
+                  color: const Color(0xFF334155),
+                  fontWeight: FontWeight.w500,
+                  height: 1.5,
+                ),
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
+              ),
             ),
           ],
         ],

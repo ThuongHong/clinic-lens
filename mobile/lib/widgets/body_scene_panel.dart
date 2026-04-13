@@ -52,18 +52,14 @@ class BodyScenePanel extends StatelessWidget {
     final criticalCount = highlightedOrgans.where((result) => result.severity == 'critical').length;
 
     return Container(
-      padding: const EdgeInsets.all(20),
+      padding: const EdgeInsets.all(24),
       decoration: BoxDecoration(
+        color: Colors.white,
         borderRadius: BorderRadius.circular(28),
-        gradient: const LinearGradient(
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-          colors: <Color>[Color(0xFF11243A), Color(0xFF0B1526), Color(0xFF09111D)],
-        ),
-        border: Border.all(color: Colors.white.withValues(alpha: 0.08)),
+        border: Border.all(color: const Color(0xFFE2E8F0)),
         boxShadow: const <BoxShadow>[
           BoxShadow(
-            color: Color(0x55000000),
+            color: Color(0x0C000000),
             blurRadius: 34,
             offset: Offset(0, 18),
           ),
@@ -85,13 +81,14 @@ class BodyScenePanel extends StatelessWidget {
                     'Body response map',
                     style: theme.textTheme.titleLarge?.copyWith(
                       fontWeight: FontWeight.w800,
+                      color: const Color(0xFF0F172A),
                     ),
                   ),
                   const SizedBox(height: 4),
                   Text(
                     '2D silhouette with animated organ states and quick clinical cues.',
-                    style: theme.textTheme.bodySmall?.copyWith(
-                      color: Colors.white70,
+                    style: theme.textTheme.bodyMedium?.copyWith(
+                      color: const Color(0xFF64748B),
                     ),
                   ),
                 ],
@@ -103,17 +100,17 @@ class BodyScenePanel extends StatelessWidget {
                   _MetricChip(
                     label: 'Tracked organs',
                     value: '${_organSpecs.length}',
-                    tone: const Color(0xFF38BDF8),
+                    tone: const Color(0xFF0284C7),
                   ),
                   _MetricChip(
                     label: 'Alerts',
                     value: '$abnormalCount',
-                    tone: abnormalCount == 0 ? const Color(0xFF10B981) : const Color(0xFFF59E0B),
+                    tone: abnormalCount == 0 ? const Color(0xFF059669) : const Color(0xFFD97706),
                   ),
                   _MetricChip(
                     label: 'Critical',
                     value: '$criticalCount',
-                    tone: criticalCount == 0 ? const Color(0xFF94A3B8) : const Color(0xFFEF4444),
+                    tone: criticalCount == 0 ? const Color(0xFF64748B) : const Color(0xFFFF007F),
                   ),
                 ],
               ),
@@ -125,9 +122,9 @@ class BodyScenePanel extends StatelessWidget {
             runSpacing: 10,
             children: <Widget>[
               _LegendChip(label: 'Normal', color: Color(0xFF10B981)),
-              _LegendChip(label: 'Low', color: Color(0xFF38BDF8)),
-              _LegendChip(label: 'High', color: Color(0xFFF59E0B)),
-              _LegendChip(label: 'Critical', color: Color(0xFFEF4444)),
+              _LegendChip(label: 'Low', color: Color(0xFF0284C7)),
+              _LegendChip(label: 'High', color: Color(0xFFD97706)),
+              _LegendChip(label: 'Critical', color: Color(0xFFFF007F)),
             ],
           ),
           const SizedBox(height: 20),
@@ -149,8 +146,8 @@ class BodyScenePanel extends StatelessWidget {
                             center: const Alignment(-0.1, -0.6),
                             radius: 1.15,
                             colors: <Color>[
-                              Colors.white.withValues(alpha: 0.06),
-                              Colors.white.withValues(alpha: 0.01),
+                              const Color(0xFFF8FAFC),
+                              const Color(0xFFF1F5F9).withValues(alpha: 0.5),
                               Colors.transparent,
                             ],
                           ),
@@ -263,6 +260,28 @@ class _AnimatedOrganRegion extends StatelessWidget {
               ),
             ],
           ),
+          child: Center(
+            child: Container(
+              padding: const EdgeInsets.all(6),
+              decoration: BoxDecoration(
+                color: Colors.white.withValues(alpha: emphasis ? 0.95 : 0.6),
+                shape: BoxShape.circle,
+                boxShadow: [
+                  if (emphasis)
+                    const BoxShadow(
+                      color: Colors.black12,
+                      blurRadius: 4,
+                      offset: Offset(0, 2),
+                    ),
+                ],
+              ),
+              child: Icon(
+                spec.icon,
+                color: palette.base,
+                size: 20,
+              ),
+            ),
+          ),
         ),
       ),
     );
@@ -295,12 +314,13 @@ class _OrganTag extends StatelessWidget {
         triggerMode: TooltipTriggerMode.tap,
         message: tooltip,
         decoration: BoxDecoration(
-          color: const Color(0xFF081120),
-          borderRadius: BorderRadius.circular(14),
-          border: Border.all(color: palette.base.withValues(alpha: 0.42)),
-        ),
-        textStyle: theme.textTheme.bodySmall?.copyWith(
           color: Colors.white,
+          borderRadius: BorderRadius.circular(14),
+          border: Border.all(color: const Color(0xFFE2E8F0)),
+          boxShadow: const [BoxShadow(color: Color(0x11000000), blurRadius: 10, offset: Offset(0,4))],
+        ),
+        textStyle: theme.textTheme.bodyMedium?.copyWith(
+          color: const Color(0xFF0F172A),
           height: 1.45,
         ),
         child: AnimatedScale(
@@ -314,23 +334,17 @@ class _OrganTag extends StatelessWidget {
             child: DecoratedBox(
               decoration: BoxDecoration(
                 borderRadius: BorderRadius.circular(20),
-                gradient: LinearGradient(
-                  begin: Alignment.topLeft,
-                  end: Alignment.bottomRight,
-                  colors: <Color>[
-                    palette.base.withValues(alpha: active ? 0.22 : 0.14),
-                    const Color(0xFF09111D).withValues(alpha: 0.96),
-                  ],
-                ),
+                color: Colors.white,
                 border: Border.all(
-                  color: palette.base.withValues(alpha: active ? 0.5 : 0.22),
+                  color: palette.base.withValues(alpha: active ? 0.3 : 0.1),
+                  width: active ? 1.5 : 1.0,
                 ),
                 boxShadow: <BoxShadow>[
                   BoxShadow(
-                    color: palette.base.withValues(alpha: highlighted ? 0.26 : 0.1),
-                    blurRadius: highlighted ? 22 : 10,
+                    color: palette.base.withValues(alpha: highlighted ? 0.15 : 0.05),
+                    blurRadius: highlighted ? 18 : 8,
                     spreadRadius: highlighted ? 2 : 0,
-                    offset: const Offset(0, 10),
+                    offset: const Offset(0, 6),
                   ),
                 ],
               ),
@@ -350,9 +364,9 @@ class _OrganTag extends StatelessWidget {
                           height: compact ? 28 : 32,
                           decoration: BoxDecoration(
                             shape: BoxShape.circle,
-                            color: palette.base.withValues(alpha: 0.18),
+                            color: palette.base.withValues(alpha: 0.1),
                             border: Border.all(
-                              color: palette.base.withValues(alpha: 0.4),
+                              color: palette.base.withValues(alpha: 0.2),
                             ),
                           ),
                           child: Icon(
@@ -366,7 +380,7 @@ class _OrganTag extends StatelessWidget {
                           child: Text(
                             spec.label,
                             style: theme.textTheme.labelLarge?.copyWith(
-                              color: Colors.white,
+                              color: const Color(0xFF0F172A),
                               fontWeight: FontWeight.w800,
                             ),
                           ),
@@ -375,15 +389,15 @@ class _OrganTag extends StatelessWidget {
                     ),
                     const SizedBox(height: 10),
                     Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 5),
+                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                       decoration: BoxDecoration(
-                        color: palette.base.withValues(alpha: 0.14),
+                        color: active ? const Color(0xFF1E293B) : const Color(0xFFF1F5F9), // Dark pill if active
                         borderRadius: BorderRadius.circular(999),
                       ),
                       child: Text(
                         badgeLabel,
                         style: theme.textTheme.labelSmall?.copyWith(
-                          color: palette.base,
+                          color: active ? Colors.white : const Color(0xFF64748B),
                           fontWeight: FontWeight.w700,
                         ),
                       ),
@@ -396,7 +410,7 @@ class _OrganTag extends StatelessWidget {
                       maxLines: 2,
                       overflow: TextOverflow.ellipsis,
                       style: theme.textTheme.bodySmall?.copyWith(
-                        color: Colors.white.withValues(alpha: 0.82),
+                        color: const Color(0xFF475569),
                         height: 1.35,
                       ),
                     ),
@@ -442,11 +456,11 @@ class _MetricChip extends StatelessWidget {
     final theme = Theme.of(context);
 
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
       decoration: BoxDecoration(
-        color: tone.withValues(alpha: 0.12),
+        color: tone.withValues(alpha: 0.1),
         borderRadius: BorderRadius.circular(18),
-        border: Border.all(color: tone.withValues(alpha: 0.28)),
+        border: Border.all(color: tone.withValues(alpha: 0.2)),
       ),
       child: RichText(
         text: TextSpan(
@@ -454,14 +468,15 @@ class _MetricChip extends StatelessWidget {
             TextSpan(
               text: '$value  ',
               style: theme.textTheme.titleMedium?.copyWith(
-                color: Colors.white,
+                color: tone.withValues(alpha: 0.8),
                 fontWeight: FontWeight.w800,
               ),
             ),
             TextSpan(
               text: label,
-              style: theme.textTheme.bodySmall?.copyWith(
-                color: Colors.white70,
+              style: theme.textTheme.bodyMedium?.copyWith(
+                color: const Color(0xFF475569),
+                fontWeight: FontWeight.w600,
                 height: 1.3,
               ),
             ),
@@ -485,9 +500,16 @@ class _LegendChip extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
       decoration: BoxDecoration(
-        color: Colors.white.withValues(alpha: 0.04),
+        color: Colors.white,
         borderRadius: BorderRadius.circular(999),
-        border: Border.all(color: Colors.white.withValues(alpha: 0.08)),
+        border: Border.all(color: const Color(0xFFE2E8F0)),
+        boxShadow: const [
+          BoxShadow(
+            color: Color(0x05000000),
+            blurRadius: 4,
+            offset: Offset(0, 2),
+          )
+        ],
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
@@ -510,7 +532,7 @@ class _LegendChip extends StatelessWidget {
           Text(
             label,
             style: theme.textTheme.labelMedium?.copyWith(
-              color: Colors.white70,
+              color: const Color(0xFF334155),
               fontWeight: FontWeight.w600,
             ),
           ),
@@ -547,15 +569,15 @@ class _SeverityPalette {
 _SeverityPalette _severityPalette(String? severity) {
   switch (severity) {
     case 'critical':
-      return const _SeverityPalette(Color(0xFFEF4444));
+      return const _SeverityPalette(Color(0xFFFF007F)); // Magenta
     case 'abnormal_high':
-      return const _SeverityPalette(Color(0xFFF59E0B));
+      return const _SeverityPalette(Color(0xFFD97706)); // Amber
     case 'abnormal_low':
-      return const _SeverityPalette(Color(0xFF38BDF8));
+      return const _SeverityPalette(Color(0xFF0284C7)); // Light Blue
     case 'normal':
-      return const _SeverityPalette(Color(0xFF10B981));
+      return const _SeverityPalette(Color(0xFF10B981)); // Emerald
     default:
-      return const _SeverityPalette(Color(0xFF94A3B8));
+      return const _SeverityPalette(Color(0xFF94A3B8)); // Slate
   }
 }
 
@@ -583,20 +605,20 @@ class _BodySilhouettePainter extends CustomPainter {
         begin: Alignment.topCenter,
         end: Alignment.bottomCenter,
         colors: <Color>[
-          Color(0xFF334155),
-          Color(0xFF162132),
-          Color(0xFF0B1220),
+          Color(0xFFE2E8F0),
+          Color(0xFFF1F5F9),
+          Color(0xFFFFFFFF),
         ],
       ).createShader(Offset.zero & size);
 
     final outlinePaint = Paint()
       ..style = PaintingStyle.stroke
       ..strokeWidth = 1.4
-      ..color = Colors.white.withValues(alpha: 0.08);
+      ..color = const Color(0xFFCBD5E1);
 
     final glowPaint = Paint()
       ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 30)
-      ..color = const Color(0xFF38BDF8).withValues(alpha: 0.12);
+      ..color = const Color(0xFFCBD5E1).withValues(alpha: 0.12);
 
     final headRect = Rect.fromCenter(
       center: Offset(centerX, size.height * 0.12),

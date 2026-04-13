@@ -13,16 +13,16 @@ class StreamLogPanel extends StatelessWidget {
       width: double.infinity,
       padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
-        color: Colors.black.withValues(alpha: 0.24),
+        color: const Color(0xFFF1F5F9), // Light grayish-blue for console
         borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: Colors.white.withValues(alpha: 0.04)),
+        border: Border.all(color: const Color(0xFFE2E8F0)),
       ),
       child: lines.isEmpty
           ? Center(
               child: Text(
                 'Stream output will appear here',
                 style: theme.textTheme.bodySmall?.copyWith(
-                  color: Colors.white.withValues(alpha: 0.5),
+                  color: const Color(0xFF94A3B8),
                 ),
               ),
             )
@@ -38,13 +38,14 @@ class StreamLogPanel extends StatelessWidget {
 
                 return Text(
                   line,
-                  style: theme.textTheme.bodySmall?.copyWith(
+                  style: theme.textTheme.bodyMedium?.copyWith(
                     color: isError
-                        ? Colors.red.withValues(alpha: 0.86)
+                        ? const Color(0xFFFF007F)
                         : isSuccess
-                            ? Colors.green.withValues(alpha: 0.86)
-                            : Colors.white.withValues(alpha: 0.86),
+                            ? const Color(0xFF10B981)
+                            : const Color(0xFF475569),
                     fontFamily: 'monospace',
+                    fontWeight: FontWeight.w600,
                     height: 1.5,
                   ),
                 );
