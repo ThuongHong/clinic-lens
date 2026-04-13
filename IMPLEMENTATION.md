@@ -67,9 +67,10 @@ Server Express chạy 3 API endpoint:
    - (Hiện tại mock; cần thêm ali_oss package để dùng thực)
 
 4. **BodyScenePanel** (widget)
-   - Vẽ silhouette cơ thể người 2D
-   - Highlight organ tags theo kết quả (màu xanh/đỏ)
-   - Placeholder cho flutter_scene khi có GLB asset
+   - Vẽ silhouette cơ thể người 2D với organ layout
+   - Highlight organ tags theo kết quả severity (xanh: normal, đỏ: abnormal)
+   - Animate color transitions khi dữ liệu cập nhật
+   - Fully responsive cho all screen sizes
 
 ## 🔄 Data Contract: JSON Từ Qwen
 

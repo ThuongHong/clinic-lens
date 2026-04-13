@@ -103,10 +103,10 @@ Qwen is constrained to always output **valid JSON** matching this schema:
   - Data contract validation
 
 - `mobile/lib/widgets/body_scene_panel.dart` ✅
-  - 2D silhouette visualization
-  - Organ highlighting (color-coded by severity)
-  - Organ tags showing status
-  - Placeholder for real 3D rendering
+  - 2D silhouette visualization with full organ layout
+  - Organ highlighting (blue=normal, red=abnormal)
+  - Interactive organ tags with status display
+  - Smooth color animation on severity changes
 
 - `mobile/lib/widgets/stream_log_panel.dart` ✅ **NEW**
   - Displays API stream output

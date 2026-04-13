@@ -16,12 +16,12 @@
 - **Task 3:** Viết **Few-shot Prompt** cực xịn cho Qwen3.6-Plus. Ép mô hình luôn phải trả về chuẩn mã JSON.
 - **Task 4:** Bắt các lỗ hổng của Qwen (Ví dụ: Đưa file ảnh mờ, đưa file PDF không phải y khoa) xem mô hình phản ứng sao và chỉnh lại Prompt.
 
-### 🎨 Member 3: 3D Visualization & UI (Chuyên gia Frontend Giao diện)
-*Người tập trung cao độ vào trải nghiệm thị giác (Wow-factor).*
-- **Task 1:** Lên Sketchfab săn lùng một file mô hình cơ thể người 3D (`human_anatomy.glb`) xịn xò nhất. Nếu dính background xấu thì dùng Blender gỡ ra.
-- **Task 2:** Thiết lập môi trường `flutter_scene` trong app Flutter. 
-- **Task 3:** Load thành công mô hình 3D lên điện thoại. 
-- **Task 4:** Viết một hàm Dart: Nhận đầu vào là biến JSON `{organ: "kidneys", severity: "high"}` thì tự động đổi màu mô hình 3D vùng Thận sang Đỏ rực. (Code tạm dữ liệu giả chưa cần AI).
+### 🎨 Member 3: 2D Visualization & UI Polish (Chuyên gia Frontend Giao diện)
+*Người tập trung vào trải nghiệm thị giác với 2D silhouette body diagram.*
+- **Task 1:** Polish giao diện `BodyScenePanel` - silhouette cơ thể người 2D: adjust organ positions, borders, gradients.
+- **Task 2:** Enhance organ tag UI - thêm icon, animation khi highlight, tooltip chi tiết chỉ số. 
+- **Task 3:** Viết animated color transition: Khi nhận JSON `{organ: "kidneys", severity: "high"}` → không gian vùng Thận chuyển sang Đỏ với animation mượt mà.
+- **Task 4:** Test responsive layout trên các kích cỡ màn hình (phone/tablet). Đảm bảo organ tags luôn aligned đúng.
 
 ### ⚙️ Member 4: Mobile Logic & Integration (Chuyên gia Frontend Luồng xử lý)
 *Nhân vật kết nối toàn bộ các mảnh ghép lại với nhau.*
