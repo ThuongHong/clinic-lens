@@ -1,0 +1,46 @@
+[
+  {
+    "id": "lab_pdf_primary",
+    "kind": "medical",
+    "file_path": "data/images/DiaG_feb_2026_p01.jpg",
+    "expect": {
+      "status": "success"
+    }
+  },
+  {
+    "id": "lab_pdf_page2",
+    "kind": "medical",
+    "file_path": "data/images/DiaG_feb_2026_p02.jpg",
+    "expect": {
+      "status": "success"
+    }
+  },
+  {
+    "id": "lab_pdf_page3",
+    "kind": "medical",
+    "file_path": "data/images/DiaG_feb_2026_p03.jpg",
+    "expect": {
+      "status": "success"
+    }
+  },
+  {
+    "id": "blurry_case",
+    "kind": "edge",
+    "file_path": "data/blur_sample.jpg",
+    "expect": {
+      "status": "error",
+      "error_code": "IMAGE_BLURRY"
+    },
+    "skip_if_missing": true
+  },
+  {
+    "id": "non_medical_case",
+    "kind": "edge",
+    "file_path": "data/not_medical.pdf",
+    "expect": {
+      "status": "error",
+      "error_code": "NOT_MEDICAL"
+    },
+    "skip_if_missing": true
+  }
+]

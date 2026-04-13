@@ -1,0 +1,106 @@
+{
+  "status": "success",
+  "patient_name": null,
+  "analysis_date": "2026-03-13",
+  "results": [
+    {
+      "indicator_name": "Homocysteine",
+      "value": "8",
+      "unit": "μmol/L",
+      "reference_range": "5.46 - 16.2",
+      "organ_id": "blood",
+      "severity": "normal",
+      "patient_advice": "Mức homocysteine của bạn ở mức bình thường, không cần lo lắng về nguy cơ rối loạn chuyển hóa."
+    },
+    {
+      "indicator_name": "Specific Gravity",
+      "value": "1.018",
+      "unit": "",
+      "reference_range": "1.015 - 1.025",
+      "organ_id": "kidneys",
+      "severity": "normal",
+      "patient_advice": "Độ比重 nước tiểu trong giới hạn bình thường, cho thấy chức năng thận đang hoạt động tốt."
+    },
+    {
+      "indicator_name": "pH",
+      "value": "5.5",
+      "unit": "",
+      "reference_range": "4.6 - 8",
+      "organ_id": "kidneys",
+      "severity": "normal",
+      "patient_advice": "Giá trị pH nước tiểu nằm trong phạm vi bình thường, phản ánh cân bằng acid-bazơ ổn định."
+    },
+    {
+      "indicator_name": "Blood",
+      "value": "Negative",
+      "unit": "",
+      "reference_range": "Negative",
+      "organ_id": "kidneys",
+      "severity": "normal",
+      "patient_advice": "Không phát hiện máu trong nước tiểu, đây là dấu hiệu tốt cho sức khỏe thận và đường tiết niệu."
+    },
+    {
+      "indicator_name": "Leukocytes",
+      "value": "Negative",
+      "unit": "",
+      "reference_range": "Negative",
+      "organ_id": "kidneys",
+      "severity": "normal",
+      "patient_advice": "Không có bạch cầu trong nước tiểu, cho thấy không có nhiễm trùng đường tiết niệu."
+    },
+    {
+      "indicator_name": "Nitrite",
+      "value": "Negative",
+      "unit": "",
+      "reference_range": "Negative",
+      "organ_id": "kidneys",
+      "severity": "normal",
+      "patient_advice": "Không phát hiện nitrit, giảm khả năng nhiễm khuẩn do vi khuẩn Gram âm."
+    },
+    {
+      "indicator_name": "Glucose",
+      "value": "Negative",
+      "unit": "",
+      "reference_range": "Negative",
+      "organ_id": "pancreas",
+      "severity": "normal",
+      "patient_advice": "Không có glucose trong nước tiểu, cho thấy kiểm soát đường huyết tốt."
+    },
+    {
+      "indicator_name": "Ketones",
+      "value": "Negative",
+      "unit": "",
+      "reference_range": "Negative",
+      "organ_id": "pancreas",
+      "severity": "normal",
+      "patient_advice": "Không phát hiện ketone, cho thấy cơ thể không đang trong trạng thái đói hoặc thiếu insulin nghiêm trọng."
+    },
+    {
+      "indicator_name": "Urobilinogen",
+      "value": "Normal",
+      "unit": "",
+      "reference_range": "Normal",
+      "organ_id": "liver",
+      "severity": "normal",
+      "patient_advice": "Urobilinogen ở mức bình thường, cho thấy chức năng gan và hệ thống mật đang hoạt động ổn định."
+    },
+    {
+      "indicator_name": "Bilirubin",
+      "value": "Negative",
+      "unit": "",
+      "reference_range": "Negative",
+      "organ_id": "liver",
+      "severity": "normal",
+      "patient_advice": "Không phát hiện bilirubin trong nước tiểu, cho thấy gan đang xử lý chất thải hiệu quả."
+    },
+    {
+      "indicator_name": "Protein",
+      "value": "Negative",
+      "unit": "",
+      "reference_range": "Negative",
+      "organ_id": "kidneys",
+      "severity": "normal",
+      "patient_advice": "Không có protein trong nước tiểu, cho thấy hàng rào lọc của thận đang hoạt động tốt."
+    }
+  ]
+}
