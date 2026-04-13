@@ -2,11 +2,17 @@ const express = require('express');
 const cors = require('cors');
 const axios = require('axios');
 const Core = require('@alicloud/pop-core');
+const OSS = require('ali-oss');
 require('dotenv').config();
 
 const app = express();
 app.use(cors());
 app.use(express.json());
+
+const DASHSCOPE_SG_URL = 'https://dashscope-intl.aliyuncs.com/compatible-mode/v1/chat/completions';
+const DASHSCOPE_MODEL = process.env.DASHSCOPE_MODEL || 'qwen-plus';
+const OSS_REGION = process.env.OSS_REGION;
+const OSS_BUCKET_NAME = process.env.OSS_BUCKET_NAME;
 
 // 1. Cấu hình STS Token (Alibaba Cloud)
 const stsClient = new Core({
@@ -14,6 +20,13 @@ const stsClient = new Core({
   accessKeySecret: process.env.ALI_SECRET_KEY,
   endpoint: 'https://sts.aliyuncs.com',
   apiVersion: '2015-04-01'
+});
+
+const ossClient = new OSS({
+  region: OSS_REGION,
+  bucket: OSS_BUCKET_NAME,
+  accessKeyId: process.env.ALI_ACCESS_KEY,
+  accessKeySecret: process.env.ALI_SECRET_KEY
 });
 
 // 2. Định nghĩa System Prompt hướng dẫn Qwen giải mã file Xét nghiệm y khoa
@@ -62,9 +75,40 @@ app.get('/api/sts-token', async (req, res) => {
 });
 
 /**
- * API 2: Analyze Document by Qwen3.6-Plus (SSE Streaming)
+ * API 2: Generate a short-lived signed GET URL for a private OSS object.
+ * Member 2/AI flow dùng URL này để đọc file private mà không cần public bucket.
+ */
+app.get('/api/sign-url', async (req, res) => {
+  const { object_key } = req.query;
+
+  if (!object_key) {
+    return res.status(400).json({ error: 'Thiếu object_key' });
+  }
+
+  try {
+    const expiresInSeconds = Number(req.query.expires_in || 300);
+    const signedUrl = ossClient.signatureUrl(object_key, {
+      method: 'GET',
+      expires: expiresInSeconds
+    });
+
+    res.json({
+      bucket: OSS_BUCKET_NAME,
+      region: OSS_REGION,
+      object_key,
+      expires_in: expiresInSeconds,
+      signed_url: signedUrl
+    });
+  } catch (error) {
+    console.error('OSS Sign URL Error:', error);
+    res.status(500).json({ error: 'Không thể tạo signed URL cho OSS object' });
+  }
+});
+
+/**
+ * API 3: Analyze Document via DashScope Singapore (SSE Streaming)
  * Mobile App gửi URL của file (sau khi đã upload OSS thành công).
- * Server dùng Event-Stream trả trực tiếp Text từ Qwen về Client realtime.
+ * Server proxy luồng stream từ DashScope về Client theo thời gian thực.
  */
 app.post('/api/analyze', async (req, res) => {
   const { file_url } = req.body; // URL file PDF/Ảnh trên OSS
@@ -81,31 +125,26 @@ app.post('/api/analyze', async (req, res) => {
   try {
     const qwenResponse = await axios({
       method: 'post',
-      url: 'https://dashscope.aliyuncs.com/api/v1/services/aigc/text-generation/generation',
+      url: DASHSCOPE_SG_URL,
       headers: {
         'Authorization': `Bearer ${process.env.DASHSCOPE_API_KEY}`,
-        'Content-Type': 'application/json',
-        'X-DashScope-SSE': 'enable' // Bật streaming
+        'Content-Type': 'application/json'
       },
       data: {
-        "model": "qwen3.6-plus", 
-        "input": {
-          "messages": [
-            { "role": "system", "content": QWEN_SYSTEM_PROMPT },
-            { "role": "user", "content": `Dưới đây là link file tài liệu xét nghiệm của tôi: ${file_url}` }
-          ]
-        },
-        "parameters": {
-          "result_format": "message",
-          "incremental_output": true // Bắn stream từng khối text nhỏ
-        }
+        model: DASHSCOPE_MODEL,
+        messages: [
+          { role: 'system', content: QWEN_SYSTEM_PROMPT },
+          {
+            role: 'user',
+            content: `Dưới đây là link file tài liệu xét nghiệm của tôi: ${file_url}. Hãy phân tích dữ liệu xét nghiệm trong tài liệu này và chỉ trả về JSON đúng schema đã yêu cầu.`
+          }
+        ],
+        stream: true
       },
-      responseType: 'stream' // Xử lý stream buffer
+      responseType: 'stream'
     });
 
-    // Ép luồng dữ liệu proxy thẳng tới Client
     qwenResponse.data.on('data', (chunk) => {
-      // Dữ liệu từ DashScope thường về dạng sự kiện: id, event, data
       res.write(chunk);
     });
 
@@ -113,8 +152,14 @@ app.post('/api/analyze', async (req, res) => {
       res.end();
     });
 
+    qwenResponse.data.on('error', (streamError) => {
+      console.error('Qwen stream error:', streamError.message);
+      res.write('event: error\ndata: {"message": "Lỗi stream từ DashScope Singapore"}\n\n');
+      res.end();
+    });
+
   } catch (error) {
-    console.error('Qwen API Error:', error.message);
+    console.error('Qwen API Error:', error.response?.data || error.message);
     res.write('event: error\ndata: {"message": "Internal Server Lỗi khi gọi Qwen"}\n\n');
     res.end();
   }
@@ -122,5 +167,5 @@ app.post('/api/analyze', async (req, res) => {
 
 const PORT = process.env.PORT || 9000;
 app.listen(PORT, () => {
-  console.log(\`Qwen Labs Analyzer Backend running on port \${PORT}\`);
+  console.log(`Qwen Labs Analyzer Backend running on port ${PORT}`);
 });
