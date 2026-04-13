@@ -16,7 +16,6 @@ class HomeView extends StatefulWidget {
 class _HomeViewState extends State<HomeView> {
   late final TextEditingController _baseUrlController;
   late final TextEditingController _fileUrlController;
-  late final BackendApi _api;
 
   String _status = 'Idle';
   LabAnalysis _analysis = const LabAnalysis(
@@ -32,19 +31,13 @@ class _HomeViewState extends State<HomeView> {
     super.initState();
     _baseUrlController = TextEditingController(text: 'http://localhost:9000');
     _fileUrlController = TextEditingController(text: 'https://example-bucket.oss-cn-hangzhou.aliyuncs.com/sample-lab.pdf');
-    _api = BackendApi(baseUrl: _baseUrlController.text.trim());
   }
 
   @override
   void dispose() {
     _baseUrlController.dispose();
     _fileUrlController.dispose();
-    _api.dispose();
     super.dispose();
-  }
-
-  void _refreshApiClient() {
-    _api.dispose();
   }
 
   Future<void> _loadMockData() async {

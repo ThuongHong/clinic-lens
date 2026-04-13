@@ -162,45 +162,68 @@ class _AnalysisScreenState extends State<AnalysisScreen> {
               const SizedBox(height: 8),
               // Main Content: scrollable
               Expanded(
-                child: SingleChildScrollView(
-                  padding: const EdgeInsets.symmetric(horizontal: 16),
-                  child: Column(
-                    children: [
-                      // Upload Section
-                      _UploadSection(
-                        selectedFile: _selectedFile,
-                        busy: _busy,
-                        onPickFile: _pickFile,
-                        onAnalyze: _runAnalysis,
-                      ),
-                      const SizedBox(height: 24),
-                      // Body Scene (Organ Visualization)
-                      BodyScenePanel(highlightedOrgans: highlightedOrgans),
-                      const SizedBox(height: 24),
-                      // Analysis Results
-                      if (_analysis != null)
-                        _ResultsPanel(analysis: _analysis!)
-                      else if (_busy)
-                        _LoadingPanel(status: _status)
-                      else
-                        Container(
-                          padding: const EdgeInsets.all(16),
-                          decoration: BoxDecoration(
-                            color: const Color(0xFF0B1729).withValues(alpha: 0.6),
-                            borderRadius: BorderRadius.circular(16),
-                            border: Border.all(color: Colors.white.withValues(alpha: 0.08)),
-                          ),
-                          child: Text(
-                            'Upload a file to begin analysis',
-                            style: theme.textTheme.bodySmall?.copyWith(color: Colors.white70),
-                          ),
+                child: LayoutBuilder(
+                  builder: (context, constraints) {
+                    final isWide = constraints.maxWidth >= 980;
+                    final horizontalPadding = constraints.maxWidth >= 720 ? 24.0 : 16.0;
+
+                    final rightColumn = Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        _UploadSection(
+                          selectedFile: _selectedFile,
+                          busy: _busy,
+                          onPickFile: _pickFile,
+                          onAnalyze: _runAnalysis,
                         ),
-                      const SizedBox(height: 24),
-                      // Stream Log
-                      if (_streamLines.isNotEmpty)
-                        StreamLogPanel(lines: _streamLines),
-                    ],
-                  ),
+                        const SizedBox(height: 24),
+                        if (_analysis != null)
+                          _ResultsPanel(analysis: _analysis!)
+                        else if (_busy)
+                          _LoadingPanel(status: _status)
+                        else
+                          Container(
+                            padding: const EdgeInsets.all(16),
+                            decoration: BoxDecoration(
+                              color: const Color(0xFF0B1729).withValues(alpha: 0.6),
+                              borderRadius: BorderRadius.circular(16),
+                              border: Border.all(color: Colors.white.withValues(alpha: 0.08)),
+                            ),
+                            child: Text(
+                              'Upload a file to begin analysis',
+                              style: theme.textTheme.bodySmall?.copyWith(color: Colors.white70),
+                            ),
+                          ),
+                        if (_streamLines.isNotEmpty) ...[
+                          const SizedBox(height: 24),
+                          StreamLogPanel(lines: _streamLines),
+                        ],
+                      ],
+                    );
+
+                    return SingleChildScrollView(
+                      padding: EdgeInsets.fromLTRB(horizontalPadding, 8, horizontalPadding, 24),
+                      child: isWide
+                          ? Row(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Expanded(
+                                  flex: 11,
+                                  child: BodyScenePanel(highlightedOrgans: highlightedOrgans),
+                                ),
+                                const SizedBox(width: 24),
+                                Expanded(flex: 9, child: rightColumn),
+                              ],
+                            )
+                          : Column(
+                              children: [
+                                BodyScenePanel(highlightedOrgans: highlightedOrgans),
+                                const SizedBox(height: 24),
+                                rightColumn,
+                              ],
+                            ),
+                    );
+                  },
                 ),
               ),
             ],
@@ -444,10 +467,10 @@ class _ResultItem extends StatelessWidget {
             'Ref: ${result.referenceRange}',
             style: theme.textTheme.bodySmall?.copyWith(color: Colors.white60),
           ),
-          if (result.patientAdvice != null && result.patientAdvice!.isNotEmpty) ...[
+          if (result.patientAdvice.isNotEmpty) ...[
             const SizedBox(height: 8),
             Text(
-              result.patientAdvice!,
+              result.patientAdvice,
               style: theme.textTheme.bodySmall?.copyWith(color: Colors.white70),
               maxLines: 2,
               overflow: TextOverflow.ellipsis,
