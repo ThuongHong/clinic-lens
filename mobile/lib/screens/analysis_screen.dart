@@ -36,8 +36,9 @@ class _AnalysisScreenState extends State<AnalysisScreen> {
   @override
   void initState() {
     super.initState();
-    _backendApi = BackendApi(baseUrl: 'http://localhost:9000');
+    _backendApi = BackendApi(baseUrl: resolveBackendBaseUrl());
     _uploadService = FileUploadService();
+    _streamLines.add('Backend: ${_backendApi.baseUrl}');
     _loadHistory();
   }
 
@@ -96,6 +97,33 @@ class _AnalysisScreenState extends State<AnalysisScreen> {
     });
 
     try {
+      final isDesktopLocalPdf = Platform.isLinux &&
+          _selectedFile != null &&
+          _selectedFile!.path.toLowerCase().endsWith('.pdf');
+
+      if (isDesktopLocalPdf) {
+        _streamLines.add('Step 1: Running local PDF pipeline on demo machine');
+        setState(() => _status = 'Running local PDF pipeline...');
+
+        await for (final event in _backendApi.streamAnalysis(
+          localFilePath: _selectedFile!.path,
+        )) {
+          if (!mounted) {
+            break;
+          }
+
+          _handleStreamEvent(event);
+        }
+
+        await _loadHistory(selectedHistoryId: _selectedHistoryId);
+
+        setState(() {
+          _status = _analysis != null ? 'Analysis complete' : 'Stream ended';
+          _streamLines.add('✓ Local PDF analysis finished');
+        });
+        return;
+      }
+
       _streamLines.add('Step 1: Requesting STS token from backend');
 
       final stsResponse = await _backendApi.fetchStsToken();

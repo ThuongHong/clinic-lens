@@ -2,15 +2,15 @@ import argparse
 import json
 import os
 import re
+import shutil
+import subprocess
 import sys
 from pathlib import Path
 
 try:
     import fitz  # PyMuPDF
 except ImportError:
-    print("Missing dependency: pymupdf")
-    print("Install with: python -m pip install pymupdf")
-    sys.exit(1)
+    fitz = None
 
 try:
     import requests
@@ -127,14 +127,39 @@ def extract_json(raw: str):
 
 def convert_pdf_to_png(pdf_path: Path, out_dir: Path) -> list[Path]:
     out_dir.mkdir(parents=True, exist_ok=True)
-    doc = fitz.open(pdf_path)
-    outputs = []
-    for i in range(doc.page_count):
-        page = doc.load_page(i)
-        pix = page.get_pixmap(matrix=fitz.Matrix(2, 2))
-        out = out_dir / f"{pdf_path.stem.replace(' ', '_')}_p{i+1:02d}.png"
-        pix.save(str(out))
-        outputs.append(out)
+    if fitz is not None:
+        doc = fitz.open(pdf_path)
+        outputs = []
+        for i in range(doc.page_count):
+            page = doc.load_page(i)
+            pix = page.get_pixmap(matrix=fitz.Matrix(2, 2))
+            out = out_dir / f"{pdf_path.stem.replace(' ', '_')}_p{i+1:02d}.png"
+            pix.save(str(out))
+            outputs.append(out)
+        return outputs
+
+    pdftoppm_bin = shutil.which("pdftoppm")
+    if not pdftoppm_bin:
+        raise RuntimeError("Missing PDF renderer. Install pymupdf or ensure pdftoppm is available.")
+
+    prefix = out_dir / pdf_path.stem.replace(" ", "_")
+    subprocess.run(
+        [
+            pdftoppm_bin,
+            "-png",
+            "-r",
+            "200",
+            str(pdf_path),
+            str(prefix),
+        ],
+        check=True,
+        capture_output=True,
+        text=True,
+    )
+
+    outputs = sorted(out_dir.glob(f"{prefix.name}-*.png"))
+    if not outputs:
+        raise RuntimeError("pdftoppm did not generate any page images")
     return outputs
 
 
@@ -223,6 +248,10 @@ def main():
     parser = argparse.ArgumentParser(description="Member2 pipeline: PDF->PNG->classify->extract->summary")
     parser.add_argument("--pdf", default=str(DEFAULT_PDF), help="Input PDF path")
     parser.add_argument("--max-pages", type=int, default=0, help="Limit processed pages (0 = all)")
+    parser.add_argument("--images-dir", default=str(IMAGES_DIR), help="Directory for extracted page images")
+    parser.add_argument("--page-output-dir", default=str(PAGE_OUTPUT_DIR), help="Directory for per-page JSON outputs")
+    parser.add_argument("--summary-out", default=str(SUMMARY_PATH), help="Path for merged summary JSON")
+    parser.add_argument("--stdout-json", action="store_true", help="Print final summary JSON to stdout")
     args = parser.parse_args()
 
     api_key = get_api_key()
@@ -235,10 +264,24 @@ def main():
     if not pdf_path.exists():
         raise FileNotFoundError(f"PDF not found: {pdf_path}")
 
-    OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
-    PAGE_OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
+    images_dir = Path(args.images_dir)
+    if not images_dir.is_absolute():
+        images_dir = ROOT / images_dir
 
-    pages = convert_pdf_to_png(pdf_path, IMAGES_DIR)
+    page_output_dir = Path(args.page_output_dir)
+    if not page_output_dir.is_absolute():
+        page_output_dir = ROOT / page_output_dir
+
+    summary_out = Path(args.summary_out)
+    if not summary_out.is_absolute():
+        summary_out = ROOT / summary_out
+
+    summary_out.parent.mkdir(parents=True, exist_ok=True)
+    page_output_dir.mkdir(parents=True, exist_ok=True)
+
+    log_stream = sys.stderr if args.stdout_json else sys.stdout
+
+    pages = convert_pdf_to_png(pdf_path, images_dir)
     if args.max_pages > 0:
         pages = pages[: args.max_pages]
 
@@ -248,7 +291,7 @@ def main():
     page_meta = []
 
     for idx, image_path in enumerate(pages, start=1):
-        print(f"[page {idx}] classify {image_path.name}")
+        print(f"[page {idx}] classify {image_path.name}", file=log_stream)
         cls = classify_page(api_key, image_path)
         is_data = cls.get("page_type") == "medical_data"
         page_meta.append(
@@ -262,7 +305,7 @@ def main():
         if not is_data:
             continue
 
-        print(f"[page {idx}] extract")
+        print(f"[page {idx}] extract", file=log_stream)
         raw = call_qwen(
             api_key,
             system_prompt,
@@ -272,7 +315,7 @@ def main():
             temperature=0.0,
         )
         payload = extract_json(raw)
-        out_file = PAGE_OUTPUT_DIR / f"page_{idx:02d}.json"
+        out_file = page_output_dir / f"page_{idx:02d}.json"
         out_file.write_text(json.dumps(payload, ensure_ascii=False, indent=2), encoding="utf-8")
         page_runs.append({"page_number": idx, "image": str(image_path), "payload": payload, "output": str(out_file)})
 
@@ -282,9 +325,12 @@ def main():
     merged["summary"]["selected_pages"] = len(page_runs)
     merged["summary"]["skipped_pages"] = len(pages) - len(page_runs)
 
-    SUMMARY_PATH.write_text(json.dumps(merged, ensure_ascii=False, indent=2), encoding="utf-8")
-    print(f"Summary written: {SUMMARY_PATH}")
-    print(f"Page outputs dir: {PAGE_OUTPUT_DIR}")
+    summary_out.write_text(json.dumps(merged, ensure_ascii=False, indent=2), encoding="utf-8")
+    print(f"Summary written: {summary_out}", file=log_stream)
+    print(f"Page outputs dir: {page_output_dir}", file=log_stream)
+
+    if args.stdout_json:
+        print(json.dumps(merged, ensure_ascii=False))
 
 
 if __name__ == "__main__":

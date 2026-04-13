@@ -1,8 +1,11 @@
 const fs = require('fs');
 const path = require('path');
+const os = require('os');
 const express = require('express');
 const cors = require('cors');
 const axios = require('axios');
+const { execFile } = require('child_process');
+const { promisify } = require('util');
 const Core = require('@alicloud/pop-core');
 const OSS = require('ali-oss');
 const dotenv = require('dotenv');
@@ -14,6 +17,8 @@ const {
   normalizeAnalysisPayload,
   parseJsonFromModelOutput
 } = require('./member2_runtime');
+
+const execFileAsync = promisify(execFile);
 
 const envCandidates = [
   path.resolve(__dirname, '..', '.env'),
@@ -160,6 +165,114 @@ function buildQwenMessages(fileUrl) {
   ];
 }
 
+function isPdfReference({ fileUrl, objectKey }) {
+  const objectKeyValue = typeof objectKey === 'string' ? objectKey.trim().toLowerCase() : '';
+  if (objectKeyValue.endsWith('.pdf')) {
+    return true;
+  }
+
+  const fileUrlValue = typeof fileUrl === 'string' ? fileUrl.trim() : '';
+  if (!fileUrlValue) {
+    return false;
+  }
+
+  try {
+    const parsedUrl = new URL(fileUrlValue);
+    return parsedUrl.pathname.toLowerCase().endsWith('.pdf');
+  } catch (_) {
+    return /\.pdf(\?|$)/i.test(fileUrlValue);
+  }
+}
+
+async function downloadRemoteFile(sourceUrl, destinationPath, signal) {
+  const response = await axios({
+    method: 'get',
+    url: sourceUrl,
+    responseType: 'arraybuffer',
+    signal,
+    timeout: 0
+  });
+
+  await fs.promises.writeFile(destinationPath, Buffer.from(response.data));
+}
+
+async function runMember2PdfPipeline({ pdfUrl, pdfPath, signal }) {
+  const workspaceDir = await fs.promises.mkdtemp(path.join(os.tmpdir(), 'member2-pdf-'));
+  const workingPdfPath = pdfPath || path.join(workspaceDir, 'input.pdf');
+  const imagesDir = path.join(workspaceDir, 'images');
+  const pageOutputDir = path.join(workspaceDir, 'page_outputs');
+  const summaryPath = path.join(workspaceDir, 'summary.json');
+  const pythonBin = process.env.PYTHON_BIN || 'python';
+  const timeoutMs = Number(process.env.MEMBER2_PDF_TIMEOUT_MS || 420000);
+
+  try {
+    if (!workingPdfPath) {
+      throw new Error('Missing pdfPath or pdfUrl for member2 PDF pipeline');
+    }
+
+    if (!pdfPath) {
+      await downloadRemoteFile(pdfUrl, workingPdfPath, signal);
+    }
+
+    const { stdout, stderr } = await execFileAsync(
+      pythonBin,
+      [
+        path.resolve(__dirname, 'member2_summary_pipeline.py'),
+        '--pdf',
+        workingPdfPath,
+        '--images-dir',
+        imagesDir,
+        '--page-output-dir',
+        pageOutputDir,
+        '--summary-out',
+        summaryPath,
+        '--stdout-json'
+      ],
+      {
+        cwd: path.resolve(__dirname, '..'),
+        env: {
+          ...process.env,
+          PYTHONIOENCODING: 'utf-8'
+        },
+        maxBuffer: 20 * 1024 * 1024,
+        timeout: timeoutMs,
+        signal
+      }
+    );
+
+    return {
+      payload: parseJsonFromModelOutput(stdout),
+      logs: stderr
+    };
+  } finally {
+    await fs.promises.rm(workspaceDir, { recursive: true, force: true });
+  }
+}
+
+function mergePipelineSummary(baseSummary, pipelineSummary) {
+  if (!pipelineSummary || typeof pipelineSummary !== 'object') {
+    return baseSummary;
+  }
+
+  const merged = { ...baseSummary };
+  const numericKeys = [
+    'total_pages',
+    'selected_pages',
+    'skipped_pages',
+    'total_results_raw',
+    'total_results_unique'
+  ];
+
+  for (const key of numericKeys) {
+    const value = pipelineSummary[key];
+    if (typeof value === 'number' && Number.isFinite(value)) {
+      merged[key] = value;
+    }
+  }
+
+  return merged;
+}
+
 async function generateAdviceFromAnalysis(analysis, summary) {
   const qwenResponse = await axios({
     method: 'post',
@@ -185,6 +298,60 @@ async function generateAdviceFromAnalysis(analysis, summary) {
   const rawContent = qwenResponse.data?.choices?.[0]?.message?.content || '';
   const parsed = parseJsonFromModelOutput(rawContent);
   return normalizeAdvicePayload(parsed, analysis, summary);
+}
+
+async function persistAndEmitAnalysis({
+  rawPayload,
+  objectKey,
+  fileUrl,
+  res
+}) {
+  const normalizedAnalysis = normalizeAnalysisPayload(rawPayload);
+  let summary = buildAnalysisSummary(normalizedAnalysis);
+  let advice = null;
+
+  summary = mergePipelineSummary(summary, rawPayload?.summary);
+
+  writeSseEvent(res, 'post_process', {
+    stage: 'summary',
+    message: 'Da trich xuat xong chi so, dang tong hop ket qua.'
+  });
+
+  if (normalizedAnalysis.status === 'success') {
+    try {
+      writeSseEvent(res, 'post_process', {
+        stage: 'advice',
+        message: 'Dang tao loi khuyen ca nhan hoa tu pipeline cua member 2.'
+      });
+      advice = await generateAdviceFromAnalysis(normalizedAnalysis, summary);
+    } catch (adviceError) {
+      console.error('Advice Generation Error:', adviceError.response?.data || adviceError.message);
+      writeSseEvent(res, 'warning', {
+        message: 'Khong tao duoc loi khuyen tong quat, se tra ket qua xet nghiem co ban.'
+      });
+    }
+  }
+
+  const persistedAnalysis = {
+    ...normalizedAnalysis,
+    summary,
+    ...(Array.isArray(rawPayload?.pages) ? { pages: rawPayload.pages } : {}),
+    ...(advice ? { advice } : {})
+  };
+
+  const entry = persistAnalysisHistory({
+    analysis: persistedAnalysis,
+    objectKey,
+    fileUrl
+  });
+
+  writeSseEvent(res, 'result', {
+    ...entry.analysis,
+    history_id: entry.id,
+    created_at: entry.created_at
+  });
+
+  return entry;
 }
 
 app.get('/api/analyses', (req, res) => {
@@ -271,10 +438,10 @@ app.get('/api/sign-url', async (req, res) => {
  * Server proxy luồng stream từ DashScope về Client theo thời gian thực.
  */
 app.post('/api/analyze', async (req, res) => {
-  const { file_url, object_key } = req.body;
+  const { file_url, object_key, local_file_path } = req.body;
 
-  if (!file_url && !object_key) {
-    return res.status(400).json({ error: 'Thiếu file_url hoặc object_key để phân tích' });
+  if (!file_url && !object_key && !local_file_path) {
+    return res.status(400).json({ error: 'Thiếu file_url, object_key hoặc local_file_path để phân tích' });
   }
 
   res.setHeader('Content-Type', 'text/event-stream; charset=utf-8');
@@ -284,8 +451,19 @@ app.post('/api/analyze', async (req, res) => {
   res.flushHeaders?.();
 
   const abortController = new AbortController();
+  let clientDisconnected = false;
 
-  req.on('close', () => {
+  req.on('aborted', () => {
+    clientDisconnected = true;
+    abortController.abort();
+  });
+
+  res.on('close', () => {
+    if (res.writableEnded) {
+      return;
+    }
+
+    clientDisconnected = true;
     abortController.abort();
   });
 
@@ -294,18 +472,84 @@ app.post('/api/analyze', async (req, res) => {
   try {
     let analysisUrl = typeof file_url === 'string' ? file_url.trim() : '';
     let finalized = false;
+    const normalizedObjectKey = typeof object_key === 'string' ? object_key.trim().replace(/^\/+/, '') : '';
+    const originalFileUrl = typeof file_url === 'string' ? file_url.trim() : '';
+    const localFilePath = typeof local_file_path === 'string' ? local_file_path.trim() : '';
 
     if (!analysisUrl && typeof object_key === 'string') {
-      const sanitizedObjectKey = object_key.trim().replace(/^\/+/, '');
-      if (!sanitizedObjectKey) {
+      if (!normalizedObjectKey) {
         writeSseEvent(res, 'error', { message: 'object_key không hợp lệ' });
         return res.end();
       }
-      analysisUrl = signObjectKey(sanitizedObjectKey, 600);
+      analysisUrl = signObjectKey(normalizedObjectKey, 600);
       writeSseEvent(res, 'signed_url_ready', {
-        object_key: sanitizedObjectKey,
+        object_key: normalizedObjectKey,
         expires_in: 600
       });
+    }
+
+    const shouldUseLocalPdfPipeline = Boolean(localFilePath) && localFilePath.toLowerCase().endsWith('.pdf');
+
+    if (shouldUseLocalPdfPipeline) {
+      try {
+        await fs.promises.access(localFilePath, fs.constants.R_OK);
+      } catch (_) {
+        writeSseEvent(res, 'error', {
+          message: 'Khong the doc file PDF cuc bo duoc chon tren may nay.'
+        });
+        return res.end();
+      }
+    }
+
+    if (shouldUseLocalPdfPipeline || isPdfReference({ fileUrl: analysisUrl, objectKey: normalizedObjectKey })) {
+      try {
+        writeSseEvent(res, 'post_process', {
+          stage: 'pdf_pipeline',
+          message: shouldUseLocalPdfPipeline
+            ? 'Dang chay pipeline PDF cuc bo cua member 2 tren may demo.'
+            : 'Da nhan PDF, dang chay pipeline tach trang cua member 2.'
+        });
+
+        const pipelineResult = await runMember2PdfPipeline({
+          pdfUrl: shouldUseLocalPdfPipeline ? '' : analysisUrl,
+          pdfPath: shouldUseLocalPdfPipeline ? localFilePath : '',
+          signal: abortController.signal
+        });
+
+        if (pipelineResult.logs?.trim()) {
+          console.log(`Member2 PDF Pipeline Logs:\n${pipelineResult.logs.trim()}`);
+        }
+
+        await persistAndEmitAnalysis({
+          rawPayload: pipelineResult.payload,
+          objectKey: normalizedObjectKey,
+          fileUrl: shouldUseLocalPdfPipeline ? localFilePath : originalFileUrl,
+          res
+        });
+
+        writeSseEvent(res, 'done', {
+          message: 'completed',
+          mode: 'member2_pdf'
+        });
+        return res.end();
+      } catch (pdfPipelineError) {
+        if (clientDisconnected || abortController.signal.aborted) {
+          return res.end();
+        }
+        console.error('Member2 PDF Pipeline Error:', pdfPipelineError.stderr || pdfPipelineError.message);
+        writeSseEvent(res, 'warning', {
+          message: shouldUseLocalPdfPipeline
+            ? 'PDF pipeline cuc bo cua member 2 gap loi.'
+            : 'PDF pipeline cua member 2 khong kha dung, dang fallback ve luong phan tich mac dinh.'
+        });
+
+        if (shouldUseLocalPdfPipeline) {
+          writeSseEvent(res, 'error', {
+            message: 'Khong the phan tich PDF cuc bo tren may demo. Thu lai voi anh chup hoac kiem tra pipeline PDF.'
+          });
+          return res.end();
+        }
+      }
     }
 
     let streamBuffer = '';
@@ -319,48 +563,14 @@ app.post('/api/analyze', async (req, res) => {
 
       try {
         const parsed = parseJsonFromModelOutput(aggregatedText);
-        const normalizedAnalysis = normalizeAnalysisPayload(parsed);
-        const summary = buildAnalysisSummary(normalizedAnalysis);
-        let advice = null;
-
-        writeSseEvent(res, 'post_process', {
-          stage: 'summary',
-          message: 'Da trich xuat xong chi so, dang tong hop ket qua.'
-        });
-
-        if (normalizedAnalysis.status === 'success') {
-          try {
-            writeSseEvent(res, 'post_process', {
-              stage: 'advice',
-              message: 'Dang tao loi khuyen ca nhan hoa tu pipeline cua member 2.'
-            });
-            advice = await generateAdviceFromAnalysis(normalizedAnalysis, summary);
-          } catch (adviceError) {
-            console.error('Advice Generation Error:', adviceError.response?.data || adviceError.message);
-            writeSseEvent(res, 'warning', {
-              message: 'Khong tao duoc loi khuyen tong quat, se tra ket qua xet nghiem co ban.'
-            });
-          }
-        }
-
-        const persistedAnalysis = {
-          ...normalizedAnalysis,
-          summary,
-          ...(advice ? { advice } : {})
-        };
-
-        const entry = persistAnalysisHistory({
-          analysis: persistedAnalysis,
-          objectKey: typeof object_key === 'string' ? object_key.trim() : '',
-          fileUrl: typeof file_url === 'string' ? file_url.trim() : ''
+        const entry = await persistAndEmitAnalysis({
+          rawPayload: parsed,
+          objectKey: normalizedObjectKey,
+          fileUrl: originalFileUrl,
+          res
         });
 
         finalized = true;
-        writeSseEvent(res, 'result', {
-          ...entry.analysis,
-          history_id: entry.id,
-          created_at: entry.created_at
-        });
       } catch (parseError) {
         if (emitError) {
           writeSseEvent(res, 'error', {
@@ -441,6 +651,9 @@ app.post('/api/analyze', async (req, res) => {
     });
 
     qwenResponse.data.on('end', async () => {
+      if (clientDisconnected || abortController.signal.aborted) {
+        return res.end();
+      }
       await finalizeStructuredResult({ emitError: true });
       if (streamCompleted) {
         writeSseEvent(res, 'done', { message: 'completed' });
@@ -449,11 +662,17 @@ app.post('/api/analyze', async (req, res) => {
     });
 
     qwenResponse.data.on('error', (streamError) => {
+      if (clientDisconnected || abortController.signal.aborted) {
+        return res.end();
+      }
       console.error('Qwen stream error:', streamError.message);
       writeSseEvent(res, 'error', { message: 'Lỗi stream từ DashScope Singapore' });
       res.end();
     });
   } catch (error) {
+    if (clientDisconnected || abortController.signal.aborted) {
+      return res.end();
+    }
     console.error('Qwen API Error:', error.response?.data || error.message);
     writeSseEvent(res, 'error', { message: 'Internal Server Lỗi khi gọi Qwen' });
     res.end();

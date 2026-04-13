@@ -1,9 +1,28 @@
 import 'dart:async';
 import 'dart:convert';
+import 'dart:io';
 
+import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
 
 import '../models/lab_analysis.dart';
+
+String resolveBackendBaseUrl() {
+  const configuredBaseUrl = String.fromEnvironment('BACKEND_BASE_URL');
+  if (configuredBaseUrl.isNotEmpty) {
+    return configuredBaseUrl;
+  }
+
+  if (kIsWeb) {
+    return 'http://localhost:9000';
+  }
+
+  if (Platform.isAndroid) {
+    return 'http://10.0.2.2:9000';
+  }
+
+  return 'http://localhost:9000';
+}
 
 class BackendApi {
   BackendApi({required this.baseUrl, http.Client? client}) : _client = client ?? http.Client();
@@ -67,9 +86,12 @@ class BackendApi {
   Stream<SseEvent> streamAnalysis({
     String? fileUrl,
     String? objectKey,
+    String? localFilePath,
   }) async* {
-    if ((fileUrl == null || fileUrl.isEmpty) && (objectKey == null || objectKey.isEmpty)) {
-      throw ArgumentError('Either fileUrl or objectKey must be provided.');
+    if ((fileUrl == null || fileUrl.isEmpty) &&
+        (objectKey == null || objectKey.isEmpty) &&
+        (localFilePath == null || localFilePath.isEmpty)) {
+      throw ArgumentError('Either fileUrl, objectKey or localFilePath must be provided.');
     }
 
     final request = http.Request('POST', _uri('/api/analyze'));
@@ -77,6 +99,7 @@ class BackendApi {
     request.body = jsonEncode(<String, dynamic>{
       if (fileUrl != null && fileUrl.isNotEmpty) 'file_url': fileUrl,
       if (objectKey != null && objectKey.isNotEmpty) 'object_key': objectKey,
+      if (localFilePath != null && localFilePath.isNotEmpty) 'local_file_path': localFilePath,
     });
 
     final streamed = await _client.send(request);

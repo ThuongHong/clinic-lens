@@ -27,6 +27,8 @@ class StreamLogPanel extends StatelessWidget {
               ),
             )
           : ListView.separated(
+              shrinkWrap: true,
+              physics: const NeverScrollableScrollPhysics(),
               itemCount: lines.length,
               separatorBuilder: (_, __) => const SizedBox(height: 8),
               itemBuilder: (context, index) {
