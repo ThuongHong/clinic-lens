@@ -43,6 +43,9 @@ const DASHSCOPE_MODEL = process.env.DASHSCOPE_MODEL || 'qwen-plus';
 const OSS_REGION = process.env.OSS_REGION;
 const OSS_BUCKET_NAME = process.env.OSS_BUCKET_NAME;
 const PORT = Number(process.env.PORT || 9000);
+const HISTORY_DIR = path.resolve(__dirname, 'data');
+const HISTORY_FILE = path.join(HISTORY_DIR, 'analysis_history.json');
+const HISTORY_LIMIT = 30;
 
 // 1. Cấu hình STS Token (Alibaba Cloud)
 const stsClient = new Core({
@@ -87,6 +90,70 @@ function writeSseEvent(res, eventName, payload) {
   res.write(`data: ${JSON.stringify(payload)}\n\n`);
 }
 
+function ensureHistoryStore() {
+  if (!fs.existsSync(HISTORY_DIR)) {
+    fs.mkdirSync(HISTORY_DIR, { recursive: true });
+  }
+
+  if (!fs.existsSync(HISTORY_FILE)) {
+    fs.writeFileSync(HISTORY_FILE, '[]\n', 'utf8');
+  }
+}
+
+function readAnalysisHistory() {
+  ensureHistoryStore();
+
+  try {
+    const raw = fs.readFileSync(HISTORY_FILE, 'utf8');
+    const parsed = JSON.parse(raw);
+    return Array.isArray(parsed) ? parsed : [];
+  } catch (error) {
+    console.error('History Read Error:', error.message);
+    return [];
+  }
+}
+
+function writeAnalysisHistory(items) {
+  ensureHistoryStore();
+  fs.writeFileSync(HISTORY_FILE, `${JSON.stringify(items, null, 2)}\n`, 'utf8');
+}
+
+function normalizeAnalysisPayload(payload) {
+  const rawResults = Array.isArray(payload?.results) ? payload.results : [];
+
+  return {
+    status: payload?.status?.toString() || 'success',
+    analysis_date: payload?.analysis_date?.toString() || new Date().toISOString().slice(0, 10),
+    ...(payload?.patient_name ? { patient_name: payload.patient_name.toString() } : {}),
+    results: rawResults.map((result) => ({
+      indicator_name: result?.indicator_name?.toString() || '',
+      value: result?.value?.toString() || '',
+      unit: result?.unit?.toString() || '',
+      reference_range: result?.reference_range?.toString() || '',
+      organ_id: result?.organ_id?.toString() || 'other',
+      severity: result?.severity?.toString() || 'normal',
+      patient_advice: result?.patient_advice?.toString() || ''
+    }))
+  };
+}
+
+function persistAnalysisHistory({ analysis, objectKey, fileUrl }) {
+  const normalized = normalizeAnalysisPayload(analysis);
+  const entry = {
+    id: `analysis_${Date.now()}_${Math.random().toString(16).slice(2, 8)}`,
+    created_at: new Date().toISOString(),
+    object_key: objectKey || null,
+    file_url: fileUrl || null,
+    analysis: normalized
+  };
+
+  const history = readAnalysisHistory();
+  history.unshift(entry);
+  writeAnalysisHistory(history.slice(0, HISTORY_LIMIT));
+
+  return entry;
+}
+
 function signObjectKey(objectKey, expiresInSeconds = 300) {
   return ossClient.signatureUrl(objectKey, {
     method: 'GET',
@@ -124,6 +191,21 @@ function buildQwenMessages(fileUrl) {
     { role: 'user', content: userInstruction }
   ];
 }
+
+app.get('/api/analyses', (req, res) => {
+  try {
+    const limit = Math.min(Math.max(Number(req.query.limit || 12), 1), 100);
+    const items = readAnalysisHistory().slice(0, limit);
+
+    res.json({
+      items,
+      count: items.length
+    });
+  } catch (error) {
+    console.error('Analysis History Error:', error.message);
+    res.status(500).json({ error: 'Không thể đọc lịch sử xét nghiệm' });
+  }
+});
 
 /**
  * API 1: Generate STS Token
@@ -216,6 +298,7 @@ app.post('/api/analyze', async (req, res) => {
 
   try {
     let analysisUrl = typeof file_url === 'string' ? file_url.trim() : '';
+    let finalized = false;
 
     if (!analysisUrl && typeof object_key === 'string') {
       const sanitizedObjectKey = object_key.trim().replace(/^\/+/, '');
@@ -232,6 +315,35 @@ app.post('/api/analyze', async (req, res) => {
 
     let streamBuffer = '';
     let aggregatedText = '';
+
+    const finalizeStructuredResult = ({ emitError = false } = {}) => {
+      if (finalized || !aggregatedText.trim()) {
+        return;
+      }
+
+      try {
+        const parsed = JSON.parse(aggregatedText);
+        const entry = persistAnalysisHistory({
+          analysis: parsed,
+          objectKey: typeof object_key === 'string' ? object_key.trim() : '',
+          fileUrl: typeof file_url === 'string' ? file_url.trim() : ''
+        });
+
+        finalized = true;
+        writeSseEvent(res, 'result', {
+          ...entry.analysis,
+          history_id: entry.id,
+          created_at: entry.created_at
+        });
+      } catch (parseError) {
+        if (emitError) {
+          writeSseEvent(res, 'error', {
+            message: 'Không thể parse JSON cuối từ luồng Qwen',
+            raw_output: aggregatedText
+          });
+        }
+      }
+    };
 
     const qwenResponse = await axios({
       method: 'post',
@@ -296,15 +408,7 @@ app.post('/api/analyze', async (req, res) => {
           }
 
           if (choice.finish_reason) {
-            try {
-              const structuredResult = JSON.parse(aggregatedText);
-              writeSseEvent(res, 'result', structuredResult);
-            } catch (parseError) {
-              writeSseEvent(res, 'error', {
-                message: 'Không thể parse JSON cuối từ luồng Qwen',
-                raw_output: aggregatedText
-              });
-            }
+            finalizeStructuredResult();
           }
         } catch (parseError) {
           writeSseEvent(res, 'raw', { chunk: data });
@@ -315,14 +419,7 @@ app.post('/api/analyze', async (req, res) => {
     });
 
     qwenResponse.data.on('end', () => {
-      if (aggregatedText) {
-        try {
-          const structuredResult = JSON.parse(aggregatedText);
-          writeSseEvent(res, 'result', structuredResult);
-        } catch (_) {
-          // Ignore duplicate parse failures; the client still gets the token stream.
-        }
-      }
+      finalizeStructuredResult({ emitError: true });
       res.end();
     });
 

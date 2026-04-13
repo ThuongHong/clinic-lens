@@ -3,6 +3,8 @@ import 'dart:convert';
 
 import 'package:http/http.dart' as http;
 
+import '../models/lab_analysis.dart';
+
 class BackendApi {
   BackendApi({required this.baseUrl, http.Client? client}) : _client = client ?? http.Client();
 
@@ -36,6 +38,30 @@ class BackendApi {
     }
 
     return jsonDecode(response.body) as Map<String, dynamic>;
+  }
+
+  Future<List<AnalysisHistoryEntry>> fetchAnalysisHistory({int limit = 12}) async {
+    final response = await _client.get(
+      _uri('/api/analyses', {
+        'limit': limit.toString(),
+      }),
+    );
+
+    if (response.statusCode >= 400) {
+      throw StateError('Failed to fetch analysis history: ${response.body}');
+    }
+
+    final payload = jsonDecode(response.body) as Map<String, dynamic>;
+    final items = payload['items'];
+
+    if (items is! List) {
+      return const <AnalysisHistoryEntry>[];
+    }
+
+    return items
+        .whereType<Map<String, dynamic>>()
+        .map(AnalysisHistoryEntry.fromJson)
+        .toList(growable: false);
   }
 
   Stream<SseEvent> streamAnalysis({

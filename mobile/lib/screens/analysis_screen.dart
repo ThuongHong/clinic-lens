@@ -6,6 +6,8 @@ import 'package:flutter/material.dart';
 import '../models/lab_analysis.dart';
 import '../services/backend_api.dart';
 import '../services/file_upload_service.dart';
+import '../widgets/analysis_history_panel.dart';
+import '../widgets/analysis_summary_panel.dart';
 import '../widgets/body_scene_panel.dart';
 import '../widgets/stream_log_panel.dart';
 
@@ -23,15 +25,20 @@ class _AnalysisScreenState extends State<AnalysisScreen> {
   File? _selectedFile;
   String _status = 'Ready';
   LabAnalysis? _analysis;
+  List<AnalysisHistoryEntry> _history = const <AnalysisHistoryEntry>[];
   final List<String> _streamLines = <String>[];
   String _streamedResponse = '';
+  String? _selectedHistoryId;
+  String? _historyError;
   bool _busy = false;
+  bool _historyLoading = false;
 
   @override
   void initState() {
     super.initState();
     _backendApi = BackendApi(baseUrl: 'http://localhost:9000');
     _uploadService = FileUploadService();
+    _loadHistory();
   }
 
   @override
@@ -132,6 +139,8 @@ class _AnalysisScreenState extends State<AnalysisScreen> {
         _handleStreamEvent(event);
       }
 
+      await _loadHistory(selectedHistoryId: _selectedHistoryId);
+
       setState(() {
         _status = _analysis != null ? 'Analysis complete' : 'Stream ended';
         _streamLines.add('✓ Stream ended successfully');
@@ -143,6 +152,46 @@ class _AnalysisScreenState extends State<AnalysisScreen> {
       });
     } finally {
       setState(() => _busy = false);
+    }
+  }
+
+  Future<void> _loadHistory({String? selectedHistoryId}) async {
+    setState(() {
+      _historyLoading = true;
+      _historyError = null;
+    });
+
+    try {
+      final history = await _backendApi.fetchAnalysisHistory();
+      if (!mounted) {
+        return;
+      }
+
+      setState(() {
+        _history = history;
+        _historyLoading = false;
+        _historyError = null;
+
+        final preferredId = selectedHistoryId ?? _selectedHistoryId;
+        if (preferredId != null && history.any((entry) => entry.id == preferredId)) {
+          _selectedHistoryId = preferredId;
+        } else if (history.isNotEmpty) {
+          _selectedHistoryId ??= history.first.id;
+        }
+
+        if (_analysis == null && history.isNotEmpty) {
+          _analysis = history.first.analysis;
+        }
+      });
+    } catch (error) {
+      if (!mounted) {
+        return;
+      }
+
+      setState(() {
+        _historyLoading = false;
+        _historyError = 'Could not load saved analyses: $error';
+      });
     }
   }
 
@@ -182,6 +231,7 @@ class _AnalysisScreenState extends State<AnalysisScreen> {
         }
         setState(() {
           _analysis = LabAnalysis.fromJson(payload);
+          _selectedHistoryId = payload['history_id']?.toString() ?? _selectedHistoryId;
           _status = 'Structured lab analysis received';
           _streamLines.add('✓ Parsed final JSON result');
         });
@@ -209,6 +259,14 @@ class _AnalysisScreenState extends State<AnalysisScreen> {
     } catch (_) {
       return null;
     }
+  }
+
+  void _selectHistoryEntry(AnalysisHistoryEntry entry) {
+    setState(() {
+      _analysis = entry.analysis;
+      _selectedHistoryId = entry.id;
+      _status = 'Viewing saved analysis from ${entry.analysis.analysisDate}';
+    });
   }
 
   @override
@@ -263,6 +321,10 @@ class _AnalysisScreenState extends State<AnalysisScreen> {
                           onAnalyze: _runAnalysis,
                         ),
                         const SizedBox(height: 24),
+                        if (_analysis != null) ...[
+                          AnalysisSummaryPanel(analysis: _analysis!),
+                          const SizedBox(height: 24),
+                        ],
                         if (_analysis != null)
                           _ResultsPanel(analysis: _analysis!)
                         else if (_busy)
@@ -280,6 +342,15 @@ class _AnalysisScreenState extends State<AnalysisScreen> {
                               style: theme.textTheme.bodySmall?.copyWith(color: Colors.white70),
                             ),
                           ),
+                        const SizedBox(height: 24),
+                        AnalysisHistoryPanel(
+                          entries: _history,
+                          selectedHistoryId: _selectedHistoryId,
+                          loading: _historyLoading,
+                          errorMessage: _historyError,
+                          onRefresh: _loadHistory,
+                          onSelect: _selectHistoryEntry,
+                        ),
                         if (_streamedResponse.isNotEmpty) ...[
                           const SizedBox(height: 24),
                           _StreamingTranscriptPanel(content: _streamedResponse),
