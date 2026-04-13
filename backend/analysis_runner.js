@@ -6,14 +6,14 @@ require('dotenv').config({ path: path.join(__dirname, '.env') });
 
 const ROOT = path.resolve(__dirname, '..');
 const OUTPUT_DIR = path.join(ROOT, 'output');
-const OUTPUT_PAYLOAD_DIR = path.join(OUTPUT_DIR, 'member2_outputs');
-const CASES_PATH = path.join(__dirname, 'member2_cases.json');
-const PROMPT_PATH = path.join(__dirname, 'prompts', 'member2_system_prompt.md');
+const OUTPUT_PAYLOAD_DIR = path.join(OUTPUT_DIR, 'analysis_outputs');
+const CASES_PATH = path.join(__dirname, 'analysis_cases.json');
+const PROMPT_PATH = path.join(__dirname, 'prompts', 'analysis_system_prompt.md');
 const DASHSCOPE_URL = process.env.DASHSCOPE_URL || 'https://dashscope-intl.aliyuncs.com/api/v1/services/aigc/multimodal-generation/generation';
 const DASHSCOPE_MODEL = process.env.DASHSCOPE_MODEL || 'qwen-vl-max';
-const MAX_TOKENS = Number(process.env.MEMBER2_MAX_TOKENS || 4096);
-const TEMPERATURE = Number(process.env.MEMBER2_TEMPERATURE || 0.05);
-const RETRIES = Number(process.env.MEMBER2_RETRIES || 3);
+const MAX_TOKENS = Number(process.env.ANALYSIS_MAX_TOKENS || 4096);
+const TEMPERATURE = Number(process.env.ANALYSIS_TEMPERATURE || 0.05);
+const RETRIES = Number(process.env.ANALYSIS_RETRIES || 3);
 
 const ALLOWED_ORGANS = new Set(['kidneys', 'liver', 'heart', 'pancreas', 'thyroid', 'blood', 'bone', 'immune']);
 const ALLOWED_SEVERITY = new Set(['normal', 'abnormal_high', 'abnormal_low', 'unknown']);
@@ -155,7 +155,7 @@ async function toFileRef(filePath, transport, ossClient) {
 
   if (transport === 'oss' || (transport === 'auto' && ossClient)) {
     if (!ossClient) throw new Error('Thieu OSS config de upload');
-    const key = `member2/${path.basename(filePath, path.extname(filePath))}_${Date.now()}${path.extname(filePath)}`;
+    const key = `analysis/${path.basename(filePath, path.extname(filePath))}_${Date.now()}${path.extname(filePath)}`;
     await ossClient.put(key, filePath, { headers: { 'Content-Type': inferMime(filePath) } });
     const signed = ossClient.signatureUrl(key, { method: 'GET', expires: 1800 });
     return { ref: signed, used: 'oss_url' };
@@ -321,7 +321,7 @@ async function main() {
   };
 
   const report = { summary, items };
-  const reportPath = path.join(OUTPUT_DIR, 'member2_report.json');
+  const reportPath = path.join(OUTPUT_DIR, 'analysis_report.json');
   fs.writeFileSync(reportPath, JSON.stringify(report, null, 2), 'utf8');
 
   console.log('----------------------------------------');
@@ -330,6 +330,6 @@ async function main() {
 }
 
 main().catch((err) => {
-  console.error('Member2 runner failed:', err.message || err);
+  console.error('Analysis runner failed:', err.message || err);
   process.exit(1);
 });

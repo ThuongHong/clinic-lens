@@ -5,10 +5,11 @@ import re
 import shutil
 import subprocess
 import sys
+import time
 from pathlib import Path
 
 try:
-    import fitz  # PyMuPDF
+    import fitz  # type: ignore[import-not-found]
 except ImportError:
     fitz = None
 
@@ -25,15 +26,15 @@ BACKEND_DIR = Path(__file__).resolve().parent
 DEFAULT_PDF = ROOT / "data" / "DiaG feb 2026.pdf"
 IMAGES_DIR = ROOT / "data" / "images_auto"
 OUTPUT_DIR = ROOT / "output"
-PAGE_OUTPUT_DIR = OUTPUT_DIR / "member2_page_outputs"
-SUMMARY_PATH = OUTPUT_DIR / "member2_summary.json"
-PROMPT_PATH = BACKEND_DIR / "prompts" / "member2_system_prompt.md"
+PAGE_OUTPUT_DIR = OUTPUT_DIR / "analysis_page_outputs"
+SUMMARY_PATH = OUTPUT_DIR / "analysis_summary.json"
+PROMPT_PATH = BACKEND_DIR / "prompts" / "analysis_system_prompt.md"
 
 API_URL = os.environ.get(
     "DASHSCOPE_URL",
     "https://dashscope-intl.aliyuncs.com/api/v1/services/aigc/multimodal-generation/generation",
 )
-MODEL = os.environ.get("DASHSCOPE_MODEL", "qwen3.5-omni-flash-realtime-2026-03-15")
+MODEL = os.environ.get("DASHSCOPE_MODEL", "qwen-vl-max")
 
 SEVERITY_RANK = {
     "normal": 0,
@@ -108,20 +109,38 @@ def call_qwen(
         },
     }
 
-    resp = requests.post(
-        API_URL,
-        json=payload,
-        headers={
-            "Authorization": f"Bearer {api_key}",
-            "Content-Type": "application/json",
-        },
-        timeout=240,
-    )
-    if resp.status_code != 200:
-        raise RuntimeError(f"Qwen HTTP {resp.status_code}: {resp.text[:800]}")
+    resp = None
+    for attempt in range(1, 4):
+        resp = requests.post(
+            API_URL,
+            json=payload,
+            headers={
+                "Authorization": f"Bearer {api_key}",
+                "Content-Type": "application/json",
+            },
+            timeout=240,
+        )
+        if resp.status_code == 200:
+            break
+
+        if resp.status_code < 500 or attempt == 3:
+            raise RuntimeError(f"Qwen HTTP {resp.status_code}: {resp.text[:800]}")
+
+        time.sleep(attempt)
 
     data = resp.json()
-    content = data["output"]["choices"][0]["message"]["content"]
+    if "output" in data:
+        content = data["output"]["choices"][0]["message"]["content"]
+    elif "choices" in data:
+        content = data["choices"][0]["message"]["content"]
+    else:
+        if "request_id" in data:
+            raise RuntimeError(
+                "DashScope returned request_id without a model payload. "
+                "This usually means the request hit the async generation API shape instead of chat-completions."
+            )
+        raise RuntimeError(f"Unexpected API response: {data}")
+
     if isinstance(content, list):
         return "".join(x.get("text", "") for x in content)
     return str(content)
@@ -264,7 +283,7 @@ def merge_results(page_results: list[dict]) -> dict:
 
 def main():
     parser = argparse.ArgumentParser(
-        description="Member2 pipeline: PDF->PNG->classify->extract->summary"
+        description="Analysis pipeline: PDF->PNG->classify->extract->summary"
     )
     parser.add_argument("--pdf", default=str(DEFAULT_PDF), help="Input PDF path")
     parser.add_argument(

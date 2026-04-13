@@ -1,7 +1,7 @@
 const fs = require('fs');
 const path = require('path');
 
-const MEMBER2_PROMPT_PATH = path.resolve(__dirname, 'prompts', 'member2_system_prompt.md');
+const ANALYSIS_PROMPT_PATH = path.resolve(__dirname, 'prompts', 'analysis_system_prompt.md');
 
 const DEFAULT_SYSTEM_PROMPT = `
 Ban la MedScan AI - tro ly phan tich ket qua xet nghiem y khoa cho ung dung Smart Labs Analyzer.
@@ -84,9 +84,9 @@ const SEVERITY_ALIASES = new Map([
   ['severe', 'critical']
 ]);
 
-function loadMember2SystemPrompt() {
+function loadAnalysisSystemPrompt() {
   try {
-    const prompt = fs.readFileSync(MEMBER2_PROMPT_PATH, 'utf8').trim();
+    const prompt = fs.readFileSync(ANALYSIS_PROMPT_PATH, 'utf8').trim();
     return prompt || DEFAULT_SYSTEM_PROMPT.trim();
   } catch (error) {
     return DEFAULT_SYSTEM_PROMPT.trim();
@@ -346,15 +346,15 @@ function normalizeAdvicePayload(payload, analysis, summary) {
 
   const organAdvice = Array.isArray(payload.organ_advice)
     ? payload.organ_advice
-        .filter((item) => item && typeof item === 'object')
-        .map((item) => ({
-          organ_id: normalizeOrganId(item.organ_id),
-          risk: ['normal', 'watch', 'alert'].includes(String(item.risk || '').trim().toLowerCase())
-            ? String(item.risk).trim().toLowerCase()
-            : 'watch',
-          summary: sanitizeText(item.summary),
-          advice: sanitizeText(item.advice)
-        }))
+      .filter((item) => item && typeof item === 'object')
+      .map((item) => ({
+        organ_id: normalizeOrganId(item.organ_id),
+        risk: ['normal', 'watch', 'alert'].includes(String(item.risk || '').trim().toLowerCase())
+          ? String(item.risk).trim().toLowerCase()
+          : 'watch',
+        summary: sanitizeText(item.summary),
+        advice: sanitizeText(item.advice)
+      }))
     : [];
 
   const generalRecommendations = Array.isArray(payload.general_recommendations)
@@ -383,7 +383,7 @@ function normalizeAdvicePayload(payload, analysis, summary) {
 module.exports = {
   buildAdviceMessages,
   buildAnalysisSummary,
-  loadMember2SystemPrompt,
+  loadAnalysisSystemPrompt,
   normalizeAdvicePayload,
   normalizeAnalysisPayload,
   parseJsonFromModelOutput

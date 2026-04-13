@@ -5,10 +5,10 @@
   "main": "server.js",
   "scripts": {
     "start": "node server.js",
-    "member2:test": "node member2_runner.js",
-    "member2:dry-run": "node member2_runner.js --dry-run",
-    "member2:summary": "python member2_summary_pipeline.py",
-    "member2:advice": "python member2_advice_from_summary.py"
+    "analysis:test": "node analysis_runner.js",
+    "analysis:dry-run": "node analysis_runner.js --dry-run",
+    "analysis:summary": "python analysis_pdf_pipeline.py",
+    "analysis:advice": "python analysis_advice_from_summary.py"
   },
   "dependencies": {
     "@alicloud/pop-core": "^1.7.13",

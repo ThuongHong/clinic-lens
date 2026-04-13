@@ -286,7 +286,7 @@ class _AnalysisScreenState extends State<AnalysisScreen> {
               : 'Structured lab analysis received';
           _streamLines.add('✓ Parsed final JSON result');
           if (_analysis?.hasAdvice == true) {
-            _streamLines.add('✓ Member 2 advice attached to analysis');
+            _streamLines.add('✓ Analysis advice attached to analysis');
           }
         });
         return;

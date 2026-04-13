@@ -166,11 +166,14 @@ class ResultItem extends StatelessWidget {
                     ),
                   ),
                   const SizedBox(width: 8),
-                  Text(
-                    '${result.unit} • Ref: ${result.referenceRange}',
-                    style: theme.textTheme.bodyMedium?.copyWith(
-                      color: const Color(0xFF64748B),
-                      fontWeight: FontWeight.w500,
+                  Expanded(
+                    child: Text(
+                      '${result.unit} • Ref: ${result.referenceRange}',
+                      style: theme.textTheme.bodyMedium?.copyWith(
+                        color: const Color(0xFF64748B),
+                        fontWeight: FontWeight.w500,
+                      ),
+                      overflow: TextOverflow.ellipsis,
                     ),
                   ),
                 ],

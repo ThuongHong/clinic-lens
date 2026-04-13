@@ -12,11 +12,11 @@ const dotenv = require('dotenv');
 const {
   buildAdviceMessages,
   buildAnalysisSummary,
-  loadMember2SystemPrompt,
+  loadAnalysisSystemPrompt,
   normalizeAdvicePayload,
   normalizeAnalysisPayload,
   parseJsonFromModelOutput
-} = require('./member2_runtime');
+} = require('./analysis_runtime');
 
 const execFileAsync = promisify(execFile);
 
@@ -60,7 +60,7 @@ const PORT = Number(process.env.PORT || 9000);
 const HISTORY_DIR = path.resolve(__dirname, 'data');
 const HISTORY_FILE = path.join(HISTORY_DIR, 'analysis_history.json');
 const HISTORY_LIMIT = 30;
-const QWEN_SYSTEM_PROMPT = loadMember2SystemPrompt();
+const QWEN_SYSTEM_PROMPT = loadAnalysisSystemPrompt();
 
 // 1. Cấu hình STS Token (Alibaba Cloud)
 const stsClient = new Core({
@@ -196,18 +196,18 @@ async function downloadRemoteFile(sourceUrl, destinationPath, signal) {
   await fs.promises.writeFile(destinationPath, Buffer.from(response.data));
 }
 
-async function runMember2PdfPipeline({ pdfUrl, pdfPath, signal }) {
-  const workspaceDir = await fs.promises.mkdtemp(path.join(os.tmpdir(), 'member2-pdf-'));
+async function runAnalysisPdfPipeline({ pdfUrl, pdfPath, signal }) {
+  const workspaceDir = await fs.promises.mkdtemp(path.join(os.tmpdir(), 'analysis-pdf-'));
   const workingPdfPath = pdfPath || path.join(workspaceDir, 'input.pdf');
   const imagesDir = path.join(workspaceDir, 'images');
   const pageOutputDir = path.join(workspaceDir, 'page_outputs');
   const summaryPath = path.join(workspaceDir, 'summary.json');
   const pythonBin = process.env.PYTHON_BIN || 'python';
-  const timeoutMs = Number(process.env.MEMBER2_PDF_TIMEOUT_MS || 420000);
+  const timeoutMs = Number(process.env.ANALYSIS_PDF_TIMEOUT_MS || 420000);
 
   try {
     if (!workingPdfPath) {
-      throw new Error('Missing pdfPath or pdfUrl for member2 PDF pipeline');
+      throw new Error('Missing pdfPath or pdfUrl for analysis PDF pipeline');
     }
 
     if (!pdfPath) {
@@ -217,7 +217,7 @@ async function runMember2PdfPipeline({ pdfUrl, pdfPath, signal }) {
     const { stdout, stderr } = await execFileAsync(
       pythonBin,
       [
-        path.resolve(__dirname, 'member2_summary_pipeline.py'),
+        path.resolve(__dirname, 'analysis_pdf_pipeline.py'),
         '--pdf',
         workingPdfPath,
         '--images-dir',
@@ -321,7 +321,7 @@ async function persistAndEmitAnalysis({
     try {
       writeSseEvent(res, 'post_process', {
         stage: 'advice',
-        message: 'Dang tao loi khuyen ca nhan hoa tu pipeline cua member 2.'
+        message: 'Dang tao loi khuyen ca nhan hoa tu analysis pipeline.'
       });
       advice = await generateAdviceFromAnalysis(normalizedAnalysis, summary);
     } catch (adviceError) {
@@ -506,18 +506,18 @@ app.post('/api/analyze', async (req, res) => {
         writeSseEvent(res, 'post_process', {
           stage: 'pdf_pipeline',
           message: shouldUseLocalPdfPipeline
-            ? 'Dang chay pipeline PDF cuc bo cua member 2 tren may demo.'
-            : 'Da nhan PDF, dang chay pipeline tach trang cua member 2.'
+            ? 'Dang chay pipeline PDF cuc bo cua analysis tren may demo.'
+            : 'Da nhan PDF, dang chay pipeline tach trang cua analysis.'
         });
 
-        const pipelineResult = await runMember2PdfPipeline({
+        const pipelineResult = await runAnalysisPdfPipeline({
           pdfUrl: shouldUseLocalPdfPipeline ? '' : analysisUrl,
           pdfPath: shouldUseLocalPdfPipeline ? localFilePath : '',
           signal: abortController.signal
         });
 
         if (pipelineResult.logs?.trim()) {
-          console.log(`Member2 PDF Pipeline Logs:\n${pipelineResult.logs.trim()}`);
+          console.log(`Analysis PDF Pipeline Logs:\n${pipelineResult.logs.trim()}`);
         }
 
         await persistAndEmitAnalysis({
@@ -529,18 +529,18 @@ app.post('/api/analyze', async (req, res) => {
 
         writeSseEvent(res, 'done', {
           message: 'completed',
-          mode: 'member2_pdf'
+          mode: 'analysis_pdf'
         });
         return res.end();
       } catch (pdfPipelineError) {
         if (clientDisconnected || abortController.signal.aborted) {
           return res.end();
         }
-        console.error('Member2 PDF Pipeline Error:', pdfPipelineError.stderr || pdfPipelineError.message);
+        console.error('Analysis PDF Pipeline Error:', pdfPipelineError.stderr || pdfPipelineError.message);
         writeSseEvent(res, 'warning', {
           message: shouldUseLocalPdfPipeline
-            ? 'PDF pipeline cuc bo cua member 2 gap loi.'
-            : 'PDF pipeline cua member 2 khong kha dung, dang fallback ve luong phan tich mac dinh.'
+            ? 'PDF pipeline cuc bo cua analysis gap loi.'
+            : 'PDF pipeline analysis khong kha dung, dang fallback ve luong phan tich mac dinh.'
         });
 
         if (shouldUseLocalPdfPipeline) {
@@ -684,7 +684,7 @@ app.get('/health', (req, res) => {
     status: 'ok',
     service: 'qwen-labs-analyzer-backend',
     env_loaded_from: envPath || 'process.env',
-    member2_prompt_loaded: Boolean(QWEN_SYSTEM_PROMPT)
+    analysis_prompt_loaded: Boolean(QWEN_SYSTEM_PROMPT)
   });
 });
 

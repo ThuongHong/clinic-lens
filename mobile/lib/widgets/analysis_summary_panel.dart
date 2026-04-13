@@ -312,7 +312,7 @@ class _AdvicePanel extends StatelessWidget {
             children: [
               Expanded(
                 child: Text(
-                  'Member 2 Advice',
+                  'Analysis Advice',
                   style: theme.textTheme.titleMedium?.copyWith(
                     color: tone,
                     fontWeight: FontWeight.w800,

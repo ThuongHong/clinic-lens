@@ -2,7 +2,7 @@
 
 Để tận dụng tối đa thời gian có hạn của buổi Hackathon, team 4 người cần chia việc để làm song song (Parallel Work) thay vì đợi nhau. Dưới đây là lộ trình chia vai (Roles) tối ưu nhất:
 
-### 👨‍💻 Member 1: Cloud Architect & Backend (Trưởng nhóm Hạ tầng)
+## 👨‍💻 Member 1: Cloud Architect & Backend (Trưởng nhóm Hạ tầng)
 
 *Người này sẽ chịu trách nhiệm toàn bộ các dịch vụ trên màn hình Alibaba Cloud Console.*
 
@@ -11,16 +11,16 @@
 - **Task 3:** Setup **RAM (IAM)** để xin quyền trực tiếp `sts:AssumeRole`. Cung cấp khoá bảo mật chéo cho Backend.
 - **Task 4:** Deploy đoạn code Node.js (`server.js` tôi vừa viết) lên **Alibaba Function Compute**. Cung cấp địa chỉ URL API cuối cùng cho team Mobile.
 
-### 🧠 Member 2: AI Engineer (Chuyên gia Tiền xử lý & Prompt)
+## 🧠 Analysis Engineer (Chuyên gia Tiền xử lý & Prompt)
 
 *Không lo về code app, người này chỉ làm việc với Data và Qwen API.*
 
-- **Task 1:** Săn lùng bộ Data test: 5-10 tờ kết quả xét nghiệm mẫu (Viết bằng Tiếng Việt hoặc Song Ngữ).
+- **Task 1:** Săn lùng bộ data test: 5-10 tờ kết quả xét nghiệm mẫu (Viết bằng Tiếng Việt hoặc Song Ngữ).
 - **Task 2:** Thử nghiệm API trực tiếp qua Postman hoặc trên giao diện thử nghiệm của DashScope.
 - **Task 3:** Viết **Few-shot Prompt** cực xịn cho Qwen3.6-Plus. Ép mô hình luôn phải trả về chuẩn mã JSON.
-- **Task 4:** Bắt các lỗ hổng của Qwen (Ví dụ: Đưa file ảnh mờ, đưa file PDF không phải y khoa) xem mô hình phản ứng sao và chỉnh lại Prompt.
+- **Task 4:** Bắt các lỗ hổng của Qwen (Ví dụ: đưa file ảnh mờ, đưa file PDF không phải y khoa) xem mô hình phản ứng sao và chỉnh lại prompt.
 
-### 🎨 Member 3: 2D Visualization & UI Polish (Chuyên gia Frontend Giao diện)
+## 🎨 Member 3: 2D Visualization & UI Polish (Chuyên gia Frontend Giao diện)
 
 *Người tập trung vào trải nghiệm thị giác với 2D silhouette body diagram.*
 
@@ -29,7 +29,7 @@
 - **Task 3:** Viết animated color transition: Khi nhận JSON `{organ: "kidneys", severity: "high"}` → không gian vùng Thận chuyển sang Đỏ với animation mượt mà.
 - **Task 4:** Test responsive layout trên các kích cỡ màn hình (phone/tablet). Đảm bảo organ tags luôn aligned đúng.
 
-### ⚙️ Member 4: Mobile Logic & Integration (Chuyên gia Frontend Luồng xử lý)
+## ⚙️ Member 4: Mobile Logic & Integration (Chuyên gia Frontend Luồng xử lý)
 
 *Nhân vật kết nối toàn bộ các mảnh ghép lại với nhau.*
 
@@ -40,7 +40,7 @@
 
 ---
 
-### 🕒 Workflow Tích Hợp (Integration Point)
+## 🕒 Workflow Tích Hợp (Integration Point)
 
 - Khi thời gian Hackathon trôi qua 2/3, **Member 3 (3D)** và **Member 4 (Logic)** tiến hành gộp code Flutter lại (Merge nhánh).
 - Toàn team tập hợp để test quét file thật và tinh chỉnh độ trễ.

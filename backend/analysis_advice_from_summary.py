@@ -8,8 +8,8 @@ import requests
 
 ROOT = Path(__file__).resolve().parent.parent
 BACKEND_DIR = Path(__file__).resolve().parent
-DEFAULT_SUMMARY_PATH = ROOT / "output" / "member2_summary.json"
-DEFAULT_OUTPUT_PATH = ROOT / "output" / "member2_advice.json"
+DEFAULT_SUMMARY_PATH = ROOT / "output" / "analysis_summary.json"
+DEFAULT_OUTPUT_PATH = ROOT / "output" / "analysis_advice.json"
 
 API_URL = os.environ.get(
     "DASHSCOPE_URL",
@@ -35,7 +35,9 @@ def read_env_file() -> dict:
 
 def get_api_key() -> str:
     local_env = read_env_file()
-    return os.environ.get("DASHSCOPE_API_KEY", "") or local_env.get("DASHSCOPE_API_KEY", "")
+    return os.environ.get("DASHSCOPE_API_KEY", "") or local_env.get(
+        "DASHSCOPE_API_KEY", ""
+    )
 
 
 def extract_json(raw: str):
@@ -103,24 +105,24 @@ def call_advice_model(api_key: str, summary_payload: dict) -> str:
     user_prompt = (
         "Dua tren JSON summary sau, hay tra ve JSON voi schema chinh xac:\n"
         "{\n"
-        "  \"status\": \"success|error\",\n"
-        "  \"patient_name\": \"string|null\",\n"
-        "  \"analysis_date\": \"YYYY-MM-DD|null\",\n"
-        "  \"overall_assessment\": \"2-4 cau tieng Viet\",\n"
-        "  \"priority_level\": \"low|medium|high\",\n"
-        "  \"organ_advice\": [\n"
+        '  "status": "success|error",\n'
+        '  "patient_name": "string|null",\n'
+        '  "analysis_date": "YYYY-MM-DD|null",\n'
+        '  "overall_assessment": "2-4 cau tieng Viet",\n'
+        '  "priority_level": "low|medium|high",\n'
+        '  "organ_advice": [\n'
         "    {\n"
-        "      \"organ_id\": \"kidneys|liver|heart|pancreas|thyroid|blood|bone|immune\",\n"
-        "      \"risk\": \"normal|watch|alert\",\n"
-        "      \"summary\": \"1-2 cau ngan\",\n"
-        "      \"advice\": \"1-3 cau cu the, thuc te cho nguoi Viet\"\n"
+        '      "organ_id": "kidneys|liver|heart|pancreas|thyroid|blood|bone|immune",\n'
+        '      "risk": "normal|watch|alert",\n'
+        '      "summary": "1-2 cau ngan",\n'
+        '      "advice": "1-3 cau cu the, thuc te cho nguoi Viet"\n'
         "    }\n"
         "  ],\n"
-        "  \"general_recommendations\": [\"...\", \"...\"],\n"
-        "  \"disclaimer\": \"khong thay the kham bac si\"\n"
+        '  "general_recommendations": ["...", "..."],\n'
+        '  "disclaimer": "khong thay the kham bac si"\n'
         "}\n"
         "Neu du lieu summary khong hop le, tra ve:\n"
-        "{\"status\":\"error\",\"error_message\":\"...\"}\n\n"
+        '{"status":"error","error_message":"..."}\n\n'
         f"SUMMARY_JSON:\n{json.dumps(summary_payload, ensure_ascii=False)}"
     )
 
@@ -128,7 +130,10 @@ def call_advice_model(api_key: str, summary_payload: dict) -> str:
         "model": MODEL,
         "input": {
             "messages": [
-                {"role": "system", "content": [{"type": "text", "text": system_prompt}]},
+                {
+                    "role": "system",
+                    "content": [{"type": "text", "text": system_prompt}],
+                },
                 {"role": "user", "content": [{"type": "text", "text": user_prompt}]},
             ]
         },
@@ -160,9 +165,15 @@ def call_advice_model(api_key: str, summary_payload: dict) -> str:
 
 
 def main():
-    parser = argparse.ArgumentParser(description="Create doctor-style advice from summary JSON")
-    parser.add_argument("--summary", default=str(DEFAULT_SUMMARY_PATH), help="Path to summary JSON")
-    parser.add_argument("--output", default=str(DEFAULT_OUTPUT_PATH), help="Path to advice output JSON")
+    parser = argparse.ArgumentParser(
+        description="Create doctor-style advice from summary JSON"
+    )
+    parser.add_argument(
+        "--summary", default=str(DEFAULT_SUMMARY_PATH), help="Path to summary JSON"
+    )
+    parser.add_argument(
+        "--output", default=str(DEFAULT_OUTPUT_PATH), help="Path to advice output JSON"
+    )
     args = parser.parse_args()
 
     api_key = get_api_key()
@@ -192,7 +203,9 @@ def main():
     }
 
     output_path.parent.mkdir(parents=True, exist_ok=True)
-    output_path.write_text(json.dumps(wrapped, ensure_ascii=False, indent=2), encoding="utf-8")
+    output_path.write_text(
+        json.dumps(wrapped, ensure_ascii=False, indent=2), encoding="utf-8"
+    )
     print(f"Advice written: {output_path}")
     print(f"schema_valid={wrapped['schema_valid']}")
 
