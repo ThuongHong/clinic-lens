@@ -105,7 +105,11 @@ class _AnalysisScreenState extends State<AnalysisScreen> {
       final bucket = stsResponse['Bucket'] as String?;
       final region = stsResponse['Region'] as String?;
 
-      if (accessKeyId == null || accessKeySecret == null || securityToken == null || bucket == null || region == null) {
+      if (accessKeyId == null ||
+          accessKeySecret == null ||
+          securityToken == null ||
+          bucket == null ||
+          region == null) {
         throw StateError('Invalid STS response');
       }
 
@@ -131,7 +135,8 @@ class _AnalysisScreenState extends State<AnalysisScreen> {
 
       _streamLines.add('Step 3: Streaming analysis from Qwen3.6-Plus');
 
-      await for (final event in _backendApi.streamAnalysis(objectKey: uploadResult.objectKey)) {
+      await for (final event
+          in _backendApi.streamAnalysis(objectKey: uploadResult.objectKey)) {
         if (!mounted) {
           break;
         }
@@ -173,7 +178,8 @@ class _AnalysisScreenState extends State<AnalysisScreen> {
         _historyError = null;
 
         final preferredId = selectedHistoryId ?? _selectedHistoryId;
-        if (preferredId != null && history.any((entry) => entry.id == preferredId)) {
+        if (preferredId != null &&
+            history.any((entry) => entry.id == preferredId)) {
           _selectedHistoryId = preferredId;
         } else if (history.isNotEmpty) {
           _selectedHistoryId ??= history.first.id;
@@ -224,6 +230,15 @@ class _AnalysisScreenState extends State<AnalysisScreen> {
           _status = 'Streaming AI response...';
         });
         return;
+      case 'post_process':
+        final payload = _tryParseEventJson(event);
+        final message =
+            payload?['message']?.toString() ?? 'Post-processing analysis...';
+        setState(() {
+          _status = message;
+          _streamLines.add('• $message');
+        });
+        return;
       case 'result':
         final payload = _tryParseEventJson(event);
         if (payload == null) {
@@ -231,9 +246,16 @@ class _AnalysisScreenState extends State<AnalysisScreen> {
         }
         setState(() {
           _analysis = LabAnalysis.fromJson(payload);
-          _selectedHistoryId = payload['history_id']?.toString() ?? _selectedHistoryId;
-          _status = 'Structured lab analysis received';
+          _selectedHistoryId =
+              payload['history_id']?.toString() ?? _selectedHistoryId;
+          _status = _analysis?.status == 'error'
+              ? (_analysis?.errorMessage ??
+                  'Analysis returned an error payload')
+              : 'Structured lab analysis received';
           _streamLines.add('✓ Parsed final JSON result');
+          if (_analysis?.hasAdvice == true) {
+            _streamLines.add('✓ Member 2 advice attached to analysis');
+          }
         });
         return;
       case 'done':
@@ -241,12 +263,21 @@ class _AnalysisScreenState extends State<AnalysisScreen> {
           _status = 'Analysis complete';
         });
         return;
+      case 'warning':
+        final payload = _tryParseEventJson(event);
+        final message = payload?['message']?.toString() ?? event.data;
+        setState(() {
+          _streamLines.add('Warning: $message');
+        });
+        return;
       case 'error':
         final payload = _tryParseEventJson(event);
         final message = payload?['message']?.toString() ?? event.data;
         throw StateError(message);
       default:
-        final preview = event.data.length > 120 ? '${event.data.substring(0, 120)}...' : event.data;
+        final preview = event.data.length > 120
+            ? '${event.data.substring(0, 120)}...'
+            : event.data;
         setState(() {
           _streamLines.add('[${event.event}] $preview');
         });
@@ -288,17 +319,20 @@ class _AnalysisScreenState extends State<AnalysisScreen> {
             children: [
               // Header
               Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
                       'Smart Labs',
-                      style: theme.textTheme.headlineSmall?.copyWith(fontWeight: FontWeight.w800),
+                      style: theme.textTheme.headlineSmall
+                          ?.copyWith(fontWeight: FontWeight.w800),
                     ),
                     Text(
                       'AI Lab Analysis',
-                      style: theme.textTheme.bodySmall?.copyWith(color: Colors.white70),
+                      style: theme.textTheme.bodySmall
+                          ?.copyWith(color: Colors.white70),
                     ),
                   ],
                 ),
@@ -309,7 +343,8 @@ class _AnalysisScreenState extends State<AnalysisScreen> {
                 child: LayoutBuilder(
                   builder: (context, constraints) {
                     final isWide = constraints.maxWidth >= 980;
-                    final horizontalPadding = constraints.maxWidth >= 720 ? 24.0 : 16.0;
+                    final horizontalPadding =
+                        constraints.maxWidth >= 720 ? 24.0 : 16.0;
 
                     final rightColumn = Column(
                       mainAxisSize: MainAxisSize.min,
@@ -333,13 +368,16 @@ class _AnalysisScreenState extends State<AnalysisScreen> {
                           Container(
                             padding: const EdgeInsets.all(16),
                             decoration: BoxDecoration(
-                              color: const Color(0xFF0B1729).withValues(alpha: 0.6),
+                              color: const Color(0xFF0B1729)
+                                  .withValues(alpha: 0.6),
                               borderRadius: BorderRadius.circular(16),
-                              border: Border.all(color: Colors.white.withValues(alpha: 0.08)),
+                              border: Border.all(
+                                  color: Colors.white.withValues(alpha: 0.08)),
                             ),
                             child: Text(
                               'Upload a file to begin analysis',
-                              style: theme.textTheme.bodySmall?.copyWith(color: Colors.white70),
+                              style: theme.textTheme.bodySmall
+                                  ?.copyWith(color: Colors.white70),
                             ),
                           ),
                         const SizedBox(height: 24),
@@ -363,14 +401,16 @@ class _AnalysisScreenState extends State<AnalysisScreen> {
                     );
 
                     return SingleChildScrollView(
-                      padding: EdgeInsets.fromLTRB(horizontalPadding, 8, horizontalPadding, 24),
+                      padding: EdgeInsets.fromLTRB(
+                          horizontalPadding, 8, horizontalPadding, 24),
                       child: isWide
                           ? Row(
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
                                 Expanded(
                                   flex: 11,
-                                  child: BodyScenePanel(highlightedOrgans: highlightedOrgans),
+                                  child: BodyScenePanel(
+                                      highlightedOrgans: highlightedOrgans),
                                 ),
                                 const SizedBox(width: 24),
                                 Expanded(flex: 9, child: rightColumn),
@@ -378,7 +418,8 @@ class _AnalysisScreenState extends State<AnalysisScreen> {
                             )
                           : Column(
                               children: [
-                                BodyScenePanel(highlightedOrgans: highlightedOrgans),
+                                BodyScenePanel(
+                                    highlightedOrgans: highlightedOrgans),
                                 const SizedBox(height: 24),
                                 rightColumn,
                               ],
@@ -425,7 +466,8 @@ class _UploadSection extends StatelessWidget {
         children: [
           Text(
             'Upload Lab Result',
-            style: theme.textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w700),
+            style: theme.textTheme.titleSmall
+                ?.copyWith(fontWeight: FontWeight.w700),
           ),
           const SizedBox(height: 12),
           // File Status
@@ -445,7 +487,9 @@ class _UploadSection extends StatelessWidget {
             child: Row(
               children: [
                 Icon(
-                  selectedFile != null ? Icons.check_circle : Icons.file_present,
+                  selectedFile != null
+                      ? Icons.check_circle
+                      : Icons.file_present,
                   color: selectedFile != null ? Colors.green : Colors.white54,
                   size: 20,
                 ),
@@ -456,7 +500,8 @@ class _UploadSection extends StatelessWidget {
                         ? selectedFile!.path.split('/').last
                         : 'No file selected',
                     style: theme.textTheme.bodySmall?.copyWith(
-                      color: selectedFile != null ? Colors.white : Colors.white54,
+                      color:
+                          selectedFile != null ? Colors.white : Colors.white54,
                     ),
                     overflow: TextOverflow.ellipsis,
                   ),
@@ -548,7 +593,8 @@ class _StreamingTranscriptPanel extends StatelessWidget {
         children: [
           Text(
             'Streaming JSON',
-            style: theme.textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w700),
+            style: theme.textTheme.titleSmall
+                ?.copyWith(fontWeight: FontWeight.w700),
           ),
           const SizedBox(height: 12),
           SelectableText(
@@ -574,6 +620,7 @@ class _ResultsPanel extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final isError = analysis.status == 'error';
 
     return Container(
       padding: const EdgeInsets.all(16),
@@ -587,7 +634,8 @@ class _ResultsPanel extends StatelessWidget {
         children: [
           Text(
             'Analysis Results',
-            style: theme.textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w700),
+            style: theme.textTheme.titleSmall
+                ?.copyWith(fontWeight: FontWeight.w700),
           ),
           const SizedBox(height: 12),
           Text(
@@ -595,11 +643,19 @@ class _ResultsPanel extends StatelessWidget {
             style: theme.textTheme.bodySmall?.copyWith(color: Colors.white70),
           ),
           const SizedBox(height: 12),
-          // Results list
-          for (final result in analysis.results) ...[
-            _ResultItem(result: result),
-            const SizedBox(height: 8),
-          ],
+          if (isError) ...[
+            Text(
+              analysis.errorMessage ??
+                  'The AI pipeline could not extract a valid medical report.',
+              style: theme.textTheme.bodySmall
+                  ?.copyWith(color: const Color(0xFFFCA5A5)),
+            ),
+          ] else
+            // Results list
+            for (final result in analysis.results) ...[
+              _ResultItem(result: result),
+              const SizedBox(height: 8),
+            ],
         ],
       ),
     );

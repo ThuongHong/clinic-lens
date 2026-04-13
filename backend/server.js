@@ -6,6 +6,14 @@ const axios = require('axios');
 const Core = require('@alicloud/pop-core');
 const OSS = require('ali-oss');
 const dotenv = require('dotenv');
+const {
+  buildAdviceMessages,
+  buildAnalysisSummary,
+  loadMember2SystemPrompt,
+  normalizeAdvicePayload,
+  normalizeAnalysisPayload,
+  parseJsonFromModelOutput
+} = require('./member2_runtime');
 
 const envCandidates = [
   path.resolve(__dirname, '..', '.env'),
@@ -40,12 +48,14 @@ app.use(express.json({ limit: '10mb' }));
 
 const DASHSCOPE_SG_URL = 'https://dashscope-intl.aliyuncs.com/compatible-mode/v1/chat/completions';
 const DASHSCOPE_MODEL = process.env.DASHSCOPE_MODEL || 'qwen-plus';
+const DASHSCOPE_ADVICE_MODEL = process.env.DASHSCOPE_ADVICE_MODEL || DASHSCOPE_MODEL;
 const OSS_REGION = process.env.OSS_REGION;
 const OSS_BUCKET_NAME = process.env.OSS_BUCKET_NAME;
 const PORT = Number(process.env.PORT || 9000);
 const HISTORY_DIR = path.resolve(__dirname, 'data');
 const HISTORY_FILE = path.join(HISTORY_DIR, 'analysis_history.json');
 const HISTORY_LIMIT = 30;
+const QWEN_SYSTEM_PROMPT = loadMember2SystemPrompt();
 
 // 1. Cấu hình STS Token (Alibaba Cloud)
 const stsClient = new Core({
@@ -61,29 +71,6 @@ const ossClient = new OSS({
   accessKeyId: process.env.ALI_ACCESS_KEY,
   accessKeySecret: process.env.ALI_SECRET_KEY
 });
-
-// 2. Định nghĩa System Prompt hướng dẫn Qwen giải mã file Xét nghiệm y khoa
-const QWEN_SYSTEM_PROMPT = `
-Bạn là Trợ lý phân tích Xét nghiệm y khoa.
-Nhiệm vụ của bạn là đọc tài liệu xét nghiệm và bóc tách các chỉ số quan trọng.
-TUYỆT ĐỐI CHỈ TRẢ VỀ JSON hợp lệ theo schema sau:
-{
-  "status": "success",
-  "analysis_date": "YYYY-MM-DD",
-  "results": [
-    {
-      "indicator_name": "Tên chỉ số",
-      "value": "Giá trị",
-      "unit": "Đơn vị",
-      "reference_range": "Khoảng tham chiếu",
-      "organ_id": "kidneys|liver|heart|lungs|blood|other",
-      "severity": "normal|abnormal_low|abnormal_high|critical",
-      "patient_advice": "Lời khuyên ngắn gọn bằng tiếng Việt"
-    }
-  ]
-}
-Không thêm markdown, không thêm lời giải thích ngoài JSON.
-`;
 
 function writeSseEvent(res, eventName, payload) {
   res.write(`event: ${eventName}\n`);
@@ -118,33 +105,13 @@ function writeAnalysisHistory(items) {
   fs.writeFileSync(HISTORY_FILE, `${JSON.stringify(items, null, 2)}\n`, 'utf8');
 }
 
-function normalizeAnalysisPayload(payload) {
-  const rawResults = Array.isArray(payload?.results) ? payload.results : [];
-
-  return {
-    status: payload?.status?.toString() || 'success',
-    analysis_date: payload?.analysis_date?.toString() || new Date().toISOString().slice(0, 10),
-    ...(payload?.patient_name ? { patient_name: payload.patient_name.toString() } : {}),
-    results: rawResults.map((result) => ({
-      indicator_name: result?.indicator_name?.toString() || '',
-      value: result?.value?.toString() || '',
-      unit: result?.unit?.toString() || '',
-      reference_range: result?.reference_range?.toString() || '',
-      organ_id: result?.organ_id?.toString() || 'other',
-      severity: result?.severity?.toString() || 'normal',
-      patient_advice: result?.patient_advice?.toString() || ''
-    }))
-  };
-}
-
 function persistAnalysisHistory({ analysis, objectKey, fileUrl }) {
-  const normalized = normalizeAnalysisPayload(analysis);
   const entry = {
     id: `analysis_${Date.now()}_${Math.random().toString(16).slice(2, 8)}`,
     created_at: new Date().toISOString(),
     object_key: objectKey || null,
     file_url: fileUrl || null,
-    analysis: normalized
+    analysis
   };
 
   const history = readAnalysisHistory();
@@ -169,6 +136,7 @@ function buildQwenMessages(fileUrl) {
   const userInstruction = [
     'Hãy phân tích tài liệu xét nghiệm y khoa bên dưới.',
     'Chỉ trả về JSON hợp lệ theo schema đã yêu cầu.',
+    'Nếu tài liệu không phải xét nghiệm y khoa hoặc quá mờ, hãy trả về JSON error theo contract.',
     'Nếu thiếu dữ liệu, hãy dùng chuỗi rỗng thay vì suy đoán.',
     `Tài liệu cần phân tích: ${fileUrl}`
   ].join(' ');
@@ -190,6 +158,33 @@ function buildQwenMessages(fileUrl) {
     { role: 'system', content: QWEN_SYSTEM_PROMPT },
     { role: 'user', content: userInstruction }
   ];
+}
+
+async function generateAdviceFromAnalysis(analysis, summary) {
+  const qwenResponse = await axios({
+    method: 'post',
+    url: DASHSCOPE_SG_URL,
+    headers: {
+      Authorization: `Bearer ${process.env.DASHSCOPE_API_KEY}`,
+      'Content-Type': 'application/json'
+    },
+    data: {
+      model: DASHSCOPE_ADVICE_MODEL,
+      messages: buildAdviceMessages({
+        status: analysis.status,
+        patient_name: analysis.patient_name || null,
+        analysis_date: analysis.analysis_date || null,
+        results: analysis.results,
+        summary
+      }),
+      stream: false
+    },
+    timeout: 60000
+  });
+
+  const rawContent = qwenResponse.data?.choices?.[0]?.message?.content || '';
+  const parsed = parseJsonFromModelOutput(rawContent);
+  return normalizeAdvicePayload(parsed, analysis, summary);
 }
 
 app.get('/api/analyses', (req, res) => {
@@ -315,16 +310,47 @@ app.post('/api/analyze', async (req, res) => {
 
     let streamBuffer = '';
     let aggregatedText = '';
+    let streamCompleted = false;
 
-    const finalizeStructuredResult = ({ emitError = false } = {}) => {
+    const finalizeStructuredResult = async ({ emitError = false } = {}) => {
       if (finalized || !aggregatedText.trim()) {
         return;
       }
 
       try {
-        const parsed = JSON.parse(aggregatedText);
+        const parsed = parseJsonFromModelOutput(aggregatedText);
+        const normalizedAnalysis = normalizeAnalysisPayload(parsed);
+        const summary = buildAnalysisSummary(normalizedAnalysis);
+        let advice = null;
+
+        writeSseEvent(res, 'post_process', {
+          stage: 'summary',
+          message: 'Da trich xuat xong chi so, dang tong hop ket qua.'
+        });
+
+        if (normalizedAnalysis.status === 'success') {
+          try {
+            writeSseEvent(res, 'post_process', {
+              stage: 'advice',
+              message: 'Dang tao loi khuyen ca nhan hoa tu pipeline cua member 2.'
+            });
+            advice = await generateAdviceFromAnalysis(normalizedAnalysis, summary);
+          } catch (adviceError) {
+            console.error('Advice Generation Error:', adviceError.response?.data || adviceError.message);
+            writeSseEvent(res, 'warning', {
+              message: 'Khong tao duoc loi khuyen tong quat, se tra ket qua xet nghiem co ban.'
+            });
+          }
+        }
+
+        const persistedAnalysis = {
+          ...normalizedAnalysis,
+          summary,
+          ...(advice ? { advice } : {})
+        };
+
         const entry = persistAnalysisHistory({
-          analysis: parsed,
+          analysis: persistedAnalysis,
           objectKey: typeof object_key === 'string' ? object_key.trim() : '',
           fileUrl: typeof file_url === 'string' ? file_url.trim() : ''
         });
@@ -384,7 +410,7 @@ app.post('/api/analyze', async (req, res) => {
         }
 
         if (data === '[DONE]') {
-          writeSseEvent(res, 'done', { message: 'completed' });
+          streamCompleted = true;
           newlineIndex = streamBuffer.indexOf('\n');
           continue;
         }
@@ -406,10 +432,6 @@ app.post('/api/analyze', async (req, res) => {
               snapshot: aggregatedText
             });
           }
-
-          if (choice.finish_reason) {
-            finalizeStructuredResult();
-          }
         } catch (parseError) {
           writeSseEvent(res, 'raw', { chunk: data });
         }
@@ -418,8 +440,11 @@ app.post('/api/analyze', async (req, res) => {
       }
     });
 
-    qwenResponse.data.on('end', () => {
-      finalizeStructuredResult({ emitError: true });
+    qwenResponse.data.on('end', async () => {
+      await finalizeStructuredResult({ emitError: true });
+      if (streamCompleted) {
+        writeSseEvent(res, 'done', { message: 'completed' });
+      }
       res.end();
     });
 
@@ -439,7 +464,8 @@ app.get('/health', (req, res) => {
   res.json({
     status: 'ok',
     service: 'qwen-labs-analyzer-backend',
-    env_loaded_from: envPath || 'process.env'
+    env_loaded_from: envPath || 'process.env',
+    member2_prompt_loaded: Boolean(QWEN_SYSTEM_PROMPT)
   });
 });
 
