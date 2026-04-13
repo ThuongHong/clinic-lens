@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../models/lab_analysis.dart';
+import 'lab_visuals.dart';
 
 class AnalysisSummaryPanel extends StatelessWidget {
   const AnalysisSummaryPanel({
@@ -53,12 +54,14 @@ class AnalysisSummaryPanel extends StatelessWidget {
               _SummaryChip(
                 label: 'Indicators',
                 value: '${analysis.indicatorCount}',
+                icon: Icons.analytics_rounded,
                 color: const Color(0xFF0284C7),
                 bgColor: const Color(0xFFF0F9FF),
               ),
               _SummaryChip(
                 label: 'Alerts',
                 value: '${analysis.abnormalCount}',
+                icon: Icons.report_rounded,
                 color: analysis.abnormalCount == 0
                     ? const Color(0xFF059669)
                     : const Color(0xFFD97706),
@@ -69,6 +72,7 @@ class AnalysisSummaryPanel extends StatelessWidget {
               _SummaryChip(
                 label: 'Critical',
                 value: '${analysis.criticalCount}',
+                icon: Icons.priority_high_rounded,
                 color: analysis.criticalCount == 0
                     ? const Color(0xFF64748B)
                     : const Color(0xFFFF007F),
@@ -79,6 +83,7 @@ class AnalysisSummaryPanel extends StatelessWidget {
               _SummaryChip(
                 label: 'Organs',
                 value: '${analysis.trackedOrganCount}',
+                icon: Icons.grid_view_rounded,
                 color: const Color(0xFF4F46E5),
                 bgColor: const Color(0xFFEEF2FF),
               ),
@@ -134,12 +139,14 @@ class _SummaryChip extends StatelessWidget {
   const _SummaryChip({
     required this.label,
     required this.value,
+    required this.icon,
     required this.color,
     required this.bgColor,
   });
 
   final String label;
   final String value;
+  final IconData icon;
   final Color color;
   final Color bgColor;
 
@@ -154,24 +161,39 @@ class _SummaryChip extends StatelessWidget {
         borderRadius: BorderRadius.circular(16),
         border: Border.all(color: color.withValues(alpha: 0.2)),
       ),
-      child: Column(
+      child: Row(
         mainAxisSize: MainAxisSize.min,
-        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(
-            value,
-            style: theme.textTheme.headlineSmall?.copyWith(
-              color: color,
-              fontWeight: FontWeight.w800,
+          Container(
+            width: 32,
+            height: 32,
+            decoration: BoxDecoration(
+              color: color.withValues(alpha: 0.12),
+              shape: BoxShape.circle,
             ),
+            child: Icon(icon, size: 18, color: color),
           ),
-          const SizedBox(height: 2),
-          Text(
-            label,
-            style: theme.textTheme.bodySmall?.copyWith(
-              color: const Color(0xFF475569),
-              fontWeight: FontWeight.w600,
-            ),
+          const SizedBox(width: 10),
+          Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                value,
+                style: theme.textTheme.headlineSmall?.copyWith(
+                  color: color,
+                  fontWeight: FontWeight.w800,
+                ),
+              ),
+              const SizedBox(height: 2),
+              Text(
+                label,
+                style: theme.textTheme.bodySmall?.copyWith(
+                  color: const Color(0xFF475569),
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ],
           ),
         ],
       ),
@@ -253,30 +275,67 @@ class _OrganSummaryChip extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final visual = organVisualFor(summary.organId);
     final tone = _toneForSeverity(summary.worstSeverity);
 
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
       decoration: BoxDecoration(
-        color: tone.withValues(alpha: 0.08),
+        color: visual.tone.withValues(alpha: 0.08),
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: tone.withValues(alpha: 0.2)),
+        border: Border.all(color: visual.tone.withValues(alpha: 0.2)),
       ),
       child: Column(
         mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(
-            summary.organId.toUpperCase(),
-            style: theme.textTheme.labelMedium?.copyWith(
-              color: tone.withValues(alpha: 0.8),
-              fontWeight: FontWeight.w800,
-            ),
+          Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Container(
+                width: 28,
+                height: 28,
+                decoration: BoxDecoration(
+                  color: visual.tone.withValues(alpha: 0.16),
+                  shape: BoxShape.circle,
+                ),
+                child: Icon(visual.icon, size: 15, color: visual.tone),
+              ),
+              const SizedBox(width: 8),
+              Text(
+                visual.label,
+                style: theme.textTheme.labelMedium?.copyWith(
+                  color: visual.tone.withValues(alpha: 0.9),
+                  fontWeight: FontWeight.w800,
+                ),
+              ),
+            ],
           ),
-          const SizedBox(height: 4),
+          const SizedBox(height: 8),
           Text(
             '${summary.abnormalCount}/${summary.indicatorCount} alerts',
             style: theme.textTheme.bodyMedium?.copyWith(color: const Color(0xFF334155), fontWeight: FontWeight.w600),
+          ),
+          const SizedBox(height: 6),
+          Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                decoration: BoxDecoration(
+                  color: tone.withValues(alpha: 0.1),
+                  borderRadius: BorderRadius.circular(999),
+                ),
+                child: Text(
+                  summary.worstSeverity.replaceAll('_', ' ').toUpperCase(),
+                  style: theme.textTheme.labelSmall?.copyWith(
+                    color: tone,
+                    fontWeight: FontWeight.w800,
+                    letterSpacing: 0.3,
+                  ),
+                ),
+              ),
+            ],
           ),
         ],
       ),
