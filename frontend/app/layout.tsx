@@ -1,27 +1,27 @@
 import type { Metadata } from 'next';
 import type { ReactNode } from 'react';
-import { Plus_Jakarta_Sans, Space_Grotesk } from 'next/font/google';
 
 import './globals.css';
 
-const display = Space_Grotesk({
-    subsets: ['latin'],
-    variable: '--font-display'
-});
-
-const body = Plus_Jakarta_Sans({
-    subsets: ['latin'],
-    variable: '--font-body'
-});
-
 export const metadata: Metadata = {
-    title: 'Smart Labs Analyzer',
-    description: 'Web-first Smart Labs Analyzer built with Next.js and Alibaba Cloud.'
+    title: 'Smart Labs Analyzer — AI-powered clinical lab insights',
+    description:
+        'Upload lab reports, stream AI analysis, and get clinical follow-up insights powered by Alibaba Cloud and Qwen.',
+    openGraph: {
+        title: 'Smart Labs Analyzer',
+        description: 'AI-powered clinical lab analysis with Alibaba Cloud',
+        type: 'website'
+    }
 };
 
 export default function RootLayout({ children }: Readonly<{ children: ReactNode }>) {
     return (
-        <html lang="vi" className={`${display.variable} ${body.variable}`}>
+        <html lang="en">
+            <head>
+                <link rel="preconnect" href="https://fonts.googleapis.com" />
+                <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
+                <meta name="theme-color" content="#faf8f3" />
+            </head>
             <body>{children}</body>
         </html>
     );

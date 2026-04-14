@@ -32,30 +32,84 @@ interface ChatMessage {
 }
 
 const ORGAN_LABELS: Record<string, string> = {
-    kidneys: 'Thận',
-    liver: 'Gan',
-    heart: 'Tim',
-    lungs: 'Phổi',
-    blood: 'Máu',
-    pancreas: 'Tụy',
-    thyroid: 'Tuyến giáp',
-    bone: 'Xương',
-    immune: 'Miễn dịch',
-    other: 'Khác'
+    kidneys: 'Kidneys',
+    liver: 'Liver',
+    heart: 'Heart',
+    lungs: 'Lungs',
+    blood: 'Blood',
+    pancreas: 'Pancreas',
+    thyroid: 'Thyroid',
+    bone: 'Bone',
+    immune: 'Immune',
+    other: 'Other'
 };
 
 const STATUS_LABELS: Record<string, string> = {
-    normal: 'Bình thường',
-    abnormal_high: 'Cao',
-    abnormal_low: 'Thấp',
-    critical: 'Nguy kịch',
-    unknown: 'Chưa rõ'
+    normal: 'Normal',
+    abnormal_high: 'High',
+    abnormal_low: 'Low',
+    critical: 'Critical',
+    unknown: 'Unknown'
 };
 
+/* ─── SVG Icons (inline, no external dependency) ─── */
+function IconUpload() {
+    return (
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M17 8l-5-5-5 5M12 3v12" />
+        </svg>
+    );
+}
+function IconFile() {
+    return (
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+            <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+            <polyline points="14 2 14 8 20 8" />
+        </svg>
+    );
+}
+function IconClock() {
+    return (
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+            <circle cx="12" cy="12" r="10" /><polyline points="12 6 12 12 16 14" />
+        </svg>
+    );
+}
+function IconRefresh() {
+    return (
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+            <polyline points="23 4 23 10 17 10" /><polyline points="1 20 1 14 7 14" />
+            <path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15" />
+        </svg>
+    );
+}
+function IconSend() {
+    return (
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+            <line x1="22" y1="2" x2="11" y2="13" /><polygon points="22 2 15 22 11 13 2 9 22 2" />
+        </svg>
+    );
+}
+function IconChat() {
+    return (
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+            <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
+        </svg>
+    );
+}
+function IconEmpty() {
+    return (
+        <svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+            <circle cx="12" cy="12" r="10" /><line x1="8" y1="12" x2="16" y2="12" />
+        </svg>
+    );
+}
+
+/* ─── Main App Component ─────────────────────────── */
 export default function SmartLabsApp() {
     const [activeTab, setActiveTab] = useState<TabKey>('overview');
     const [selectedFile, setSelectedFile] = useState<File | null>(null);
-    const [status, setStatus] = useState('Sẵn sàng');
+    const [status, setStatus] = useState('Ready');
     const [analysis, setAnalysis] = useState<LabAnalysis | null>(null);
     const [analysisLogs, setAnalysisLogs] = useState<string[]>([]);
     const [history, setHistory] = useState<AnalysisHistoryEntry[]>([]);
@@ -70,7 +124,6 @@ export default function SmartLabsApp() {
     const [chatError, setChatError] = useState<string | null>(null);
 
     const chatEndRef = useRef<HTMLDivElement | null>(null);
-
     const backendUrl = resolveBackendBaseUrl();
 
     const selectedHistory = useMemo(
@@ -80,9 +133,7 @@ export default function SmartLabsApp() {
 
     const currentAnalysis = analysis ?? selectedHistory?.analysis ?? null;
 
-    useEffect(() => {
-        void loadHistory();
-    }, []);
+    useEffect(() => { void loadHistory(); }, []);
 
     useEffect(() => {
         if (chatEndRef.current) {
@@ -100,11 +151,9 @@ export default function SmartLabsApp() {
     async function loadHistory() {
         setHistoryLoading(true);
         setHistoryError(null);
-
         try {
             const items = await fetchAnalysisHistory();
             setHistory(items);
-
             if (!selectedHistoryId && items.length > 0) {
                 setSelectedHistoryId(items[0].id);
                 setAnalysis(items[0].analysis);
@@ -119,97 +168,82 @@ export default function SmartLabsApp() {
     function onPickFile(event: ChangeEvent<HTMLInputElement>) {
         const file = event.target.files?.[0] ?? null;
         setSelectedFile(file);
-
         if (file) {
-            setStatus(`Đã chọn ${file.name}`);
-            setAnalysisLogs([`✓ Selected file: ${file.name}`]);
+            setStatus(`Selected: ${file.name}`);
+            setAnalysisLogs([`File selected: ${file.name}`]);
         }
     }
 
     async function onRunAnalysis() {
-        if (!selectedFile) {
-            setStatus('Hãy chọn file trước.');
-            return;
-        }
-
+        if (!selectedFile) { setStatus('Please select a file first.'); return; }
         setAnalysisBusy(true);
         setChatMessages([]);
         setChatConversationId(null);
         setChatError(null);
         setAnalysis(null);
         setAnalysisLogs([]);
-        setStatus('Đang xin STS token...');
+        setStatus('Requesting STS token...');
         setActiveTab('overview');
 
         let nextHistoryId: string | null = null;
-
         try {
             const sts = await fetchStsToken();
-            setAnalysisLogs((current) => [...current, '✓ STS token acquired']);
-            setStatus('Đang upload file lên OSS...');
+            setAnalysisLogs((c) => [...c, 'STS token acquired']);
+            setStatus('Uploading file to OSS...');
 
             const uploadResult = await uploadFileToOss(selectedFile, sts);
-            setAnalysisLogs((current) => [...current, `✓ Upload complete: ${uploadResult.objectKey}`]);
-            setStatus('Đang khởi tạo phân tích...');
+            setAnalysisLogs((c) => [...c, `Upload complete: ${uploadResult.objectKey}`]);
+            setStatus('Initializing analysis stream...');
 
             for await (const event of streamAnalysis({ object_key: uploadResult.objectKey })) {
                 if (event.event === 'ready') {
-                    appendLog('✓ SSE connection opened');
-                    setStatus('Kết nối stream thành công');
+                    appendLog('SSE connection opened');
+                    setStatus('Stream connected');
                     continue;
                 }
-
                 if (event.event === 'signed_url_ready') {
                     const payload = parseEventPayload(event);
-                    appendLog(`✓ Private URL ready for ${payload?.object_key ?? 'object'}`);
+                    appendLog(`Signed URL ready: ${payload?.object_key ?? 'object'}`);
                     continue;
                 }
-
                 if (event.event === 'post_process') {
                     const payload = parseEventPayload(event);
-                    const message = String(payload?.message || 'Đang tổng hợp kết quả...');
-                    appendLog(`• ${message}`);
+                    const message = String(payload?.message || 'Finalizing results...');
+                    appendLog(message);
                     setStatus(message);
                     continue;
                 }
-
                 if (event.event === 'warning') {
                     const payload = parseEventPayload(event);
-                    const message = String(payload?.message || 'Cảnh báo từ backend');
-                    appendLog(`⚠ ${message}`);
+                    appendLog(String(payload?.message || 'Backend warning'));
                     continue;
                 }
-
                 if (event.event === 'result') {
                     const payload = parseEventPayload(event);
                     if (payload) {
                         const parsed = parseAnalysis(payload);
                         setAnalysis(parsed);
                         nextHistoryId = String(payload.history_id || parsed.history_id || '');
-                        if (nextHistoryId) {
-                            setSelectedHistoryId(nextHistoryId);
-                        }
-                        setStatus(parsed.status === 'error' ? parsed.error_message || 'Phân tích trả về lỗi' : 'Đã nhận kết quả phân tích');
-                        appendLog('✓ Final JSON result parsed');
+                        if (nextHistoryId) setSelectedHistoryId(nextHistoryId);
+                        setStatus(
+                            parsed.status === 'error'
+                                ? parsed.error_message || 'Analysis returned an error'
+                                : 'Analysis result received'
+                        );
+                        appendLog('Result JSON parsed successfully');
                         setChatMessages([]);
                         setChatConversationId(null);
                     }
                     continue;
                 }
-
-                if (event.event === 'done') {
-                    setStatus('Phân tích hoàn tất');
-                }
+                if (event.event === 'done') { setStatus('Analysis complete'); }
             }
 
             await loadHistory();
-
-            if (nextHistoryId) {
-                setSelectedHistoryId(nextHistoryId);
-            }
+            if (nextHistoryId) setSelectedHistoryId(nextHistoryId);
         } catch (error) {
-            setStatus('Phân tích thất bại');
-            appendLog(`❌ ${formatError(error)}`);
+            setStatus('Analysis failed');
+            appendLog(`Error: ${formatError(error)}`);
         } finally {
             setAnalysisBusy(false);
         }
@@ -217,95 +251,64 @@ export default function SmartLabsApp() {
 
     async function onSendChat() {
         const message = chatInput.trim();
-
-        if (!selectedHistoryId) {
-            setChatError('Hãy chọn hoặc chạy một phân tích trước.');
-            return;
-        }
-
-        if (!message) {
-            return;
-        }
+        if (!selectedHistoryId) { setChatError('Please select or run an analysis first.'); return; }
+        if (!message) return;
 
         setChatBusy(true);
         setChatError(null);
         setChatInput('');
 
-        const userMessage: ChatMessage = {
-            id: createId('user'),
-            role: 'user',
-            text: message
+        const userMsg: ChatMessage = { id: createId('user'), role: 'user', text: message };
+        const assistantMsg: ChatMessage = {
+            id: createId('assistant'), role: 'assistant',
+            text: 'Composing response', pending: true
         };
-
-        const assistantMessage: ChatMessage = {
-            id: createId('assistant'),
-            role: 'assistant',
-            text: 'Đang soạn câu trả lời...',
-            pending: true
-        };
-
-        setChatMessages((current) => [...current, userMessage, assistantMessage]);
+        setChatMessages((c) => [...c, userMsg, assistantMsg]);
 
         try {
             for await (const event of streamChat({
-                history_id: selectedHistoryId,
-                message,
+                history_id: selectedHistoryId, message,
                 conversation_id: chatConversationId ?? undefined,
-                language: 'vi',
-                detail_level: 'patient'
+                language: 'en', detail_level: 'patient'
             })) {
                 if (event.event === 'status') {
                     const payload = parseEventPayload(event);
-                    const conversationId = payload?.conversation_id ? String(payload.conversation_id) : null;
-                    if (conversationId) {
-                        setChatConversationId(conversationId);
-                    }
+                    const cid = payload?.conversation_id ? String(payload.conversation_id) : null;
+                    if (cid) setChatConversationId(cid);
                     continue;
                 }
-
                 if (event.event === 'post_process') {
                     const payload = parseEventPayload(event);
-                    const messageText = String(payload?.message || 'Đang xử lý ngữ cảnh...');
-                    setStatus(messageText);
+                    setStatus(String(payload?.message || 'Processing context...'));
                     continue;
                 }
-
                 if (event.event === 'warning') {
                     const payload = parseEventPayload(event);
-                    setChatError(String(payload?.message || 'Có cảnh báo trong quá trình chat.'));
+                    setChatError(String(payload?.message || 'A warning occurred during chat.'));
                     continue;
                 }
-
                 if (event.event === 'result') {
                     const payload = parseEventPayload(event);
-                    if (!payload) {
-                        continue;
-                    }
-
+                    if (!payload) continue;
                     const chatResult = parseChatResult(payload);
                     if (chatResult) {
                         setChatConversationId(chatResult.conversation_id || chatConversationId);
-                        setChatMessages((current) => {
-                            if (current.length === 0) {
-                                return current;
-                            }
-
-                            const next = [...current];
-                            const lastIndex = next.length - 1;
-                            next[lastIndex] = {
-                                ...next[lastIndex],
-                                text: chatResult.assistant.answer_text || 'Không có nội dung trả lời.',
+                        setChatMessages((c) => {
+                            if (c.length === 0) return c;
+                            const next = [...c];
+                            const last = next.length - 1;
+                            next[last] = {
+                                ...next[last],
+                                text: chatResult.assistant.answer_text || 'No response content.',
                                 assistant: chatResult.assistant,
                                 pending: false
                             };
                             return next;
                         });
                     }
-
-                    setStatus('Chat response is ready');
+                    setStatus('Chat response ready');
                     continue;
                 }
-
                 if (event.event === 'error') {
                     const payload = parseEventPayload(event);
                     throw new Error(String(payload?.message || event.data || 'Chat failed'));
@@ -313,20 +316,13 @@ export default function SmartLabsApp() {
             }
         } catch (error) {
             setChatError(formatError(error));
-            setStatus('Chat thất bại');
-            setChatMessages((current) => {
-                if (current.length === 0) {
-                    return current;
-                }
-
-                const next = [...current];
-                const lastIndex = next.length - 1;
-                if (next[lastIndex].role === 'assistant') {
-                    next[lastIndex] = {
-                        ...next[lastIndex],
-                        text: formatError(error),
-                        pending: false
-                    };
+            setStatus('Chat failed');
+            setChatMessages((c) => {
+                if (c.length === 0) return c;
+                const next = [...c];
+                const last = next.length - 1;
+                if (next[last].role === 'assistant') {
+                    next[last] = { ...next[last], text: formatError(error), pending: false };
                 }
                 return next;
             });
@@ -341,521 +337,668 @@ export default function SmartLabsApp() {
         setChatMessages([]);
         setChatConversationId(null);
         setChatError(null);
-        setStatus(`Đang xem phân tích lúc ${formatDateTime(entry.created_at)}`);
+        setStatus(`Viewing analysis from ${formatDateTime(entry.created_at)}`);
         setActiveTab('overview');
     }
 
     const stats = useMemo(() => {
         const results = currentAnalysis?.results ?? [];
-        const abnormalResults = results.filter((item) => item.severity !== 'normal');
-        const criticalResults = results.filter((item) => item.severity === 'critical');
-        const organCount = new Set(results.map((item) => item.organ_id).filter(Boolean)).size;
-
+        const abnormal = results.filter((r) => r.severity !== 'normal');
+        const critical = results.filter((r) => r.severity === 'critical');
+        const organs = new Set(results.map((r) => r.organ_id).filter(Boolean)).size;
         return [
-            { label: 'Chỉ số', value: results.length },
-            { label: 'Bất thường', value: abnormalResults.length },
-            { label: 'Critical', value: criticalResults.length },
-            { label: 'Cơ quan', value: organCount }
+            { label: 'Indicators', value: results.length },
+            { label: 'Abnormal', value: abnormal.length },
+            { label: 'Critical', value: critical.length },
+            { label: 'Organs', value: organs }
         ];
     }, [currentAnalysis]);
 
+    function appendLog(line: string) {
+        setAnalysisLogs((c) => [...c, line]);
+    }
+
+    const TAB_LABELS: Record<TabKey, string> = {
+        overview: 'Overview',
+        chat: 'AI Chat',
+        history: 'History'
+    };
+
     return (
-        <div className="shell">
-            <div className="shellGlow shellGlowOne" />
-            <div className="shellGlow shellGlowTwo" />
-            <main className="appShell">
-                <section className="heroCard panel">
-                    <div className="heroGrid">
+        <div className="appRoot">
+            <div className="glowBlob glowBlobA" aria-hidden="true" />
+            <div className="glowBlob glowBlobB" aria-hidden="true" />
+
+            <a href="#main-content" className="btn btn-primary"
+               style={{ position: 'absolute', left: '-9999px', top: 8, zIndex: 999 }}
+               onFocus={(e) => (e.currentTarget.style.left = '8px')}
+               onBlur={(e) => (e.currentTarget.style.left = '-9999px')}>
+                Skip to content
+            </a>
+
+            <main className="appShell" id="main-content">
+
+                {/* ── Hero ──────────────────────────── */}
+                <section className="panel heroCard" aria-labelledby="hero-title">
+                    <div className="heroLayout">
                         <div className="heroCopy">
-                            <div className="eyebrow">Smart Labs Analyzer · Next.js + Alibaba Cloud</div>
-                            <h1>Web-first lab analysis workspace for upload, streaming insight, and clinical follow-up.</h1>
+                            <div className="eyebrow">
+                                <span className="eyebrowDot" />
+                                Smart Labs · Alibaba Cloud + Qwen AI
+                            </div>
+                            <h1 id="hero-title">
+                                Lab analysis,<br />
+                                <em>clinically sharp.</em>
+                            </h1>
                             <p>
-                                Giao diện web mới tập trung vào phân tích xét nghiệm, chat follow-up và lịch sử phân tích trên trình duyệt.
+                                Upload a PDF or image of lab results. The system extracts, analyzes,
+                                and streams clinical insights in real time via Qwen Vision Language Model.
                             </p>
                             <div className="heroActions">
-                                <label className="primaryButton" htmlFor="lab-file-input">
-                                    Chọn file
+                                <label htmlFor="lab-file-input" className="btn btn-primary btn-label">
+                                    <IconUpload /> Choose file
                                 </label>
-                                <button className="secondaryButton" type="button" onClick={() => setActiveTab('chat')}>
-                                    Mở Chat
+                                <button className="btn btn-secondary" type="button" onClick={() => setActiveTab('chat')}>
+                                    <IconChat /> Open chat
                                 </button>
-                                <button className="ghostButton" type="button" onClick={() => setActiveTab('history')}>
-                                    Lịch sử
+                                <button className="btn btn-ghost" type="button" onClick={() => setActiveTab('history')}>
+                                    <IconClock /> History
                                 </button>
                             </div>
                         </div>
-                        <div className="heroSide">
+
+                        <div className="heroMetrics" aria-label="System info">
                             <div className="heroMetricCard">
-                                <span className="metricLabel">Backend</span>
-                                <strong>{backendUrl}</strong>
+                                <span className="metricLabel">Backend endpoint</span>
+                                <span className="metricValue">{backendUrl}</span>
                             </div>
                             <div className="heroMetricCard">
-                                <span className="metricLabel">Status</span>
-                                <strong>{status}</strong>
+                                <span className="metricLabel">Current status</span>
+                                <span className="metricValue">{status}</span>
                             </div>
                         </div>
                     </div>
-                    <div className="statsGrid">
+
+                    <div className="statsRow" role="list" aria-label="Summary metrics">
                         {stats.map((item) => (
-                            <div key={item.label} className="statCard">
-                                <span className="metricValue">{item.value}</span>
+                            <div key={item.label} className="statCell" role="listitem">
+                                <span className="metricValueLarge"
+                                    style={{
+                                        color: item.label === 'Critical' && item.value > 0 ? 'var(--danger)'
+                                            : item.label === 'Abnormal' && item.value > 0 ? 'var(--warning)'
+                                            : undefined
+                                    }}>
+                                    {item.value}
+                                </span>
                                 <span className="metricLabel">{item.label}</span>
                             </div>
                         ))}
                     </div>
                 </section>
 
-                <section className="tabBar panel">
+                {/* ── Navigation ───────────────────── */}
+                <nav className="navPill" aria-label="Tab navigation" role="tablist">
                     {(['overview', 'chat', 'history'] as TabKey[]).map((tab) => (
                         <button
-                            key={tab}
-                            type="button"
-                            className={tab === activeTab ? 'tabButton tabButtonActive' : 'tabButton'}
+                            key={tab} type="button" role="tab"
+                            aria-selected={tab === activeTab}
+                            id={`tab-${tab}`}
+                            className={tab === activeTab ? 'navPillItem navPillItemActive' : 'navPillItem'}
                             onClick={() => setActiveTab(tab)}
                         >
-                            {tab === 'overview' ? 'Overview' : tab === 'chat' ? 'Chat' : 'History'}
+                            {TAB_LABELS[tab]}
                         </button>
                     ))}
-                </section>
+                </nav>
 
+                {/* ── Overview Tab ─────────────────── */}
                 {activeTab === 'overview' && (
-                    <section className="workspaceGrid">
+                    <section className="workspaceGrid" role="tabpanel" aria-labelledby="tab-overview">
                         <article className="panel">
-                            <div className="panelHeader">
-                                <div>
-                                    <div className="panelTitle">Upload & Analyze</div>
-                                    <div className="panelSubtitle">Chọn PDF hoặc ảnh, upload trực tiếp lên OSS rồi stream kết quả từ backend.</div>
-                                </div>
-                                <div className="panelBadge">{analysisBusy ? 'Đang xử lý' : 'Sẵn sàng'}</div>
-                            </div>
-
-                            <div className="uploadCard">
-                                <input id="lab-file-input" type="file" accept=".pdf,.png,.jpg,.jpeg,.webp" onChange={onPickFile} />
-                                <div className="uploadHint">Hỗ trợ PDF, PNG, JPG, JPEG, WEBP.</div>
-                                {selectedFile ? (
-                                    <div className="uploadMeta">
-                                        <strong>{selectedFile.name}</strong>
-                                        <span>{formatFileSize(selectedFile.size)}</span>
+                            <div className="panelInner">
+                                <div className="panelHeader">
+                                    <div className="panelTitleGroup">
+                                        <div className="panelTitle">Upload &amp; analyze</div>
+                                        <div className="panelSubtitle">
+                                            Select a PDF or image, upload to OSS, and stream results from the backend.
+                                        </div>
                                     </div>
-                                ) : (
-                                    <div className="uploadMeta muted">Chưa chọn file nào.</div>
-                                )}
-                                <div className="heroActions">
-                                    <button className="primaryButton buttonLike" type="button" onClick={onRunAnalysis} disabled={analysisBusy}>
-                                        {analysisBusy ? 'Đang phân tích...' : 'Run analysis'}
+                                    <div className={analysisBusy ? 'badge accent' : 'badge'}>
+                                        <span className="badgeDot" />
+                                        {analysisBusy ? 'Processing' : 'Ready'}
+                                    </div>
+                                </div>
+
+                                <div className={`uploadZone${selectedFile ? ' hasFile' : ''}`}
+                                    role="group" aria-label="File upload area">
+                                    <input
+                                        id="lab-file-input" type="file"
+                                        accept=".pdf,.png,.jpg,.jpeg,.webp"
+                                        onChange={onPickFile}
+                                        aria-label="Select lab report file"
+                                    />
+                                    <div className="uploadZoneContent">
+                                        <div className="uploadIcon" aria-hidden="true">
+                                            {selectedFile ? <IconFile /> : <IconUpload />}
+                                        </div>
+                                        <div className="uploadTitle">
+                                            {selectedFile ? 'File selected — click to change' : 'Drag & drop or click to select'}
+                                        </div>
+                                        <div className="uploadHint">PDF, PNG, JPG, JPEG, WEBP · Max 20 MB</div>
+                                    </div>
+                                    {selectedFile && (
+                                        <div className="uploadFileMeta">
+                                            <span className="uploadFileName">{selectedFile.name}</span>
+                                            <span className="uploadFileSize">{formatFileSize(selectedFile.size)}</span>
+                                        </div>
+                                    )}
+                                </div>
+
+                                <div className="heroActions" style={{ marginTop: '14px' }}>
+                                    <button className="btn btn-primary" type="button"
+                                        onClick={onRunAnalysis} disabled={analysisBusy || !selectedFile}
+                                        aria-busy={analysisBusy}>
+                                        {analysisBusy
+                                            ? <span className="pendingDots">Analyzing</span>
+                                            : 'Run analysis'}
                                     </button>
-                                    <button className="secondaryButton buttonLike" type="button" onClick={loadHistory} disabled={historyLoading}>
-                                        {historyLoading ? 'Đang tải...' : 'Refresh history'}
+                                    <button className="btn btn-secondary" type="button"
+                                        onClick={loadHistory} disabled={historyLoading} aria-busy={historyLoading}>
+                                        <IconRefresh />
+                                        {historyLoading ? 'Loading...' : 'Refresh'}
                                     </button>
                                 </div>
-                            </div>
 
-                            <div className="statusRail">
-                                <span className="statusLabel">Trạng thái</span>
-                                <strong>{status}</strong>
-                            </div>
+                                <div className="statusRail" role="status" aria-live="polite">
+                                    <span className="statusRailLabel">Status</span>
+                                    <span className="statusRailValue">{status}</span>
+                                </div>
 
-                            <div className="logCard">
-                                <div className="panelTitle small">Stream log</div>
-                                {analysisLogs.length > 0 ? (
-                                    <ul className="logList">
-                                        {analysisLogs.map((line) => (
-                                            <li key={line}>{line}</li>
-                                        ))}
-                                    </ul>
-                                ) : (
-                                    <div className="emptyState">Chưa có log stream.</div>
-                                )}
+                                <div className="logBlock" aria-label="Stream log">
+                                    <div className="logBlockHeader">Stream log</div>
+                                    {analysisLogs.length > 0 ? (
+                                        <ul className="logList" aria-live="polite">
+                                            {analysisLogs.map((line, i) => (
+                                                <li key={`${i}-${line}`}>{line}</li>
+                                            ))}
+                                        </ul>
+                                    ) : (
+                                        <div style={{ padding: '12px 14px' }}>
+                                            <span style={{ fontSize: '0.78rem', color: 'var(--text-muted)', fontFamily: 'Geist Mono, monospace' }}>
+                                                No stream output yet.
+                                            </span>
+                                        </div>
+                                    )}
+                                </div>
                             </div>
                         </article>
 
                         <article className="panel">
-                            <div className="panelHeader">
-                                <div>
-                                    <div className="panelTitle">Analysis result</div>
-                                    <div className="panelSubtitle">Tóm tắt và các chỉ số bất thường từ backend.</div>
+                            <div className="panelInner">
+                                <div className="panelHeader">
+                                    <div className="panelTitleGroup">
+                                        <div className="panelTitle">Analysis result</div>
+                                        <div className="panelSubtitle">
+                                            Summary and abnormal markers from the AI backend.
+                                        </div>
+                                    </div>
+                                    {currentAnalysis ? (
+                                        <div className={getBadgeClass(currentAnalysis.status)}>
+                                            <span className="badgeDot" />
+                                            {currentAnalysis.status}
+                                        </div>
+                                    ) : (
+                                        <div className="badge">No result</div>
+                                    )}
                                 </div>
+
                                 {currentAnalysis ? (
-                                    <div className={badgeClass(currentAnalysis.status)}>{currentAnalysis.status}</div>
+                                    <div style={{ display: 'grid', gap: '12px' }}>
+                                        <div className="analysisHeaderStrip">
+                                            <div className="analysisHeaderCell">
+                                                <div className="metricLabel">Patient</div>
+                                                <strong style={{ fontSize: '0.92rem', color: 'var(--text)' }}>
+                                                    {currentAnalysis.patient_name?.trim() || 'Unknown patient'}
+                                                </strong>
+                                            </div>
+                                            <div className="analysisHeaderCell">
+                                                <div className="metricLabel">Test date</div>
+                                                <strong style={{ fontSize: '0.92rem', color: 'var(--text)' }}>
+                                                    {currentAnalysis.analysis_date || 'N/A'}
+                                                </strong>
+                                            </div>
+                                            <div className="analysisHeaderCell">
+                                                <div className="metricLabel">Source</div>
+                                                <strong style={{ fontSize: '0.92rem', color: 'var(--text)' }}>
+                                                    {selectedFile?.name || 'From history'}
+                                                </strong>
+                                            </div>
+                                        </div>
+
+                                        {currentAnalysis.results.length > 0 && (
+                                            <div className="resultGrid">
+                                                {currentAnalysis.results.map((result) => (
+                                                    <div key={`${result.indicator_name}-${result.organ_id}`} className="resultCard">
+                                                        <div className="resultTopRow">
+                                                            <div>
+                                                                <div className="resultName">{result.indicator_name}</div>
+                                                                <div className="resultMeta">
+                                                                    {organLabel(result.organ_id)} · {result.reference_range || 'N/A'}
+                                                                </div>
+                                                            </div>
+                                                            <div className={getSeverityClass(result.severity)}>
+                                                                {severityLabel(result.severity)}
+                                                            </div>
+                                                        </div>
+                                                        <div className="resultValueRow">
+                                                            <strong>{result.value || '—'}</strong>
+                                                            <span>{result.unit}</span>
+                                                        </div>
+                                                        {result.patient_advice && (
+                                                            <p className="resultAdvice">{result.patient_advice}</p>
+                                                        )}
+                                                    </div>
+                                                ))}
+                                            </div>
+                                        )}
+
+                                        {currentAnalysis.summary?.organ_summary?.length ? (
+                                            <div className="sectionCard">
+                                                <div className="sectionTitle">Organ summary</div>
+                                                <div className="chipWrap">
+                                                    {currentAnalysis.summary.organ_summary.map((item) => (
+                                                        <span key={item.organ_id} className="chip">
+                                                            {organLabel(item.organ_id)} · {STATUS_LABELS[item.worst_severity] ?? item.worst_severity} · {item.abnormal_count}/{item.indicator_count}
+                                                        </span>
+                                                    ))}
+                                                </div>
+                                            </div>
+                                        ) : null}
+
+                                        {currentAnalysis.advice?.general_recommendations?.length ? (
+                                            <div className="sectionCard">
+                                                <div className="sectionTitle">General recommendations</div>
+                                                <ul className="bulletList">
+                                                    {currentAnalysis.advice.general_recommendations.map((item) => (
+                                                        <li key={item}>{item}</li>
+                                                    ))}
+                                                </ul>
+                                            </div>
+                                        ) : null}
+                                    </div>
                                 ) : (
-                                    <div className="panelBadge muted">No result yet</div>
+                                    <div className="emptyState emptyStateLg" role="status">
+                                        <div className="emptyStateIcon" aria-hidden="true"><IconEmpty /></div>
+                                        <p>No results yet. Upload a file and run an analysis to get started.</p>
+                                    </div>
                                 )}
                             </div>
-
-                            {currentAnalysis ? (
-                                <div className="analysisStack">
-                                    <div className="analysisHeaderCard">
-                                        <div>
-                                            <div className="metricLabel">Patient</div>
-                                            <strong>{currentAnalysis.patient_name?.trim() || 'Unknown patient'}</strong>
-                                        </div>
-                                        <div>
-                                            <div className="metricLabel">Date</div>
-                                            <strong>{currentAnalysis.analysis_date || 'N/A'}</strong>
-                                        </div>
-                                        <div>
-                                            <div className="metricLabel">File</div>
-                                            <strong>{selectedFile?.name || 'History result'}</strong>
-                                        </div>
-                                    </div>
-
-                                    <div className="resultGrid">
-                                        {currentAnalysis.results.map((result) => (
-                                            <div key={`${result.indicator_name}-${result.organ_id}`} className="resultCard">
-                                                <div className="resultTopRow">
-                                                    <div>
-                                                        <div className="resultName">{result.indicator_name}</div>
-                                                        <div className="resultMeta">{organLabel(result.organ_id)} · {result.reference_range || 'N/A'}</div>
-                                                    </div>
-                                                    <div className={severityClass(result.severity)}>{severityLabel(result.severity)}</div>
-                                                </div>
-                                                <div className="resultValueRow">
-                                                    <strong>{result.value || '—'}</strong>
-                                                    <span>{result.unit}</span>
-                                                </div>
-                                                {result.patient_advice ? <p>{result.patient_advice}</p> : null}
-                                            </div>
-                                        ))}
-                                    </div>
-
-                                    {currentAnalysis.summary?.organ_summary?.length ? (
-                                        <div className="sectionCard">
-                                            <div className="panelTitle small">Organ summary</div>
-                                            <div className="chipWrap">
-                                                {currentAnalysis.summary.organ_summary.map((item) => (
-                                                    <span key={item.organ_id} className="softChip">
-                                                        {organLabel(item.organ_id)} · {STATUS_LABELS[item.worst_severity] ?? item.worst_severity} · {item.abnormal_count}/{item.indicator_count}
-                                                    </span>
-                                                ))}
-                                            </div>
-                                        </div>
-                                    ) : null}
-
-                                    {currentAnalysis.advice?.general_recommendations?.length ? (
-                                        <div className="sectionCard">
-                                            <div className="panelTitle small">General recommendations</div>
-                                            <ul className="bulletList">
-                                                {currentAnalysis.advice.general_recommendations.map((item) => (
-                                                    <li key={item}>{item}</li>
-                                                ))}
-                                            </ul>
-                                        </div>
-                                    ) : null}
-                                </div>
-                            ) : (
-                                <div className="emptyState large">
-                                    Chưa có kết quả. Hãy upload file và chạy phân tích.
-                                </div>
-                            )}
                         </article>
                     </section>
                 )}
 
+                {/* ── Chat Tab ─────────────────────── */}
                 {activeTab === 'chat' && (
-                    <section className="workspaceGrid chatLayout">
+                    <section className="workspaceGrid workspaceGridChat" role="tabpanel" aria-labelledby="tab-chat">
                         <article className="panel">
-                            <div className="panelHeader">
-                                <div>
-                                    <div className="panelTitle">Smart Labs Chat</div>
-                                    <div className="panelSubtitle">
-                                        Hỏi tiếp về chỉ số, nguy cơ, và bước tiếp theo dựa trên phân tích đã chọn.
+                            <div className="panelInner">
+                                <div className="panelHeader">
+                                    <div className="panelTitleGroup">
+                                        <div className="panelTitle">AI Chat</div>
+                                        <div className="panelSubtitle">
+                                            Ask follow-up questions about indicators, risks, and next steps.
+                                        </div>
+                                    </div>
+                                    <div className={chatBusy ? 'badge accent' : 'badge'}>
+                                        <span className="badgeDot" />
+                                        {chatBusy ? 'Streaming' : 'Idle'}
                                     </div>
                                 </div>
-                                <div className={chatBusy ? 'panelBadge accent' : 'panelBadge'}>{chatBusy ? 'Streaming' : 'Idle'}</div>
-                            </div>
 
-                            <div className="chatWindow">
-                                {chatMessages.length > 0 ? (
-                                    chatMessages.map((message) => (
-                                        <div
-                                            key={message.id}
-                                            className={message.role === 'user' ? 'chatBubble chatBubbleUser' : 'chatBubble chatBubbleAssistant'}
-                                        >
-                                            <div className="chatBubbleMeta">{message.role === 'user' ? 'Bạn' : 'Assistant'}</div>
-                                            <div className="chatBubbleText">{message.text}</div>
-
-                                            {message.assistant ? (
-                                                <div className="assistantMetaStack">
-                                                    <div className="chipWrap">
-                                                        <span className="softChip">Risk: {message.assistant.risk_level.toUpperCase()}</span>
-                                                        {message.assistant.escalation ? <span className="softChip danger">Escalation ON</span> : null}
-                                                    </div>
-
-                                                    {message.assistant.recommended_actions.length ? (
-                                                        <div className="miniSection">
-                                                            <div className="panelTitle small">Recommended actions</div>
-                                                            <ul className="bulletList compact">
-                                                                {message.assistant.recommended_actions.map((item) => (
-                                                                    <li key={item}>{item}</li>
-                                                                ))}
-                                                            </ul>
-                                                        </div>
-                                                    ) : null}
-
-                                                    {message.assistant.follow_up_questions.length ? (
-                                                        <div className="miniSection">
-                                                            <div className="panelTitle small">Follow-up questions</div>
-                                                            <ul className="bulletList compact">
-                                                                {message.assistant.follow_up_questions.map((item) => (
-                                                                    <li key={item}>{item}</li>
-                                                                ))}
-                                                            </ul>
-                                                        </div>
-                                                    ) : null}
-
-                                                    {message.assistant.disclaimer ? <p className="disclaimerText">{message.assistant.disclaimer}</p> : null}
+                                <div className="chatWindow" role="log" aria-label="Conversation history" aria-live="polite">
+                                    {chatMessages.length > 0 ? (
+                                        chatMessages.map((msg) => (
+                                            <div key={msg.id}
+                                                className={msg.role === 'user' ? 'chatBubble chatBubbleUser' : 'chatBubble chatBubbleAssistant'}>
+                                                <div className="chatBubbleMeta">
+                                                    {msg.role === 'user' ? 'You' : 'Smart Labs AI'}
                                                 </div>
-                                            ) : null}
+                                                <div className="chatBubbleText">
+                                                    {msg.pending
+                                                        ? <span className="pendingDots">Composing response</span>
+                                                        : msg.text}
+                                                </div>
+
+                                                {msg.assistant && !msg.pending && (
+                                                    <div className="assistantMetaStack">
+                                                        <div className="chipWrap" style={{ marginTop: '10px' }}>
+                                                            <span className="chip">
+                                                                Risk: {msg.assistant.risk_level.toUpperCase()}
+                                                            </span>
+                                                            {msg.assistant.escalation && (
+                                                                <span className="chip danger">See a doctor</span>
+                                                            )}
+                                                        </div>
+
+                                                        {msg.assistant.recommended_actions.length > 0 && (
+                                                            <div style={{ marginTop: '8px' }}>
+                                                                <div className="miniSectionTitle">Recommended actions</div>
+                                                                <ul className="bulletList">
+                                                                    {msg.assistant.recommended_actions.map((item) => (
+                                                                        <li key={item}>{item}</li>
+                                                                    ))}
+                                                                </ul>
+                                                            </div>
+                                                        )}
+
+                                                        {msg.assistant.follow_up_questions.length > 0 && (
+                                                            <div style={{ marginTop: '8px' }}>
+                                                                <div className="miniSectionTitle">Follow-up questions</div>
+                                                                <ul className="bulletList">
+                                                                    {msg.assistant.follow_up_questions.map((item) => (
+                                                                        <li key={item}>{item}</li>
+                                                                    ))}
+                                                                </ul>
+                                                            </div>
+                                                        )}
+
+                                                        {msg.assistant.disclaimer && (
+                                                            <p className="disclaimerText">{msg.assistant.disclaimer}</p>
+                                                        )}
+                                                    </div>
+                                                )}
+                                            </div>
+                                        ))
+                                    ) : (
+                                        <div className="emptyState emptyStateLg" role="status">
+                                            <div className="emptyStateIcon" aria-hidden="true"><IconChat /></div>
+                                            <p>No conversation yet. Select an analysis and ask your first question.</p>
                                         </div>
-                                    ))
+                                    )}
+                                    <div ref={chatEndRef} />
+                                </div>
+
+                                <div className="chatComposerWrap">
+                                    <textarea
+                                        value={chatInput}
+                                        onChange={(e) => setChatInput(e.target.value)}
+                                        placeholder="e.g. What should I pay most attention to in these results?"
+                                        rows={3}
+                                        onKeyDown={(e) => {
+                                            if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) void onSendChat();
+                                        }}
+                                        aria-label="Enter your question"
+                                    />
+                                    <div className="chatComposerFooter">
+                                        <span className="chatComposerHint">
+                                            {selectedHistoryId
+                                                ? `Using analysis #${selectedHistoryId.slice(0, 8)}`
+                                                : 'Select a history record before chatting.'}
+                                            {' · Ctrl+Enter to send'}
+                                        </span>
+                                        <button className="btn btn-primary" type="button"
+                                            onClick={onSendChat}
+                                            disabled={chatBusy || !chatInput.trim()}
+                                            aria-busy={chatBusy}
+                                            style={{ height: '36px', fontSize: '0.82rem' }}>
+                                            <IconSend />
+                                            {chatBusy ? 'Sending...' : 'Send'}
+                                        </button>
+                                    </div>
+                                </div>
+
+                                {chatError && (
+                                    <div className="errorBanner" role="alert">{chatError}</div>
+                                )}
+                            </div>
+                        </article>
+
+                        <article className="panel">
+                            <div className="panelInner">
+                                <div className="panelHeader">
+                                    <div className="panelTitleGroup">
+                                        <div className="panelTitle">Chat context</div>
+                                        <div className="panelSubtitle">The analysis currently used as context.</div>
+                                    </div>
+                                    <div className="badge">{selectedHistory ? 'Active' : 'None'}</div>
+                                </div>
+
+                                {currentAnalysis ? (
+                                    <div className="contextCard">
+                                        <div className="metricLabel">Patient</div>
+                                        <div className="contextPatient">
+                                            {currentAnalysis.patient_name?.trim() || 'Unknown patient'}
+                                        </div>
+                                        <div className="contextDate">
+                                            {currentAnalysis.analysis_date || 'N/A'}
+                                        </div>
+                                        <div className="chipWrap" style={{ marginTop: '6px' }}>
+                                            <span className="chip">{currentAnalysis.results.length} indicators</span>
+                                            <span className="chip">
+                                                {currentAnalysis.results.filter((r) => r.severity !== 'normal').length} abnormal
+                                            </span>
+                                            <span className="chip">
+                                                {currentAnalysis.results.filter((r) => r.severity === 'critical').length} critical
+                                            </span>
+                                        </div>
+                                    </div>
                                 ) : (
-                                    <div className="emptyState large">
-                                        Chưa có hội thoại. Chọn một analysis rồi đặt câu hỏi tiếp.
+                                    <div className="emptyState" role="status">
+                                        <div className="emptyStateIcon" aria-hidden="true"><IconEmpty /></div>
+                                        <p>No analysis selected.</p>
                                     </div>
                                 )}
-                                <div ref={chatEndRef} />
                             </div>
+                        </article>
+                    </section>
+                )}
 
-                            <div className="chatComposer">
-                                <textarea
-                                    value={chatInput}
-                                    onChange={(event) => setChatInput(event.target.value)}
-                                    placeholder="Ví dụ: Tôi cần lưu ý gì nhất?"
-                                    rows={4}
-                                />
-                                <div className="composerActions">
-                                    <div className="composerHint">
-                                        {selectedHistoryId ? `Đang chat với history ${selectedHistoryId}` : 'Chọn history trước khi chat.'}
+                {/* ── History Tab ──────────────────── */}
+                {activeTab === 'history' && (
+                    <section className="workspaceGrid workspaceGridHistory" role="tabpanel" aria-labelledby="tab-history">
+                        <article className="panel">
+                            <div className="panelInner">
+                                <div className="panelHeader">
+                                    <div className="panelTitleGroup">
+                                        <div className="panelTitle">Analysis history</div>
+                                        <div className="panelSubtitle">Reload and select a previous analysis record.</div>
                                     </div>
-                                    <button className="primaryButton buttonLike" type="button" onClick={onSendChat} disabled={chatBusy}>
-                                        {chatBusy ? 'Đang gửi...' : 'Send'}
+                                    <button className="btn btn-secondary" type="button"
+                                        onClick={loadHistory} disabled={historyLoading} aria-busy={historyLoading}
+                                        style={{ height: '36px', fontSize: '0.82rem' }}>
+                                        <IconRefresh />
+                                        {historyLoading ? 'Loading...' : 'Refresh'}
                                     </button>
                                 </div>
-                            </div>
 
-                            {chatError ? <div className="errorBanner">{chatError}</div> : null}
-                        </article>
+                                {historyError && (
+                                    <div className="errorBanner" role="alert">{historyError}</div>
+                                )}
 
-                        <article className="panel">
-                            <div className="panelHeader">
-                                <div>
-                                    <div className="panelTitle">Conversation context</div>
-                                    <div className="panelSubtitle">Điểm tựa hiện tại cho câu hỏi chat.</div>
-                                </div>
-                                <div className="panelBadge">{selectedHistory ? 'Selected' : 'None'}</div>
-                            </div>
-
-                            {currentAnalysis ? (
-                                <div className="sectionCard">
-                                    <div className="metricLabel">Selected analysis</div>
-                                    <strong>{currentAnalysis.patient_name?.trim() || 'Unknown patient'}</strong>
-                                    <div className="mutedSmall">{currentAnalysis.analysis_date || 'N/A'}</div>
-                                    <div className="chipWrap topGap">
-                                        <span className="softChip">{currentAnalysis.results.length} indicators</span>
-                                        <span className="softChip">{currentAnalysis.results.filter((item) => item.severity !== 'normal').length} abnormal</span>
-                                        <span className="softChip">{currentAnalysis.results.filter((item) => item.severity === 'critical').length} critical</span>
-                                    </div>
-                                </div>
-                            ) : (
-                                <div className="emptyState large">Chưa có analysis được chọn.</div>
-                            )}
-                        </article>
-                    </section>
-                )}
-
-                {activeTab === 'history' && (
-                    <section className="workspaceGrid historyLayout">
-                        <article className="panel">
-                            <div className="panelHeader">
-                                <div>
-                                    <div className="panelTitle">History</div>
-                                    <div className="panelSubtitle">Tải lại và chọn một phân tích trước đó.</div>
-                                </div>
-                                <button className="secondaryButton buttonLike" type="button" onClick={loadHistory} disabled={historyLoading}>
-                                    {historyLoading ? 'Refreshing...' : 'Refresh'}
-                                </button>
-                            </div>
-
-                            {historyError ? <div className="errorBanner">{historyError}</div> : null}
-
-                            <div className="historyList">
-                                {history.length > 0 ? (
-                                    history.map((entry) => {
-                                        const isSelected = entry.id === selectedHistoryId;
-                                        const indicatorCount = entry.analysis.results.length;
-                                        const abnormalCount = entry.analysis.results.filter((item) => item.severity !== 'normal').length;
-                                        const criticalCount = entry.analysis.results.filter((item) => item.severity === 'critical').length;
-                                        return (
-                                            <button
-                                                key={entry.id}
-                                                type="button"
-                                                className={isSelected ? 'historyCard historyCardSelected' : 'historyCard'}
-                                                onClick={() => selectHistory(entry)}
-                                            >
-                                                <div className="historyTopRow">
-                                                    <div>
-                                                        <div className="resultName">{entry.analysis.patient_name?.trim() || 'Unknown patient'}</div>
-                                                        <div className="resultMeta">{formatDateTime(entry.created_at)}</div>
+                                <div className="historyList" role="list" aria-label="History records">
+                                    {history.length > 0 ? (
+                                        history.map((entry, idx) => {
+                                            const isSelected = entry.id === selectedHistoryId;
+                                            const indicatorCount = entry.analysis.results.length;
+                                            const abnormalCount = entry.analysis.results.filter((r) => r.severity !== 'normal').length;
+                                            const criticalCount = entry.analysis.results.filter((r) => r.severity === 'critical').length;
+                                            return (
+                                                <button key={entry.id} type="button" role="listitem"
+                                                    className={isSelected ? 'historyItem historyItemActive' : 'historyItem'}
+                                                    onClick={() => selectHistory(entry)}
+                                                    style={{ animationDelay: `${idx * 40}ms` }}
+                                                    aria-pressed={isSelected}>
+                                                    <div className="historyItemTopRow">
+                                                        <div>
+                                                            <div className="historyPatient">
+                                                                {entry.analysis.patient_name?.trim() || 'Unknown patient'}
+                                                            </div>
+                                                            <div className="historyDate">
+                                                                <IconClock /> {formatDateTime(entry.created_at)}
+                                                            </div>
+                                                        </div>
+                                                        <div className={getBadgeClass(entry.analysis.status)}>
+                                                            {entry.analysis.status}
+                                                        </div>
                                                     </div>
-                                                    <div className={badgeClass(entry.analysis.status)}>{entry.analysis.status}</div>
+                                                    <div className="chipWrap" style={{ marginTop: '0' }}>
+                                                        <span className="chip">{indicatorCount} indicators</span>
+                                                        {abnormalCount > 0 && (
+                                                            <span className="chip" style={{ color: 'var(--warning)', background: 'var(--warning-dim)', borderColor: 'rgba(217,119,6,0.2)' }}>
+                                                                {abnormalCount} abnormal
+                                                            </span>
+                                                        )}
+                                                        {criticalCount > 0 && (
+                                                            <span className="chip danger">{criticalCount} critical</span>
+                                                        )}
+                                                    </div>
+                                                </button>
+                                            );
+                                        })
+                                    ) : (
+                                        <div className="emptyState emptyStateLg" role="status">
+                                            <div className="emptyStateIcon" aria-hidden="true"><IconEmpty /></div>
+                                            <p>No history yet. Upload and analyze your first file.</p>
+                                        </div>
+                                    )}
+                                </div>
+                            </div>
+                        </article>
+
+                        <article className="panel">
+                            <div className="panelInner">
+                                <div className="panelHeader">
+                                    <div className="panelTitleGroup">
+                                        <div className="panelTitle">Selected detail</div>
+                                        <div className="panelSubtitle">Review the result of the selected record.</div>
+                                    </div>
+                                    {selectedHistory ? (
+                                        <div className="badge accent">#{selectedHistory.id.slice(0, 8)}</div>
+                                    ) : (
+                                        <div className="badge">None</div>
+                                    )}
+                                </div>
+
+                                {currentAnalysis ? (
+                                    <div style={{ display: 'grid', gap: '12px' }}>
+                                        <div className="analysisHeaderStrip">
+                                            <div className="analysisHeaderCell">
+                                                <div className="metricLabel">Patient</div>
+                                                <strong style={{ fontSize: '0.92rem', color: 'var(--text)' }}>
+                                                    {currentAnalysis.patient_name?.trim() || 'Unknown patient'}
+                                                </strong>
+                                            </div>
+                                            <div className="analysisHeaderCell">
+                                                <div className="metricLabel">Status</div>
+                                                <strong style={{ fontSize: '0.92rem', color: 'var(--text)' }}>
+                                                    {currentAnalysis.status}
+                                                </strong>
+                                            </div>
+                                            <div className="analysisHeaderCell">
+                                                <div className="metricLabel">Date</div>
+                                                <strong style={{ fontSize: '0.92rem', color: 'var(--text)' }}>
+                                                    {currentAnalysis.analysis_date || 'N/A'}
+                                                </strong>
+                                            </div>
+                                        </div>
+
+                                        <div className="resultGrid">
+                                            {currentAnalysis.results.slice(0, 6).map((result) => (
+                                                <div key={`hist-${result.indicator_name}-${result.organ_id}`} className="resultCard">
+                                                    <div className="resultTopRow">
+                                                        <div>
+                                                            <div className="resultName">{result.indicator_name}</div>
+                                                            <div className="resultMeta">
+                                                                {organLabel(result.organ_id)} · {result.reference_range || 'N/A'}
+                                                            </div>
+                                                        </div>
+                                                        <div className={getSeverityClass(result.severity)}>
+                                                            {severityLabel(result.severity)}
+                                                        </div>
+                                                    </div>
+                                                    <div className="resultValueRow">
+                                                        <strong>{result.value || '—'}</strong>
+                                                        <span>{result.unit}</span>
+                                                    </div>
                                                 </div>
-                                                <div className="chipWrap topGap">
-                                                    <span className="softChip">{indicatorCount} indicators</span>
-                                                    <span className="softChip">{abnormalCount} abnormal</span>
-                                                    <span className="softChip">{criticalCount} critical</span>
-                                                </div>
-                                            </button>
-                                        );
-                                    })
+                                            ))}
+                                        </div>
+                                    </div>
                                 ) : (
-                                    <div className="emptyState large">Chưa có history nào.</div>
+                                    <div className="emptyState emptyStateLg" role="status">
+                                        <div className="emptyStateIcon" aria-hidden="true"><IconEmpty /></div>
+                                        <p>Select a record from the list to view its details.</p>
+                                    </div>
                                 )}
                             </div>
                         </article>
-
-                        <article className="panel">
-                            <div className="panelHeader">
-                                <div>
-                                    <div className="panelTitle">Selected detail</div>
-                                    <div className="panelSubtitle">Xem lại kết quả đã chọn.</div>
-                                </div>
-                                {selectedHistory ? <div className="panelBadge">#{selectedHistory.id.slice(0, 8)}</div> : <div className="panelBadge muted">None</div>}
-                            </div>
-
-                            {currentAnalysis ? (
-                                <div className="analysisStack">
-                                    <div className="analysisHeaderCard">
-                                        <div>
-                                            <div className="metricLabel">Patient</div>
-                                            <strong>{currentAnalysis.patient_name?.trim() || 'Unknown patient'}</strong>
-                                        </div>
-                                        <div>
-                                            <div className="metricLabel">Status</div>
-                                            <strong>{currentAnalysis.status}</strong>
-                                        </div>
-                                        <div>
-                                            <div className="metricLabel">Date</div>
-                                            <strong>{currentAnalysis.analysis_date || 'N/A'}</strong>
-                                        </div>
-                                    </div>
-
-                                    <div className="resultGrid">
-                                        {currentAnalysis.results.slice(0, 6).map((result) => (
-                                            <div key={`${result.indicator_name}-${result.organ_id}`} className="resultCard">
-                                                <div className="resultTopRow">
-                                                    <div>
-                                                        <div className="resultName">{result.indicator_name}</div>
-                                                        <div className="resultMeta">{organLabel(result.organ_id)} · {result.reference_range || 'N/A'}</div>
-                                                    </div>
-                                                    <div className={severityClass(result.severity)}>{severityLabel(result.severity)}</div>
-                                                </div>
-                                                <div className="resultValueRow">
-                                                    <strong>{result.value || '—'}</strong>
-                                                    <span>{result.unit}</span>
-                                                </div>
-                                            </div>
-                                        ))}
-                                    </div>
-                                </div>
-                            ) : (
-                                <div className="emptyState large">Chọn một lịch sử để xem chi tiết.</div>
-                            )}
-                        </article>
                     </section>
                 )}
+
+                <footer className="footer">
+                    <p>
+                        Smart Labs Analyzer · Alibaba Cloud · Qwen VL ·{' '}
+                        <a href="/privacy">Privacy policy</a> ·{' '}
+                        <a href="/terms">Terms of use</a>
+                    </p>
+                </footer>
             </main>
         </div>
     );
-
-    function appendLog(line: string) {
-        setAnalysisLogs((current) => [...current, line]);
-    }
 }
 
+/* ─── Utilities ─────────────────────────────────── */
 function parseEventPayload(event: SseEvent) {
-    try {
-        return JSON.parse(event.data) as Record<string, unknown>;
-    } catch {
-        return null;
-    }
+    try { return JSON.parse(event.data) as Record<string, unknown>; }
+    catch { return null; }
 }
 
 function formatError(error: unknown) {
     const message = error instanceof Error ? error.message : String(error);
-
     if (message.includes('does not expose /api/chat') || message.includes('Cannot POST /api/chat')) {
-        return 'Backend hiện tại chưa có route chat (/api/chat). Hãy restart backend bằng ./start.sh.';
+        return 'Backend has no chat route (/api/chat). Restart backend with ./start.sh.';
     }
-
     if (message.includes('Backend unreachable') || message.includes('Failed to start stream')) {
-        return 'Không kết nối được backend. Kiểm tra backend đang chạy ở cổng 9000.';
+        return 'Cannot reach backend. Check that it is running on port 9000.';
     }
-
     return message;
 }
 
 function organLabel(organId: string) {
-    return (ORGAN_LABELS[organId] ?? organId) || 'Khác';
+    return (ORGAN_LABELS[organId] ?? organId) || 'Other';
 }
 
 function severityLabel(severity: string) {
     return STATUS_LABELS[severity] ?? severity;
 }
 
-function severityClass(severity: string) {
-    return `severityBadge severity-${severity}`;
-}
+function getSeverityClass(severity: string) { return `severity-badge severity-${severity}`; }
 
-function badgeClass(status: string) {
-    const normalized = status.toLowerCase();
-    if (normalized === 'error') {
-        return 'panelBadge danger';
-    }
-
-    if (normalized === 'success' || normalized === 'complete') {
-        return 'panelBadge success';
-    }
-
-    return 'panelBadge';
+function getBadgeClass(status: string) {
+    const s = status.toLowerCase();
+    if (s === 'error') return 'badge danger';
+    if (s === 'success' || s === 'complete') return 'badge success';
+    return 'badge';
 }
 
 function createId(prefix: string) {
     if (typeof crypto !== 'undefined' && 'randomUUID' in crypto) {
         return `${prefix}_${crypto.randomUUID()}`;
     }
-
     return `${prefix}_${Date.now()}_${Math.random().toString(16).slice(2, 10)}`;
 }
 
 function formatDateTime(value: string) {
-    if (!value) {
-        return 'N/A';
-    }
-
+    if (!value) return 'N/A';
     const date = new Date(value);
-    if (Number.isNaN(date.getTime())) {
-        return value;
-    }
-
-    return new Intl.DateTimeFormat('vi-VN', {
-        dateStyle: 'medium',
-        timeStyle: 'short'
-    }).format(date);
+    if (Number.isNaN(date.getTime())) return value;
+    return new Intl.DateTimeFormat('en-US', { dateStyle: 'medium', timeStyle: 'short' }).format(date);
 }
 
 function formatFileSize(size: number) {
-    if (size < 1024) {
-        return `${size} B`;
-    }
-
+    if (size < 1024) return `${size} B`;
     const units = ['KB', 'MB', 'GB'];
-    let value = size / 1024;
-    let index = 0;
-
-    while (value >= 1024 && index < units.length - 1) {
-        value /= 1024;
-        index += 1;
-    }
-
+    let value = size / 1024, index = 0;
+    while (value >= 1024 && index < units.length - 1) { value /= 1024; index++; }
     return `${value.toFixed(value >= 10 ? 0 : 1)} ${units[index]}`;
 }
