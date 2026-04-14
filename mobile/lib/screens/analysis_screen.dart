@@ -238,9 +238,23 @@ class _AnalysisScreenState extends State<AnalysisScreen>
 
       setState(() {
         _historyLoading = false;
-        _historyError = 'Could not load saved analyses: $error';
+        _historyError = _formatHistoryLoadError(error);
       });
     }
+  }
+
+  String _formatHistoryLoadError(Object error) {
+    final rawMessage = error.toString();
+
+    if (rawMessage.contains('Backend unreachable')) {
+      return 'Saved analyses are unavailable because the backend is offline. Start the backend and try again.';
+    }
+
+    if (rawMessage.contains('Failed to fetch analysis history')) {
+      return 'Could not load saved analyses from the backend.';
+    }
+
+    return 'Could not load saved analyses: $rawMessage';
   }
 
   void _handleStreamEvent(SseEvent event) {

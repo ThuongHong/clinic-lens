@@ -30,12 +30,58 @@ class BackendApi {
   final String baseUrl;
   final http.Client _client;
 
+  List<String> get _baseUrlCandidates {
+    final candidates = <String>[baseUrl.trim()];
+
+    if (baseUrl.contains('localhost')) {
+      candidates.add(baseUrl.replaceFirst('localhost', '127.0.0.1'));
+    }
+
+    if (baseUrl.contains('127.0.0.1')) {
+      candidates.add(baseUrl.replaceFirst('127.0.0.1', 'localhost'));
+    }
+
+    if (Platform.isAndroid && baseUrl.contains('localhost')) {
+      candidates.add(baseUrl.replaceFirst('localhost', '10.0.2.2'));
+    }
+
+    return candidates.toSet().toList(growable: false);
+  }
+
+  Future<http.Response> _getWithFallback(
+    String path, {
+    Map<String, String>? queryParameters,
+  }) async {
+    Object? lastError;
+
+    for (final candidateBaseUrl in _baseUrlCandidates) {
+      try {
+        final response = await _client.get(
+          Uri.parse('$candidateBaseUrl$path').replace(queryParameters: queryParameters),
+        );
+
+        if (response.statusCode < 500 || candidateBaseUrl == _baseUrlCandidates.last) {
+          return response;
+        }
+      } on SocketException catch (error) {
+        lastError = error;
+      } on http.ClientException catch (error) {
+        lastError = error;
+      }
+    }
+
+    throw StateError(
+      'Backend unreachable at ${_baseUrlCandidates.join(' / ')}. '
+      'Check that the backend is running on port 9000. ${lastError ?? ''}'.trim(),
+    );
+  }
+
   Uri _uri(String path, [Map<String, String>? queryParameters]) {
     return Uri.parse('$baseUrl$path').replace(queryParameters: queryParameters);
   }
 
   Future<Map<String, dynamic>> fetchStsToken() async {
-    final response = await _client.get(_uri('/api/sts-token'));
+    final response = await _getWithFallback('/api/sts-token');
 
     if (response.statusCode >= 400) {
       throw StateError('Failed to fetch STS token: ${response.body}');
@@ -45,11 +91,12 @@ class BackendApi {
   }
 
   Future<Map<String, dynamic>> signObjectUrl(String objectKey, {int expiresInSeconds = 300}) async {
-    final response = await _client.get(
-      _uri('/api/sign-url', {
+    final response = await _getWithFallback(
+      '/api/sign-url',
+      queryParameters: {
         'object_key': objectKey,
         'expires_in': expiresInSeconds.toString(),
-      }),
+      },
     );
 
     if (response.statusCode >= 400) {
@@ -60,10 +107,11 @@ class BackendApi {
   }
 
   Future<List<AnalysisHistoryEntry>> fetchAnalysisHistory({int limit = 12}) async {
-    final response = await _client.get(
-      _uri('/api/analyses', {
+    final response = await _getWithFallback(
+      '/api/analyses',
+      queryParameters: {
         'limit': limit.toString(),
-      }),
+      },
     );
 
     if (response.statusCode >= 400) {
@@ -102,7 +150,22 @@ class BackendApi {
       if (localFilePath != null && localFilePath.isNotEmpty) 'local_file_path': localFilePath,
     });
 
-    final streamed = await _client.send(request);
+    http.StreamedResponse streamed;
+
+    try {
+      streamed = await _client.send(request);
+    } on SocketException catch (error) {
+      throw StateError(
+        'Backend unreachable at ${_baseUrlCandidates.join(' / ')}. '
+        'Check that the backend is running on port 9000. $error',
+      );
+    } on http.ClientException catch (error) {
+      throw StateError(
+        'Backend unreachable at ${_baseUrlCandidates.join(' / ')}. '
+        'Check that the backend is running on port 9000. $error',
+      );
+    }
+
     if (streamed.statusCode >= 400) {
       final body = await streamed.stream.bytesToString();
       throw StateError('Failed to start analysis: $body');
