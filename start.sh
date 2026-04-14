@@ -38,11 +38,41 @@ echo ""
 
 # Step 3: Start backend
 echo -e "${YELLOW}Step 3: Starting backend server...${NC}"
-cd backend
-PORT=9000 npm start &
-BACKEND_PID=$!
-cd ..
-sleep 2
+BACKEND_STARTED_BY_SCRIPT=0
+BACKEND_PID=""
+
+if curl -s http://localhost:9000/health | jq . > /dev/null 2>&1; then
+  echo -e "${GREEN}✓ Backend already running on http://localhost:9000${NC}"
+
+  CHAT_ROUTE_CODE=$(curl -s -o /dev/null -w "%{http_code}" -X POST \
+    http://localhost:9000/api/chat \
+    -H "Content-Type: application/json" \
+    -d '{}')
+
+  if [ "$CHAT_ROUTE_CODE" = "404" ]; then
+    echo -e "${YELLOW}⚠ Running backend is missing /api/chat. Restarting backend...${NC}"
+
+    OLD_BACKEND_PID=$(lsof -ti tcp:9000 | head -n 1)
+    if [ -n "$OLD_BACKEND_PID" ]; then
+      kill "$OLD_BACKEND_PID" 2>/dev/null || true
+      sleep 1
+    fi
+
+    cd backend
+    PORT=9000 npm start &
+    BACKEND_PID=$!
+    BACKEND_STARTED_BY_SCRIPT=1
+    cd ..
+    sleep 2
+  fi
+else
+  cd backend
+  PORT=9000 npm start &
+  BACKEND_PID=$!
+  BACKEND_STARTED_BY_SCRIPT=1
+  cd ..
+  sleep 2
+fi
 
 # Test backend health
 echo -e "${YELLOW}Step 4: Testing backend health...${NC}"
@@ -73,5 +103,8 @@ else
   echo ""
   echo "Backend is still running at http://localhost:9000"
   echo "Press Ctrl+C to stop the backend server"
-  wait $BACKEND_PID
+
+  if [ "$BACKEND_STARTED_BY_SCRIPT" -eq 1 ] && [ -n "$BACKEND_PID" ]; then
+    wait $BACKEND_PID
+  fi
 fi

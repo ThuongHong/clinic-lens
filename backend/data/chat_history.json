@@ -343,5 +343,175 @@
         ]
       }
     }
+  },
+  "analysis_1776159008985_5a2955": {
+    "conversations": {
+      "fe936bc1-d76b-49fe-8485-152770cbb75e": {
+        "conversation_id": "fe936bc1-d76b-49fe-8485-152770cbb75e",
+        "language": "vi",
+        "detail_level": "simple",
+        "created_at": "2026-04-14T10:19:47.642Z",
+        "updated_at": "2026-04-14T10:20:26.958Z",
+        "turns": [
+          {
+            "role": "user",
+            "message": "hello fen",
+            "created_at": "2026-04-14T10:19:47.642Z"
+          },
+          {
+            "role": "assistant",
+            "message": "Xin chào anh/chị NGUYEN DU. Kết quả xét nghiệm ngày 24/02/2026 cho thấy một số chỉ số bất thường cần lưu ý, đặc biệt ở thận, tim và máu. Cụ thể: creatinine cao, eGFR thấp (cảnh báo chức năng thận suy giảm), HDL cholesterol thấp, LDL và Non-HDL cholesterol cao, cùng với PDW tăng và PCT giảm — tất cả đều cần theo dõi sát.",
+            "payload": {
+              "answer_text": "Xin chào anh/chị NGUYEN DU. Kết quả xét nghiệm ngày 24/02/2026 cho thấy một số chỉ số bất thường cần lưu ý, đặc biệt ở thận, tim và máu. Cụ thể: creatinine cao, eGFR thấp (cảnh báo chức năng thận suy giảm), HDL cholesterol thấp, LDL và Non-HDL cholesterol cao, cùng với PDW tăng và PCT giảm — tất cả đều cần theo dõi sát.",
+              "risk_level": "high",
+              "cited_indicators": [
+                "Creatinine",
+                "HDL Cholesterol",
+                "Non HDL Cholesterol"
+              ],
+              "cited_organs": [
+                "kidneys",
+                "heart",
+                "blood"
+              ],
+              "recommended_actions": [
+                "Uống đủ nước (1.5–2 lít/ngày)",
+                "Hạn chế muối, đạm động vật và thực phẩm giàu cholesterol",
+                "Tập vận động nhẹ như đi bộ 30 phút/ngày",
+                "Tái khám chuyên khoa thận và tim mạch trong vòng 2 tuần",
+                "Tránh tự dùng thuốc giảm đau hoặc thực phẩm chức năng ảnh hưởng thận"
+              ],
+              "follow_up_questions": [
+                "Anh/chị có đang bị phù chân, mệt mỏi kéo dài, tiểu ít hoặc sẫm màu không?",
+                "Có tiền sử tăng huyết áp, đái tháo đường hoặc bệnh thận không?",
+                "Đang dùng thuốc nào thường xuyên? (kể cả thuốc nam, thực phẩm chức năng)"
+              ],
+              "seven_day_plan": [
+                "Ngày 1: Ghi lại khẩu phần ăn và lượng nước uống",
+                "Ngày 2: Đo huyết áp tại nhà (nếu có máy)",
+                "Ngày 3: Tránh thực phẩm chế biến sẵn và nội tạng động vật",
+                "Ngày 4: Đi bộ nhẹ 20 phút buổi sáng",
+                "Ngày 5: Kiểm tra lại các triệu chứng như mệt, chóng mặt, tiểu buốt",
+                "Ngày 6: Chuẩn bị danh sách thuốc và câu hỏi cho bác sĩ",
+                "Ngày 7: Đặt lịch khám chuyên khoa thận/tim"
+              ],
+              "disclaimer": "Đây không phải chẩn đoán lâm sàng. Kết quả chỉ mang tính tham khảo và cần được đánh giá bởi bác sĩ chuyên khoa dựa trên khám lâm sàng, bệnh sử và các xét nghiệm bổ sung.",
+              "escalation": true
+            },
+            "created_at": "2026-04-14T10:19:47.642Z"
+          },
+          {
+            "role": "user",
+            "message": "Tôi cần lưu ý gì",
+            "created_at": "2026-04-14T10:20:26.958Z"
+          },
+          {
+            "role": "assistant",
+            "message": "Anh/chị cần lưu ý các vấn đề sau: chức năng thận đang suy giảm (creatinine cao, eGFR thấp), nguy cơ tim mạch tăng (HDL thấp, Non-HDL và tỷ lệ cholesterol/HDL cao), rối loạn đông máu nhẹ (PDW tăng, PCT giảm), cùng với phospho và acid uric máu cao — có thể ảnh hưởng đến xương và thận. Ngoài ra, phospho và creatinine cao kết hợp với eGFR giảm là dấu hiệu đáng lo về sức khỏe thận.",
+            "payload": {
+              "answer_text": "Anh/chị cần lưu ý các vấn đề sau: chức năng thận đang suy giảm (creatinine cao, eGFR thấp), nguy cơ tim mạch tăng (HDL thấp, Non-HDL và tỷ lệ cholesterol/HDL cao), rối loạn đông máu nhẹ (PDW tăng, PCT giảm), cùng với phospho và acid uric máu cao — có thể ảnh hưởng đến xương và thận. Ngoài ra, phospho và creatinine cao kết hợp với eGFR giảm là dấu hiệu đáng lo về sức khỏe thận.",
+              "risk_level": "high",
+              "cited_indicators": [
+                "Creatinine",
+                "HDL Cholesterol",
+                "Non HDL Cholesterol",
+                "Cholesterol/HDL Ratio",
+                "Phosphorus",
+                "Uric Acid"
+              ],
+              "cited_organs": [
+                "kidneys",
+                "heart",
+                "bone",
+                "blood"
+              ],
+              "recommended_actions": [
+                "Uống đủ 1.5–2 lít nước/ngày (trừ khi bác sĩ khuyên hạn chế)",
+                "Tránh thực phẩm nhiều muối, đạm động vật, nội tạng, hải sản, rượu bia",
+                "Không tự dùng thuốc giảm đau như paracetamol liều cao hoặc NSAIDs (ibuprofen, diclofenac)",
+                "Tái khám chuyên khoa thận và tim mạch trong vòng 10 ngày",
+                "Theo dõi sát các triệu chứng: mệt bất thường, phù mắt/cổ chân, tiểu ít/sẫm màu, chóng mặt khi đứng dậy"
+              ],
+              "follow_up_questions": [
+                "Anh/chị có bị tiểu đêm, khát nhiều hoặc sụt cân gần đây không?",
+                "Có đang điều trị tăng huyết áp, đái tháo đường hoặc bệnh gút không?",
+                "Có dùng thuốc lợi tiểu, thuốc điều trị mỡ máu hoặc thuốc bổ chứa canxi/vitamin D không?"
+              ],
+              "seven_day_plan": [
+                "Ngày 1: Ghi lại toàn bộ bữa ăn và lượng nước uống trong ngày",
+                "Ngày 2: Đo huyết áp buổi sáng (nếu có máy), nghỉ ngơi 5 phút trước khi đo",
+                "Ngày 3: Loại bỏ hoàn toàn nước ngọt, nước ép trái cây đóng chai và thực phẩm chiên rán",
+                "Ngày 4: Đi bộ ngoài trời 25 phút vào lúc 7–8 giờ sáng",
+                "Ngày 5: Kiểm tra xem có phù nhẹ ở mắt cá chân hay mí mắt không",
+                "Ngày 6: Chuẩn bị danh sách đầy đủ thuốc đang dùng và các câu hỏi cho bác sĩ",
+                "Ngày 7: Đặt lịch khám chuyên khoa thận (nội tiết – thận tiết niệu) và/hoặc tim mạch"
+              ],
+              "disclaimer": "Đây không phải chẩn đoán lâm sàng. Kết quả chỉ mang tính tham khảo và cần được đánh giá bởi bác sĩ chuyên khoa dựa trên khám lâm sàng, bệnh sử và các xét nghiệm bổ sung.",
+              "escalation": true
+            },
+            "created_at": "2026-04-14T10:20:26.958Z"
+          }
+        ]
+      },
+      "36a92fc5-6ba8-483c-863e-e807de42fc7a": {
+        "conversation_id": "36a92fc5-6ba8-483c-863e-e807de42fc7a",
+        "language": "vi",
+        "detail_level": "simple",
+        "created_at": "2026-04-14T10:27:06.455Z",
+        "updated_at": "2026-04-14T10:27:06.455Z",
+        "turns": [
+          {
+            "role": "user",
+            "message": "Tôi cần lưu ý gì",
+            "created_at": "2026-04-14T10:27:06.455Z"
+          },
+          {
+            "role": "assistant",
+            "message": "Bạn cần lưu ý các chỉ số bất thường liên quan đến thận (creatinine cao, eGFR thấp, acid uric cao), tim mạch (HDL thấp, cholesterol/HDL cao, non-HDL cao), xương (phospho cao) và máu (PDW cao, PCT thấp). Đây là những dấu hiệu cảnh báo sớm về suy giảm chức năng thận, nguy cơ tim mạch và rối loạn chuyển hóa. Bạn nên tái khám bác sĩ chuyên khoa để đánh giá sâu hơn.",
+            "payload": {
+              "answer_text": "Bạn cần lưu ý các chỉ số bất thường liên quan đến thận (creatinine cao, eGFR thấp, acid uric cao), tim mạch (HDL thấp, cholesterol/HDL cao, non-HDL cao), xương (phospho cao) và máu (PDW cao, PCT thấp). Đây là những dấu hiệu cảnh báo sớm về suy giảm chức năng thận, nguy cơ tim mạch và rối loạn chuyển hóa. Bạn nên tái khám bác sĩ chuyên khoa để đánh giá sâu hơn.",
+              "risk_level": "high",
+              "cited_indicators": [
+                "Creatinine",
+                "Uric Acid",
+                "HDL Cholesterol",
+                "Cholesterol/HDL Ratio",
+                "Non HDL Cholesterol",
+                "Phosphorus"
+              ],
+              "cited_organs": [
+                "kidneys",
+                "heart",
+                "bone",
+                "blood"
+              ],
+              "recommended_actions": [
+                "Tái khám chuyên khoa thận và tim mạch trong vòng 2 tuần",
+                "Uống đủ 1.5–2 lít nước mỗi ngày",
+                "Hạn chế thực phẩm giàu đạm động vật, nội tạng, hải sản, rượu bia và đồ uống có đường",
+                "Tăng cường rau xanh, chất béo lành mạnh (cá, hạt, dầu oliu) và vận động nhẹ như đi bộ 30 phút/ngày"
+              ],
+              "follow_up_questions": [
+                "Bạn có đang bị phù chân, mệt mỏi kéo dài, tiểu ít hoặc sẫm màu không?",
+                "Bạn có tiền sử tăng huyết áp, đái tháo đường hoặc bệnh thận không?",
+                "Gần đây bạn có dùng thuốc nào như kháng sinh, giảm đau NSAIDs hoặc thực phẩm chức năng không?"
+              ],
+              "seven_day_plan": [
+                "Ngày 1: Ghi chép lại chế độ ăn và lượng nước uống",
+                "Ngày 2: Đi bộ 20 phút buổi sáng",
+                "Ngày 3: Loại bỏ 1 món nhiều muối (mắm, nước tương, đồ hộp) khỏi bữa ăn",
+                "Ngày 4: Kiểm tra huyết áp tại nhà (nếu có máy)",
+                "Ngày 5: Tránh uống bia/rượu và nước ngọt có gas",
+                "Ngày 6: Ăn thêm 1 phần rau xanh vào cả 3 bữa",
+                "Ngày 7: Đặt lịch khám với bác sĩ nội tổng quát hoặc chuyên khoa thận/tim"
+              ],
+              "disclaimer": "Đây không phải chẩn đoán lâm sàng mà chỉ là phân tích sơ bộ dựa trên kết quả xét nghiệm. Việc chẩn đoán và điều trị cần được thực hiện bởi bác sĩ sau khi thăm khám trực tiếp và đánh giá đầy đủ lâm sàng, tiền sử và các xét nghiệm bổ sung.",
+              "escalation": true
+            },
+            "created_at": "2026-04-14T10:27:06.455Z"
+          }
+        ]
+      }
+    }
   }
 }

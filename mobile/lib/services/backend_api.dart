@@ -106,6 +106,14 @@ class BackendApi {
     );
   }
 
+  String _compactErrorBody(String body) {
+    final collapsed = body.replaceAll(RegExp(r'<[^>]+>'), ' ').replaceAll(RegExp(r'\s+'), ' ').trim();
+    if (collapsed.isEmpty) {
+      return body.length > 160 ? '${body.substring(0, 160)}...' : body;
+    }
+    return collapsed.length > 220 ? '${collapsed.substring(0, 220)}...' : collapsed;
+  }
+
   Future<Map<String, dynamic>> fetchStsToken() async {
     final response = await _getWithFallback('/api/sts-token');
 
@@ -281,7 +289,17 @@ class BackendApi {
 
     if (streamed.statusCode >= 400) {
       final body = await streamed.stream.bytesToString();
-      throw StateError('Failed to start chat: $body');
+
+      if (streamed.statusCode == 404 && body.contains('Cannot POST /api/chat')) {
+        throw StateError(
+          'Current backend instance does not expose /api/chat. '
+          'Restart backend with ./start.sh and try again.',
+        );
+      }
+
+      throw StateError(
+        'Failed to start chat (HTTP ${streamed.statusCode}): ${_compactErrorBody(body)}',
+      );
     }
 
     final lines = streamed.stream

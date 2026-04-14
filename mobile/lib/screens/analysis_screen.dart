@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'dart:io';
 
 import 'package:file_picker/file_picker.dart';
@@ -41,7 +42,8 @@ class _AnalysisScreenState extends State<AnalysisScreen>
   String? _historyError;
   final TextEditingController _chatController = TextEditingController();
   String _chatDraft = '';
-  _ChatAssistantPayload? _chatAssistant;
+  String _chatRawDraft = '';
+  final List<_ChatMessage> _chatMessages = <_ChatMessage>[];
   String? _chatConversationId;
   String? _chatError;
   bool _chatBusy = false;
@@ -53,7 +55,7 @@ class _AnalysisScreenState extends State<AnalysisScreen>
     super.initState();
     _backendApi = BackendApi(baseUrl: resolveBackendBaseUrl());
     _uploadService = FileUploadService();
-    _tabController = TabController(length: 2, vsync: this);
+    _tabController = TabController(length: 3, vsync: this);
     _streamLines.add('Backend: ${_backendApi.baseUrl}');
     _loadHistory();
   }
@@ -113,10 +115,11 @@ class _AnalysisScreenState extends State<AnalysisScreen>
       _status = 'Getting STS token...';
       _analysis = null;
       _focusedOrganId = null;
-      _chatAssistant = null;
       _chatConversationId = null;
       _chatError = null;
       _chatDraft = '';
+      _chatRawDraft = '';
+      _chatMessages.clear();
       _streamedResponse = '';
       _streamLines.clear();
     });
@@ -268,6 +271,22 @@ class _AnalysisScreenState extends State<AnalysisScreen>
     return 'Could not load saved analyses: $rawMessage';
   }
 
+  String _formatChatError(Object error) {
+    final rawMessage = error.toString();
+
+    if (rawMessage.contains('does not expose /api/chat') ||
+        rawMessage.contains('Cannot POST /api/chat')) {
+      return 'Backend hien tai chua co route chat (/api/chat). '
+          'Hay restart backend bang ./start.sh, sau do thu lai.';
+    }
+
+    if (rawMessage.contains('Backend unreachable')) {
+      return 'Khong ket noi duoc backend. Kiem tra backend dang chay o cong 9000.';
+    }
+
+    return rawMessage;
+  }
+
   void _handleStreamEvent(SseEvent event) {
     switch (event.event) {
       case 'ready':
@@ -364,12 +383,39 @@ class _AnalysisScreenState extends State<AnalysisScreen>
       _analysis = entry.analysis;
       _selectedHistoryId = entry.id;
       _focusedOrganId = null;
-      _chatAssistant = null;
       _chatConversationId = null;
       _chatError = null;
       _chatDraft = '';
+      _chatRawDraft = '';
+      _chatMessages.clear();
       _status = 'Viewing saved analysis from ${entry.analysis.analysisDate}';
     });
+  }
+
+  String _extractChatDraftText(String raw) {
+    final trimmed = raw.trim();
+    if (trimmed.isEmpty) {
+      return '';
+    }
+
+    if (trimmed.startsWith('{') ||
+        trimmed.startsWith('[') ||
+        trimmed.contains('"answer_text"') ||
+        trimmed.contains('"recommended_actions"') ||
+        trimmed.contains('"follow_up_questions"') ||
+        trimmed.contains('"seven_day_plan"')) {
+      try {
+        final decoded = jsonDecode(trimmed);
+        if (decoded is Map<String, dynamic>) {
+          final answer = decoded['answer_text']?.toString().trim() ?? '';
+          return answer;
+        }
+      } catch (_) {
+        return '';
+      }
+    }
+
+    return trimmed;
   }
 
   Future<void> _sendChatQuestion() async {
@@ -391,7 +437,9 @@ class _AnalysisScreenState extends State<AnalysisScreen>
       _chatBusy = true;
       _chatError = null;
       _chatDraft = '';
-      _chatAssistant = null;
+      _chatRawDraft = '';
+      _chatMessages.add(_ChatMessage(role: _ChatRole.user, text: message));
+      _chatMessages.add(const _ChatMessage(role: _ChatRole.assistant, text: 'Dang soan cau tra loi...'));
       _status = 'Smart Labs Chat is generating an answer...';
     });
 
@@ -414,7 +462,14 @@ class _AnalysisScreenState extends State<AnalysisScreen>
             final token = payload?['text']?.toString() ?? '';
             if (token.isNotEmpty) {
               setState(() {
-                _chatDraft += token;
+                _chatRawDraft += token;
+                _chatDraft = _extractChatDraftText(_chatRawDraft);
+                if (_chatMessages.isNotEmpty &&
+                    _chatMessages.last.role == _ChatRole.assistant) {
+                  final nextText = _chatDraft.isEmpty ? 'Dang soan cau tra loi...' : _chatDraft;
+                  _chatMessages[_chatMessages.length - 1] =
+                      _chatMessages.last.copyWith(text: nextText);
+                }
               });
             }
             break;
@@ -432,8 +487,17 @@ class _AnalysisScreenState extends State<AnalysisScreen>
             setState(() {
               _chatConversationId = payload['conversation_id']?.toString() ?? _chatConversationId;
               if (assistantJson is Map<String, dynamic>) {
-                _chatAssistant = _ChatAssistantPayload.fromJson(assistantJson);
-                _chatDraft = _chatAssistant?.answerText ?? _chatDraft;
+                final assistantPayload = _ChatAssistantPayload.fromJson(assistantJson);
+                _chatDraft = assistantPayload.answerText.isEmpty
+                    ? _chatDraft
+                    : assistantPayload.answerText;
+                if (_chatMessages.isNotEmpty &&
+                    _chatMessages.last.role == _ChatRole.assistant) {
+                  _chatMessages[_chatMessages.length - 1] = _chatMessages.last.copyWith(
+                    text: _chatDraft.isEmpty ? 'Khong co noi dung tra loi.' : _chatDraft,
+                    meta: assistantPayload,
+                  );
+                }
               }
             });
             break;
@@ -458,7 +522,7 @@ class _AnalysisScreenState extends State<AnalysisScreen>
       }
 
       setState(() {
-        _chatError = error.toString();
+        _chatError = _formatChatError(error);
         _status = 'Chat failed';
       });
     } finally {
@@ -648,6 +712,11 @@ class _AnalysisScreenState extends State<AnalysisScreen>
                                       ),
                                       Tab(
                                         height: 42,
+                                        icon: Icon(Icons.chat_bubble_outline_rounded, size: 16),
+                                        text: 'Chat',
+                                      ),
+                                      Tab(
+                                        height: 42,
                                         icon: Icon(Icons.history_rounded, size: 16),
                                         text: 'History',
                                       ),
@@ -663,6 +732,7 @@ class _AnalysisScreenState extends State<AnalysisScreen>
                             controller: _tabController,
                             children: [
                               _buildOverallTab(context),
+                              _buildChatTab(context),
                               _buildHistoryTab(context),
                             ],
                           ),
@@ -710,16 +780,6 @@ class _AnalysisScreenState extends State<AnalysisScreen>
                     onBackToOutlook: _backToOutlook,
                   ),
                 ),
-                const SizedBox(height: 20),
-                _ChatPanel(
-                  historyId: _selectedHistoryId,
-                  busy: _chatBusy,
-                  errorMessage: _chatError,
-                  streamedText: _chatDraft,
-                  assistant: _chatAssistant,
-                  controller: _chatController,
-                  onSend: _sendChatQuestion,
-                ),
               ] else ...[
                 _EmptyPanel(
                   icon: Icons.cloud_upload_rounded,
@@ -757,6 +817,37 @@ class _AnalysisScreenState extends State<AnalysisScreen>
             ],
           );
         },
+      ),
+    );
+  }
+
+  Widget _buildChatTab(BuildContext context) {
+    return SingleChildScrollView(
+      padding: const EdgeInsets.fromLTRB(16, 12, 16, 24),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          _SectionHeaderCard(
+            icon: Icons.chat_bubble_outline_rounded,
+            title: 'Chat',
+            description:
+                'Ask follow-up questions based on the selected analysis and get actionable guidance.',
+            stats: [
+              _SectionStat(label: 'Selected', value: _selectedHistoryId != null ? '1' : '0'),
+              _SectionStat(label: 'Messages', value: '${_chatMessages.length}'),
+              _SectionStat(label: 'Streaming', value: _chatBusy ? 'ON' : 'OFF'),
+            ],
+          ),
+          const SizedBox(height: 18),
+          _ChatPanel(
+            historyId: _selectedHistoryId,
+            busy: _chatBusy,
+            errorMessage: _chatError,
+            messages: _chatMessages,
+            controller: _chatController,
+            onSend: _sendChatQuestion,
+          ),
+        ],
       ),
     );
   }
@@ -809,8 +900,7 @@ class _ChatPanel extends StatelessWidget {
     required this.historyId,
     required this.busy,
     required this.errorMessage,
-    required this.streamedText,
-    required this.assistant,
+    required this.messages,
     required this.controller,
     required this.onSend,
   });
@@ -818,8 +908,7 @@ class _ChatPanel extends StatelessWidget {
   final String? historyId;
   final bool busy;
   final String? errorMessage;
-  final String streamedText;
-  final _ChatAssistantPayload? assistant;
+  final List<_ChatMessage> messages;
   final TextEditingController controller;
   final VoidCallback onSend;
 
@@ -850,11 +939,107 @@ class _ChatPanel extends StatelessWidget {
           Text(
             historyId == null
                 ? 'Run or select an analysis first, then ask follow-up questions.'
-                : 'Ask about abnormal indicators, risk level, and next 7-day actions.',
+                : 'Hoi ve chi so bat thuong, muc do rui ro va viec can lam tiep theo.',
             style: theme.textTheme.bodySmall?.copyWith(
               color: const Color(0xFF64748B),
               fontWeight: FontWeight.w500,
             ),
+          ),
+          const SizedBox(height: 14),
+          Container(
+            width: double.infinity,
+            padding: const EdgeInsets.all(12),
+            decoration: BoxDecoration(
+              color: const Color(0xFFF8FAFC),
+              borderRadius: BorderRadius.circular(14),
+              border: Border.all(color: const Color(0xFFE2E8F0)),
+            ),
+            child: messages.isEmpty
+                ? Text(
+                    'Chua co hoi thoai. Hay dat cau hoi de bat dau.',
+                    style: theme.textTheme.bodySmall?.copyWith(
+                      color: const Color(0xFF64748B),
+                    ),
+                  )
+                : Column(
+                    children: [
+                      for (final message in messages)
+                        Padding(
+                          padding: const EdgeInsets.only(bottom: 10),
+                          child: Align(
+                            alignment: message.role == _ChatRole.user
+                                ? Alignment.centerRight
+                                : Alignment.centerLeft,
+                            child: ConstrainedBox(
+                              constraints: const BoxConstraints(maxWidth: 540),
+                              child: Container(
+                                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                                decoration: BoxDecoration(
+                                  color: message.role == _ChatRole.user
+                                      ? const Color(0xFF0F172A)
+                                      : Colors.white,
+                                  borderRadius: BorderRadius.circular(12),
+                                  border: Border.all(
+                                    color: message.role == _ChatRole.user
+                                        ? const Color(0xFF0F172A)
+                                        : const Color(0xFFE2E8F0),
+                                  ),
+                                ),
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text(
+                                      message.text,
+                                      style: theme.textTheme.bodyMedium?.copyWith(
+                                        color: message.role == _ChatRole.user
+                                            ? Colors.white
+                                            : const Color(0xFF0F172A),
+                                        height: 1.42,
+                                      ),
+                                    ),
+                                    if (message.meta != null) ...[
+                                      const SizedBox(height: 10),
+                                      Wrap(
+                                        spacing: 8,
+                                        runSpacing: 8,
+                                        children: [
+                                          _Chip(label: 'Risk: ${message.meta!.riskLevel.toUpperCase()}'),
+                                          if (message.meta!.escalation)
+                                            const _Chip(label: 'Escalation: ON'),
+                                        ],
+                                      ),
+                                      if (message.meta!.recommendedActions.isNotEmpty) ...[
+                                        const SizedBox(height: 10),
+                                        _BulletSection(
+                                          title: 'Recommended actions',
+                                          items: message.meta!.recommendedActions,
+                                        ),
+                                      ],
+                                      if (message.meta!.followUpQuestions.isNotEmpty) ...[
+                                        const SizedBox(height: 10),
+                                        _BulletSection(
+                                          title: 'Follow-up questions',
+                                          items: message.meta!.followUpQuestions,
+                                        ),
+                                      ],
+                                      if (message.meta!.disclaimer.isNotEmpty) ...[
+                                        const SizedBox(height: 10),
+                                        Text(
+                                          message.meta!.disclaimer,
+                                          style: theme.textTheme.bodySmall?.copyWith(
+                                            color: const Color(0xFF64748B),
+                                          ),
+                                        ),
+                                      ],
+                                    ],
+                                  ],
+                                ),
+                              ),
+                            ),
+                          ),
+                        ),
+                    ],
+                  ),
           ),
           const SizedBox(height: 12),
           Row(
@@ -870,7 +1055,7 @@ class _ChatPanel extends StatelessWidget {
                     }
                   },
                   decoration: InputDecoration(
-                    hintText: 'Vi du: toi can uu tien thay doi gi trong 7 ngay toi?',
+                    hintText: 'Vi du: toi can uu tien dieu gi de cai thien chi so?',
                     border: OutlineInputBorder(
                       borderRadius: BorderRadius.circular(12),
                       borderSide: const BorderSide(color: Color(0xFFE2E8F0)),
@@ -886,6 +1071,10 @@ class _ChatPanel extends StatelessWidget {
               const SizedBox(width: 10),
               FilledButton.icon(
                 onPressed: canSend ? onSend : null,
+                style: FilledButton.styleFrom(
+                  minimumSize: const Size(96, 44),
+                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                ),
                 icon: busy
                     ? const SizedBox(
                         width: 14,
@@ -907,59 +1096,34 @@ class _ChatPanel extends StatelessWidget {
               ),
             ),
           ],
-          if (streamedText.isNotEmpty) ...[
-            const SizedBox(height: 14),
-            Text(
-              streamedText,
-              style: theme.textTheme.bodyMedium?.copyWith(
-                color: const Color(0xFF0F172A),
-                height: 1.45,
-              ),
-            ),
-          ],
-          if (assistant != null) ...[
-            const SizedBox(height: 12),
-            Wrap(
-              spacing: 8,
-              runSpacing: 8,
-              children: [
-                _Chip(label: 'Risk: ${assistant!.riskLevel.toUpperCase()}'),
-                if (assistant!.escalation) const _Chip(label: 'Escalation: ON'),
-              ],
-            ),
-            if (assistant!.recommendedActions.isNotEmpty) ...[
-              const SizedBox(height: 10),
-              _BulletSection(
-                title: 'Recommended actions',
-                items: assistant!.recommendedActions,
-              ),
-            ],
-            if (assistant!.followUpQuestions.isNotEmpty) ...[
-              const SizedBox(height: 10),
-              _BulletSection(
-                title: 'Follow-up questions',
-                items: assistant!.followUpQuestions,
-              ),
-            ],
-            if (assistant!.sevenDayPlan.isNotEmpty) ...[
-              const SizedBox(height: 10),
-              _BulletSection(
-                title: '7-day plan',
-                items: assistant!.sevenDayPlan,
-              ),
-            ],
-            if (assistant!.disclaimer.isNotEmpty) ...[
-              const SizedBox(height: 10),
-              Text(
-                assistant!.disclaimer,
-                style: theme.textTheme.bodySmall?.copyWith(
-                  color: const Color(0xFF64748B),
-                ),
-              ),
-            ],
-          ],
         ],
       ),
+    );
+  }
+}
+
+enum _ChatRole { user, assistant }
+
+class _ChatMessage {
+  const _ChatMessage({
+    required this.role,
+    required this.text,
+    this.meta,
+  });
+
+  final _ChatRole role;
+  final String text;
+  final _ChatAssistantPayload? meta;
+
+  _ChatMessage copyWith({
+    _ChatRole? role,
+    String? text,
+    _ChatAssistantPayload? meta,
+  }) {
+    return _ChatMessage(
+      role: role ?? this.role,
+      text: text ?? this.text,
+      meta: meta ?? this.meta,
     );
   }
 }
@@ -1032,7 +1196,6 @@ class _ChatAssistantPayload {
     required this.riskLevel,
     required this.recommendedActions,
     required this.followUpQuestions,
-    required this.sevenDayPlan,
     required this.disclaimer,
     required this.escalation,
   });
@@ -1041,7 +1204,6 @@ class _ChatAssistantPayload {
   final String riskLevel;
   final List<String> recommendedActions;
   final List<String> followUpQuestions;
-  final List<String> sevenDayPlan;
   final String disclaimer;
   final bool escalation;
 
@@ -1054,10 +1216,6 @@ class _ChatAssistantPayload {
               .toList(growable: false) ??
           const <String>[],
       followUpQuestions: (json['follow_up_questions'] as List?)
-              ?.map((item) => item.toString())
-              .toList(growable: false) ??
-          const <String>[],
-      sevenDayPlan: (json['seven_day_plan'] as List?)
               ?.map((item) => item.toString())
               .toList(growable: false) ??
           const <String>[],
