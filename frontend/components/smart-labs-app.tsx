@@ -4,7 +4,6 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import type { ChangeEvent } from 'react';
 
 import {
-    fetchAnalysisHistory,
     fetchStsToken,
     parseAnalysis,
     parseChatResult,
@@ -51,6 +50,8 @@ const STATUS_LABELS: Record<string, string> = {
     critical: 'Critical',
     unknown: 'Unknown'
 };
+
+const SESSION_HISTORY_STORAGE_KEY = 'smartlabs.session_history';
 
 /* ─── SVG Icons (inline, no external dependency) ─── */
 function IconUpload() {
@@ -122,6 +123,9 @@ export default function SmartLabsApp() {
     const [chatConversationId, setChatConversationId] = useState<string | null>(null);
     const [chatBusy, setChatBusy] = useState(false);
     const [chatError, setChatError] = useState<string | null>(null);
+    const [patientName, setPatientName] = useState('');
+    const [patientNameDraft, setPatientNameDraft] = useState('');
+    const [showPatientNamePrompt, setShowPatientNamePrompt] = useState(true);
 
     const chatEndRef = useRef<HTMLDivElement | null>(null);
     const backendUrl = resolveBackendBaseUrl();
@@ -134,6 +138,11 @@ export default function SmartLabsApp() {
     const currentAnalysis = analysis ?? selectedHistory?.analysis ?? null;
 
     useEffect(() => { void loadHistory(); }, []);
+
+    useEffect(() => {
+        setShowPatientNamePrompt(true);
+        setStatus('Please set patient name before running analysis.');
+    }, []);
 
     useEffect(() => {
         if (chatEndRef.current) {
@@ -152,7 +161,7 @@ export default function SmartLabsApp() {
         setHistoryLoading(true);
         setHistoryError(null);
         try {
-            const items = await fetchAnalysisHistory();
+            const items = readSessionHistory();
             setHistory(items);
             if (!selectedHistoryId && items.length > 0) {
                 setSelectedHistoryId(items[0].id);
@@ -176,6 +185,11 @@ export default function SmartLabsApp() {
 
     async function onRunAnalysis() {
         if (!selectedFile) { setStatus('Please select a file first.'); return; }
+        if (!patientName.trim()) {
+            setShowPatientNamePrompt(true);
+            setStatus('Please set patient name before running analysis.');
+            return;
+        }
         setAnalysisBusy(true);
         setChatMessages([]);
         setChatConversationId(null);
@@ -195,7 +209,10 @@ export default function SmartLabsApp() {
             setAnalysisLogs((c) => [...c, `Upload complete: ${uploadResult.objectKey}`]);
             setStatus('Initializing analysis stream...');
 
-            for await (const event of streamAnalysis({ object_key: uploadResult.objectKey })) {
+            for await (const event of streamAnalysis({
+                object_key: uploadResult.objectKey,
+                patient_name: patientName.trim()
+            })) {
                 if (event.event === 'ready') {
                     appendLog('SSE connection opened');
                     setStatus('Stream connected');
@@ -223,7 +240,13 @@ export default function SmartLabsApp() {
                     if (payload) {
                         const parsed = parseAnalysis(payload);
                         setAnalysis(parsed);
-                        nextHistoryId = String(payload.history_id || parsed.history_id || '');
+                        nextHistoryId = String(payload.history_id || parsed.history_id || createId('analysis'));
+                        const createdAt = String(payload.created_at || parsed.created_at || new Date().toISOString());
+                        upsertSessionHistoryEntry({
+                            id: nextHistoryId,
+                            created_at: createdAt,
+                            analysis: parsed
+                        });
                         if (nextHistoryId) setSelectedHistoryId(nextHistoryId);
                         setStatus(
                             parsed.status === 'error'
@@ -238,15 +261,26 @@ export default function SmartLabsApp() {
                 }
                 if (event.event === 'done') { setStatus('Analysis complete'); }
             }
-
-            await loadHistory();
-            if (nextHistoryId) setSelectedHistoryId(nextHistoryId);
         } catch (error) {
             setStatus('Analysis failed');
             appendLog(`Error: ${formatError(error)}`);
         } finally {
             setAnalysisBusy(false);
         }
+    }
+
+    function savePatientNameFromDraft() {
+        const normalized = patientNameDraft.trim().slice(0, 120);
+        if (!normalized) {
+            setStatus('Patient name cannot be empty.');
+            return;
+        }
+
+        setPatientName(normalized);
+        setPatientNameDraft(normalized);
+
+        setShowPatientNamePrompt(false);
+        setStatus('Patient profile ready.');
     }
 
     async function onSendChat() {
@@ -358,6 +392,40 @@ export default function SmartLabsApp() {
         setAnalysisLogs((c) => [...c, line]);
     }
 
+    function readSessionHistory(): AnalysisHistoryEntry[] {
+        try {
+            const raw = window.sessionStorage.getItem(SESSION_HISTORY_STORAGE_KEY);
+            if (!raw) {
+                return [];
+            }
+
+            const parsed = JSON.parse(raw);
+            if (!Array.isArray(parsed)) {
+                return [];
+            }
+
+            return parsed as AnalysisHistoryEntry[];
+        } catch (_) {
+            return [];
+        }
+    }
+
+    function writeSessionHistory(items: AnalysisHistoryEntry[]) {
+        try {
+            window.sessionStorage.setItem(SESSION_HISTORY_STORAGE_KEY, JSON.stringify(items));
+        } catch (_) {
+            // Ignore storage write errors in constrained environments.
+        }
+    }
+
+    function upsertSessionHistoryEntry(entry: AnalysisHistoryEntry) {
+        setHistory((prev) => {
+            const next = [entry, ...prev.filter((item) => item.id !== entry.id)].slice(0, 30);
+            writeSessionHistory(next);
+            return next;
+        });
+    }
+
     const TAB_LABELS: Record<TabKey, string> = {
         overview: 'Overview',
         chat: 'AI Chat',
@@ -369,10 +437,70 @@ export default function SmartLabsApp() {
             <div className="glowBlob glowBlobA" aria-hidden="true" />
             <div className="glowBlob glowBlobB" aria-hidden="true" />
 
+            {showPatientNamePrompt && (
+                <div style={{
+                    position: 'fixed',
+                    inset: 0,
+                    background: 'rgba(250, 248, 243, 0.28)',
+                    backdropFilter: 'blur(2px)',
+                    WebkitBackdropFilter: 'blur(2px)',
+                    display: 'grid',
+                    placeItems: 'center',
+                    zIndex: 2000,
+                    padding: '16px'
+                }}>
+                    <div style={{
+                        width: 'min(480px, 100%)',
+                        background: 'rgba(255, 253, 247, 0.98)',
+                        border: '2px solid var(--border-hi)',
+                        borderRadius: '16px',
+                        boxShadow: '0 24px 56px rgba(60, 40, 10, 0.18)',
+                        padding: '20px',
+                        display: 'grid',
+                        gap: '12px'
+                    }}>
+                        <div style={{ fontSize: '1rem', fontWeight: 700, color: 'var(--text)' }}>
+                            Set patient name
+                        </div>
+                        <div style={{ fontSize: '0.86rem', color: 'var(--text-muted)' }}>
+                            This name is used for analysis records and trend tracking.
+                        </div>
+                        <input
+                            value={patientNameDraft}
+                            onChange={(e) => setPatientNameDraft(e.target.value)}
+                            onKeyDown={(e) => {
+                                if (e.key === 'Enter') {
+                                    e.preventDefault();
+                                    savePatientNameFromDraft();
+                                }
+                            }}
+                            placeholder="Enter patient name"
+                            maxLength={120}
+                            autoFocus
+                            style={{
+                                width: '100%',
+                                height: '40px',
+                                borderRadius: '10px',
+                                border: '2px solid var(--border-md)',
+                                background: 'var(--surface)',
+                                color: 'var(--text)',
+                                padding: '0 12px'
+                            }}
+                            aria-label="Patient name"
+                        />
+                        <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
+                            <button className="btn btn-primary" type="button" onClick={savePatientNameFromDraft}>
+                                Save and continue
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
+
             <a href="#main-content" className="btn btn-primary"
-               style={{ position: 'absolute', left: '-9999px', top: 8, zIndex: 999 }}
-               onFocus={(e) => (e.currentTarget.style.left = '8px')}
-               onBlur={(e) => (e.currentTarget.style.left = '-9999px')}>
+                style={{ position: 'absolute', left: '-9999px', top: 8, zIndex: 999 }}
+                onFocus={(e) => (e.currentTarget.style.left = '8px')}
+                onBlur={(e) => (e.currentTarget.style.left = '-9999px')}>
                 Skip to content
             </a>
 
@@ -426,7 +554,7 @@ export default function SmartLabsApp() {
                                     style={{
                                         color: item.label === 'Critical' && item.value > 0 ? 'var(--danger)'
                                             : item.label === 'Abnormal' && item.value > 0 ? 'var(--warning)'
-                                            : undefined
+                                                : undefined
                                     }}>
                                     {item.value}
                                 </span>

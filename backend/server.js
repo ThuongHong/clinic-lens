@@ -708,6 +708,28 @@ function signObjectKey(objectKey, expiresInSeconds = 300) {
   return signedUrl.replace(/^http:\/\//i, 'https://');
 }
 
+async function deleteObjectKeyFromOss(objectKey) {
+  if (!ossClient) {
+    return;
+  }
+
+  const normalized = String(objectKey || '').trim().replace(/^\/+/, '');
+  if (!normalized) {
+    return;
+  }
+
+  try {
+    await ossClient.delete(normalized);
+    console.log(`Deleted OSS object after analysis: ${normalized}`);
+  } catch (error) {
+    const status = Number(error?.status || error?.code || 0);
+    if (status === 404 || String(error?.name || '').toLowerCase() === 'nosuchkey') {
+      return;
+    }
+    console.warn(`Failed to delete OSS object ${normalized}: ${error?.message || error}`);
+  }
+}
+
 async function signObjectKeyViaSts(objectKey, expiresInSeconds = 300) {
   if (!stsClient || !process.env.ALI_ROLE_ARN || !OSS_BUCKET_NAME || !OSS_REGION) {
     throw new Error('STS client is not configured');
@@ -957,10 +979,24 @@ async function persistAndEmitAnalysis({
   rawPayload,
   objectKey,
   fileUrl,
+  patientName,
   res
 }) {
   const normalizedAnalysis = normalizeAnalysisPayload(rawPayload);
-  let summary = buildAnalysisSummary(normalizedAnalysis);
+  const sanitizedPatientName = typeof patientName === 'string'
+    ? patientName.trim().slice(0, 120)
+    : '';
+
+  const normalizedWithPatientName = normalizedAnalysis.status === 'success'
+    ? {
+      ...normalizedAnalysis,
+      ...(sanitizedPatientName
+        ? { patient_name: sanitizedPatientName }
+        : (normalizedAnalysis.patient_name ? { patient_name: normalizedAnalysis.patient_name } : {}))
+    }
+    : normalizedAnalysis;
+
+  let summary = buildAnalysisSummary(normalizedWithPatientName);
   let advice = null;
 
   summary = mergePipelineSummary(summary, rawPayload?.summary);
@@ -970,13 +1006,20 @@ async function persistAndEmitAnalysis({
     message: 'Indicator extraction completed. Building summary results.'
   });
 
-  if (normalizedAnalysis.status === 'success') {
+  if (normalizedWithPatientName.status === 'success') {
     try {
       writeSseEvent(res, 'post_process', {
         stage: 'advice',
         message: 'Generating personalized recommendations from the analysis pipeline.'
       });
-      advice = await generateAdviceFromAnalysis(normalizedAnalysis, summary);
+      advice = await generateAdviceFromAnalysis(normalizedWithPatientName, summary);
+
+      if (advice && advice.status === 'success' && sanitizedPatientName) {
+        advice = {
+          ...advice,
+          patient_name: sanitizedPatientName
+        };
+      }
     } catch (adviceError) {
       console.error('Advice Generation Error:', adviceError.response?.data || adviceError.message);
       writeSseEvent(res, 'warning', {
@@ -986,7 +1029,7 @@ async function persistAndEmitAnalysis({
   }
 
   const persistedAnalysis = {
-    ...normalizedAnalysis,
+    ...normalizedWithPatientName,
     summary,
     ...(Array.isArray(rawPayload?.pages) ? { pages: rawPayload.pages } : {}),
     ...(advice ? { advice } : {})
@@ -1106,7 +1149,7 @@ app.get('/api/sign-url', async (req, res) => {
  * Server proxy luồng stream từ DashScope về Client theo thời gian thực.
  */
 app.post('/api/analyze', async (req, res) => {
-  const { file_url, object_key, local_file_path } = req.body;
+  const { file_url, object_key, local_file_path, patient_name } = req.body;
 
   if (!file_url && !object_key && !local_file_path) {
     return res.status(400).json({ error: 'Missing file_url, object_key, or local_file_path for analysis' });
@@ -1138,6 +1181,10 @@ app.post('/api/analyze', async (req, res) => {
   writeSseEvent(res, 'ready', { message: 'connected' });
 
   if (!process.env.DASHSCOPE_API_KEY) {
+    const earlyObjectKey = typeof object_key === 'string' ? object_key.trim().replace(/^\/+/, '') : '';
+    if (earlyObjectKey) {
+      await deleteObjectKeyFromOss(earlyObjectKey);
+    }
     writeSseEvent(res, 'error', {
       message: 'DashScope API key is missing. Set DASHSCOPE_API_KEY before running analysis.'
     });
@@ -1150,11 +1197,29 @@ app.post('/api/analyze', async (req, res) => {
     const normalizedObjectKey = typeof object_key === 'string' ? object_key.trim().replace(/^\/+/, '') : '';
     const originalFileUrl = typeof file_url === 'string' ? file_url.trim() : '';
     const localFilePath = typeof local_file_path === 'string' ? local_file_path.trim() : '';
+    const requestedPatientName = typeof patient_name === 'string' ? patient_name.trim().slice(0, 120) : '';
+    let cleanupCompleted = false;
+
+    const cleanupUploadedObject = async () => {
+      if (cleanupCompleted) {
+        return;
+      }
+      cleanupCompleted = true;
+      if (!normalizedObjectKey) {
+        return;
+      }
+      await deleteObjectKeyFromOss(normalizedObjectKey);
+    };
+
+    const endStream = async () => {
+      await cleanupUploadedObject();
+      res.end();
+    };
 
     if (!analysisUrl && typeof object_key === 'string') {
       if (!normalizedObjectKey) {
         writeSseEvent(res, 'error', { message: 'Invalid object_key' });
-        return res.end();
+        return endStream();
       }
       let signer = 'server_ak';
       try {
@@ -1180,7 +1245,7 @@ app.post('/api/analyze', async (req, res) => {
         writeSseEvent(res, 'error', {
           message: 'Unable to read the selected local PDF file on this machine.'
         });
-        return res.end();
+        return endStream();
       }
     }
 
@@ -1207,6 +1272,7 @@ app.post('/api/analyze', async (req, res) => {
           rawPayload: pipelineResult.payload,
           objectKey: normalizedObjectKey,
           fileUrl: shouldUseLocalPdfPipeline ? localFilePath : originalFileUrl,
+          patientName: requestedPatientName,
           res
         });
 
@@ -1214,10 +1280,10 @@ app.post('/api/analyze', async (req, res) => {
           message: 'completed',
           mode: 'analysis_pdf'
         });
-        return res.end();
+        return endStream();
       } catch (pdfPipelineError) {
         if (clientDisconnected || abortController.signal.aborted) {
-          return res.end();
+          return endStream();
         }
         console.error('Analysis PDF Pipeline Error:', pdfPipelineError.stderr || pdfPipelineError.message);
         writeSseEvent(res, 'warning', {
@@ -1230,7 +1296,7 @@ app.post('/api/analyze', async (req, res) => {
           writeSseEvent(res, 'error', {
             message: 'Unable to analyze the local PDF on this demo machine. Retry with images or check the PDF pipeline setup.'
           });
-          return res.end();
+          return endStream();
         }
       }
     }
@@ -1250,6 +1316,7 @@ app.post('/api/analyze', async (req, res) => {
           rawPayload: parsed,
           objectKey: normalizedObjectKey,
           fileUrl: originalFileUrl,
+          patientName: requestedPatientName,
           res
         });
 
@@ -1327,24 +1394,28 @@ app.post('/api/analyze', async (req, res) => {
 
     qwenResponse.data.on('end', async () => {
       if (clientDisconnected || abortController.signal.aborted) {
-        return res.end();
+        return endStream();
       }
       await finalizeStructuredResult({ emitError: true });
       if (streamCompleted) {
         writeSseEvent(res, 'done', { message: 'completed' });
       }
-      res.end();
+      await endStream();
     });
 
-    qwenResponse.data.on('error', (streamError) => {
+    qwenResponse.data.on('error', async (streamError) => {
       if (clientDisconnected || abortController.signal.aborted) {
-        return res.end();
+        return endStream();
       }
       console.error('Qwen stream error:', streamError.message);
       writeSseEvent(res, 'error', { message: 'Stream error from DashScope Singapore' });
-      res.end();
+      await endStream();
     });
   } catch (error) {
+    const fallbackObjectKey = typeof object_key === 'string' ? object_key.trim().replace(/^\/+/, '') : '';
+    if (fallbackObjectKey) {
+      await deleteObjectKeyFromOss(fallbackObjectKey);
+    }
     if (clientDisconnected || abortController.signal.aborted) {
       return res.end();
     }

@@ -513,5 +513,188 @@
         ]
       }
     }
+  },
+  "analysis_1776170151858_5aaf39": {
+    "conversations": {
+      "d6e63865-3ced-440b-afb8-998e251f199b": {
+        "conversation_id": "d6e63865-3ced-440b-afb8-998e251f199b",
+        "language": "en",
+        "detail_level": "simple",
+        "created_at": "2026-04-14T14:59:19.009Z",
+        "updated_at": "2026-04-14T14:59:19.009Z",
+        "turns": [
+          {
+            "role": "user",
+            "message": "Tôi tên gì",
+            "created_at": "2026-04-14T14:59:19.009Z"
+          },
+          {
+            "role": "assistant",
+            "message": "Your name is not provided in the lab report or analysis context.",
+            "payload": {
+              "answer_text": "Your name is not provided in the lab report or analysis context.",
+              "risk_level": "high",
+              "cited_indicators": [
+                "CA 19-9",
+                "Free T4",
+                "Testosterone",
+                "SHBG",
+                "Chỉ số Testosterone tự do",
+                "25-OH Vitamin D",
+                "pH"
+              ],
+              "cited_organs": [
+                "other",
+                "thyroid",
+                "blood",
+                "bone",
+                "lungs"
+              ],
+              "recommended_actions": [
+                "Schedule urgent follow-up with a primary care provider or specialist (e.g., endocrinologist, gastroenterologist) to interpret these results together.",
+                "Do not delay evaluation — several markers show clinically meaningful abnormalities requiring timely assessment.",
+                "Avoid self-interpreting or acting on results without clinical correlation (e.g., symptoms, physical exam, imaging)."
+              ],
+              "follow_up_questions": [
+                "Have you noticed symptoms like unexplained weight loss, fatigue, heat intolerance, low libido, or changes in bowel habits?",
+                "Are you currently taking any thyroid medication, testosterone supplements, or vitamin D?",
+                "Have you had recent imaging (e.g., abdominal ultrasound) or other hormone tests (e.g., TSH, LH, FSH)?"
+              ],
+              "seven_day_plan": [
+                "Day 1: Contact your doctor to share this report and request an appointment within 3–5 days.",
+                "Day 2: Write down any symptoms you’ve experienced recently (e.g., palpitations, night sweats, mood changes, digestive issues).",
+                "Day 3: Avoid starting new supplements (especially vitamin D or testosterone) without medical advice.",
+                "Day 4: Check if prior lab reports are available for comparison (e.g., past CA 19-9 or Free T4 levels).",
+                "Day 5: Prepare questions for your provider using the follow-up list above.",
+                "Day 6: Stay hydrated, eat balanced meals, and get restful sleep.",
+                "Day 7: Attend or confirm your specialist appointment; bring this report and your symptom notes."
+              ],
+              "disclaimer": "This analysis is for informational support only and does not replace professional medical evaluation, diagnosis, or treatment. Abnormal lab values require clinical correlation — they are not standalone diagnoses.",
+              "escalation": true
+            },
+            "created_at": "2026-04-14T14:59:19.009Z"
+          }
+        ]
+      }
+    }
+  },
+  "analysis_1776179735358_f35cb9": {
+    "conversations": {
+      "39db68ec-2c0d-427e-933e-5c3ca5ad3cf7": {
+        "conversation_id": "39db68ec-2c0d-427e-933e-5c3ca5ad3cf7",
+        "language": "en",
+        "detail_level": "simple",
+        "created_at": "2026-04-14T15:16:23.977Z",
+        "updated_at": "2026-04-14T15:16:43.978Z",
+        "turns": [
+          {
+            "role": "user",
+            "message": "Tình hình của tôi như thế nào",
+            "created_at": "2026-04-14T15:16:23.977Z"
+          },
+          {
+            "role": "assistant",
+            "message": "Your lab results show several abnormalities that need attention. CA 19-9 is slightly high (42 U/mL), which may signal pancreatic or digestive tract concerns. Free T4 is elevated, suggesting possible hyperthyroidism. Testosterone is low, while SHBG and the free testosterone index are high — this pattern can affect hormone balance and symptoms like fatigue or low energy. Vitamin D is low (25 ng/mL), indicating deficiency. Urine pH is mildly acidic but not critically so. Overall, these findings point to multiple systems needing evaluation — thyroid, hormone balance, bone health, and possibly gastrointestinal health.",
+            "payload": {
+              "answer_text": "Your lab results show several abnormalities that need attention. CA 19-9 is slightly high (42 U/mL), which may signal pancreatic or digestive tract concerns. Free T4 is elevated, suggesting possible hyperthyroidism. Testosterone is low, while SHBG and the free testosterone index are high — this pattern can affect hormone balance and symptoms like fatigue or low energy. Vitamin D is low (25 ng/mL), indicating deficiency. Urine pH is mildly acidic but not critically so. Overall, these findings point to multiple systems needing evaluation — thyroid, hormone balance, bone health, and possibly gastrointestinal health.",
+              "risk_level": "high",
+              "cited_indicators": [
+                "CA 19-9",
+                "Free T4",
+                "Testosterone",
+                "SHBG",
+                "Chỉ số Testosterone tự do",
+                "25-OH Vitamin D",
+                "pH"
+              ],
+              "cited_organs": [
+                "other",
+                "thyroid",
+                "blood",
+                "bone",
+                "lungs"
+              ],
+              "recommended_actions": [
+                "See an endocrinologist for thyroid and testosterone imbalances",
+                "Consult a gastroenterologist about elevated CA 19-9",
+                "Start vitamin D supplementation under medical guidance",
+                "Repeat key tests (CA 19-9, Free T4, testosterone panel) in 4–6 weeks",
+                "Keep a symptom diary (e.g., energy, mood, digestion, sleep)"
+              ],
+              "follow_up_questions": [
+                "Have you noticed recent weight changes, palpitations, or digestive issues like bloating or stool changes?",
+                "Are you experiencing fatigue, low libido, hair loss, or mood swings?",
+                "Do you take any supplements or medications regularly?"
+              ],
+              "seven_day_plan": [
+                "Day 1: Record current symptoms and schedule specialist appointments",
+                "Day 2: Begin daily vitamin D supplement (e.g., 1000–2000 IU) after confirming with provider",
+                "Day 3: Review diet — add fatty fish, eggs, fortified foods, and leafy greens",
+                "Day 4: Drink ≥2 L water; reduce caffeine/sugar if experiencing palpitations or anxiety",
+                "Day 5: Walk 30 min; note energy levels before/after",
+                "Day 6: Prepare questions for your endocrinologist/gastroenterologist",
+                "Day 7: Recheck urine pH with test strips (optional) and log result"
+              ],
+              "disclaimer": "These results suggest patterns requiring clinical follow-up, but they do not confirm any diagnosis. Lab values must be interpreted alongside your full medical history, symptoms, and physical exam by a licensed healthcare provider.",
+              "escalation": true
+            },
+            "created_at": "2026-04-14T15:16:23.977Z"
+          },
+          {
+            "role": "user",
+            "message": "What's my name?",
+            "created_at": "2026-04-14T15:16:43.978Z"
+          },
+          {
+            "role": "assistant",
+            "message": "Your name is Hong.",
+            "payload": {
+              "answer_text": "Your name is Hong.",
+              "risk_level": "high",
+              "cited_indicators": [
+                "CA 19-9",
+                "Free T4",
+                "Testosterone",
+                "SHBG",
+                "Chỉ số Testosterone tự do",
+                "25-OH Vitamin D",
+                "pH"
+              ],
+              "cited_organs": [
+                "other",
+                "thyroid",
+                "blood",
+                "bone",
+                "lungs"
+              ],
+              "recommended_actions": [
+                "See an endocrinologist for thyroid and testosterone imbalances",
+                "Consult a gastroenterologist about elevated CA 19-9",
+                "Start vitamin D supplementation under medical guidance",
+                "Repeat key tests (CA 19-9, Free T4, testosterone panel) in 4–6 weeks",
+                "Keep a symptom diary (e.g., energy, mood, digestion, sleep)"
+              ],
+              "follow_up_questions": [
+                "Have you noticed recent weight changes, palpitations, or digestive issues like bloating or stool changes?",
+                "Are you experiencing fatigue, low libido, hair loss, or mood swings?",
+                "Do you take any supplements or medications regularly?"
+              ],
+              "seven_day_plan": [
+                "Day 1: Record current symptoms and schedule specialist appointments",
+                "Day 2: Begin daily vitamin D supplement (e.g., 1000–2000 IU) after confirming with provider",
+                "Day 3: Review diet — add fatty fish, eggs, fortified foods, and leafy greens",
+                "Day 4: Drink ≥2 L water; reduce caffeine/sugar if experiencing palpitations or anxiety",
+                "Day 5: Walk 30 min; note energy levels before/after",
+                "Day 6: Prepare questions for your endocrinologist/gastroenterologist",
+                "Day 7: Recheck urine pH with test strips (optional) and log result"
+              ],
+              "disclaimer": "These results suggest patterns requiring clinical follow-up, but they do not confirm any diagnosis. Lab values must be interpreted alongside your full medical history, symptoms, and physical exam by a licensed healthcare provider.",
+              "escalation": true
+            },
+            "created_at": "2026-04-14T15:16:43.978Z"
+          }
+        ]
+      }
+    }
   }
 }
