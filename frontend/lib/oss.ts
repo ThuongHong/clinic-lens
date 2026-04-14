@@ -11,7 +11,10 @@ function encodeObjectKey(objectKey: string) {
     return objectKey.split('/').map((part) => encodeURIComponent(part)).join('/');
 }
 
-export async function uploadFileToOss(file: File, creds: StsTokenResponse): Promise<UploadResult> {
+export async function uploadFileToOss(
+    file: File,
+    creds: StsTokenResponse
+): Promise<UploadResult> {
     const client = new OSS({
         region: creds.Region,
         accessKeyId: creds.AccessKeyId,

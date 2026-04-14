@@ -7,6 +7,7 @@
 
 /* ── Google Fonts import ─────────────────────────── */
 @import url('https://fonts.googleapis.com/css2?family=Cabinet+Grotesk:wght@400;500;600;700;800;900&family=Geist+Mono:wght@400;500;600&display=swap');
+@import "tailwindcss";
 
 /* ── Design Tokens ─────────────────────────────────  */
 :root {
@@ -32,6 +33,7 @@
 
     /* Single accent — deep teal (desaturated for light bg) */
     --accent: #0d9488;
+    --accent-strong: #0f766e;
     --accent-dim: rgba(13, 148, 136, 0.14);
     --accent-low: rgba(13, 148, 136, 0.07);
 
@@ -57,6 +59,7 @@
 
     /* Spacing */
     --page-w: min(1380px, calc(100% - 40px));
+    --gap-page: 20px;
     --gap: 16px;
 
     /* Transitions */
@@ -199,10 +202,15 @@ body::after {
 }
 
 .appLogo {
-    font-size: 1rem;
-    font-weight: 700;
+    font-size: 1.08rem;
+    font-weight: 800;
     color: var(--text);
-    letter-spacing: -0.5px;
+    letter-spacing: -0.02em;
+    padding: 4px 12px;
+    border-radius: 999px;
+    border: 1px solid rgba(13, 148, 136, 0.22);
+    background: linear-gradient(135deg, rgba(13, 148, 136, 0.12), rgba(255, 253, 247, 0.7));
+    box-shadow: 0 6px 18px rgba(13, 148, 136, 0.12);
 }
 
 /* ── Glass Panel Base ──────────────────────────────  */
@@ -215,6 +223,15 @@ body::after {
     box-shadow:
         var(--shadow-md),
         inset 0 1px 0 rgba(255, 255, 255, 0.70);
+    transition:
+        border-color var(--dur) var(--ease-out),
+        box-shadow var(--dur) var(--ease-out),
+        transform var(--dur-fast) var(--ease-out);
+}
+
+.panel:hover {
+    border-color: var(--border-md);
+    box-shadow: var(--shadow-lg), inset 0 1px 0 rgba(255, 255, 255, 0.72);
 }
 
 /* ── Eyebrow Label ─────────────────────────────────  */
@@ -261,19 +278,20 @@ body::after {
     padding: 0 0 12px 0;
     margin: -20px -24px 12px -24px;
     padding: 12px 24px 12px 24px;
-    border-bottom: 1px solid rgba(13, 148, 136, 0.1);
+    border-bottom: 1px solid rgba(13, 148, 136, 0.14);
+    background: linear-gradient(90deg, rgba(13, 148, 136, 0.06), rgba(13, 148, 136, 0));
     text-align: right;
 }
 
 .greetingText {
-    font-size: 0.95rem;
-    color: var(--text-soft);
-    font-weight: 500;
+    font-size: 0.9rem;
+    color: rgba(28, 23, 18, 0.72);
+    font-weight: 600;
 }
 
 .greetingText strong {
-    color: var(--accent);
-    font-weight: 700;
+    color: var(--accent-strong);
+    font-weight: 800;
 }
 
 /* ── Hero Section ──────────────────────────────────  */
@@ -431,6 +449,11 @@ body::after {
         box-shadow var(--dur) var(--ease-out);
 }
 
+.navPillItem:focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: 3px;
+}
+
 .navPillItem:hover {
     color: var(--text);
     background: var(--bg-hover);
@@ -478,7 +501,7 @@ body::after {
     align-items: flex-start;
     justify-content: space-between;
     gap: 16px;
-    margin-bottom: 20px;
+    margin-bottom: 16px;
 }
 
 .panelTitleGroup {
@@ -489,14 +512,14 @@ body::after {
 
 .panelTitle {
     font-family: 'Cabinet Grotesk', sans-serif;
-    font-size: 1.08rem;
+    font-size: 1.2rem;
     font-weight: 800;
     letter-spacing: -0.025em;
     color: var(--text);
 }
 
 .panelSubtitle {
-    font-size: 0.875rem;
+    font-size: 0.84rem;
     color: var(--text-muted);
     line-height: 1.55;
 }
@@ -579,34 +602,45 @@ body::after {
 .severity-badge {
     display: inline-flex;
     align-items: center;
-    gap: 4px;
+    gap: 6px;
     padding: 3px 9px;
     border-radius: 999px;
-    font-size: 0.72rem;
-    font-weight: 700;
+    font-size: 0.73rem;
+    font-weight: 800;
     letter-spacing: 0.03em;
     text-transform: uppercase;
+    border: 1px solid transparent;
+}
+
+.severityIcon {
+    font-size: 0.72rem;
+    line-height: 1;
 }
 
 .severity-normal {
     background: var(--success-dim);
     color: var(--success);
+    border-color: rgba(5, 150, 105, 0.2);
 }
 
 .severity-critical {
-    background: var(--danger-dim);
+    background: rgba(220, 38, 38, 0.13);
     color: var(--danger);
+    border-color: rgba(220, 38, 38, 0.32);
+    box-shadow: 0 0 0 1px rgba(220, 38, 38, 0.1);
 }
 
 .severity-abnormal_high,
 .severity-abnormal_low {
-    background: var(--warning-dim);
+    background: rgba(217, 119, 6, 0.15);
     color: var(--warning);
+    border-color: rgba(217, 119, 6, 0.28);
 }
 
 .severity-unknown {
     background: var(--bg-surface);
     color: var(--text-muted);
+    border-color: var(--border-md);
 }
 
 /* ── Buttons ─────────────────────────────────────── */
@@ -907,15 +941,17 @@ body::after {
     box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.9);
     display: flex;
     flex-direction: column;
-    gap: 10px;
+    gap: 8px;
     transition:
         border-color var(--dur) var(--ease-out),
-        box-shadow var(--dur) var(--ease-out);
+        box-shadow var(--dur) var(--ease-out),
+        transform var(--dur-fast) var(--ease-out);
 }
 
 .resultCard:hover {
     border-color: var(--border-md);
     box-shadow: var(--shadow-sm), inset 0 1px 0 rgba(255, 255, 255, 0.9);
+    transform: translateY(-2px);
 }
 
 .resultTopRow {
@@ -927,14 +963,14 @@ body::after {
 
 .resultName {
     font-weight: 800;
-    font-size: 0.9rem;
+    font-size: 0.96rem;
     color: var(--text);
     line-height: 1.3;
 }
 
 .resultMeta {
-    font-size: 0.78rem;
-    color: var(--text-muted);
+    font-size: 0.79rem;
+    color: rgba(28, 23, 18, 0.5);
     margin-top: 2px;
 }
 
@@ -946,7 +982,7 @@ body::after {
 
 .resultValueRow strong {
     font-family: 'Geist Mono', monospace;
-    font-size: 1.4rem;
+    font-size: 1.28rem;
     font-weight: 700;
     letter-spacing: -0.03em;
     font-variant-numeric: tabular-nums;
@@ -960,8 +996,8 @@ body::after {
 }
 
 .resultAdvice {
-    font-size: 0.8rem;
-    color: var(--text-soft);
+    font-size: 0.82rem;
+    color: rgba(28, 23, 18, 0.72);
     line-height: 1.5;
     border-top: 1px solid var(--border);
     padding-top: 8px;
@@ -1090,14 +1126,20 @@ body::after {
     display: inline-flex;
     align-items: center;
     gap: 4px;
-    padding: 4px 10px;
+    min-height: 30px;
+    padding: 6px 12px;
     border-radius: 999px;
     border: 1px solid var(--border-md);
     background: rgba(255, 253, 247, 0.85);
-    font-size: 0.76rem;
+    font-size: 0.79rem;
     font-weight: 600;
     color: var(--text-soft);
     box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.9);
+}
+
+.chip:focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: 2px;
 }
 
 .chip.danger {
@@ -1139,11 +1181,11 @@ body::after {
 }
 
 .sectionTitle {
-    font-size: 0.78rem;
-    font-weight: 700;
+    font-size: 0.76rem;
+    font-weight: 800;
     letter-spacing: 0.06em;
     text-transform: uppercase;
-    color: var(--text-muted);
+    color: var(--text-soft);
     margin-bottom: 10px;
 }
 
@@ -1164,8 +1206,8 @@ body::after {
     display: flex;
     flex-direction: column;
     gap: 12px;
-    min-height: 360px;
-    max-height: 560px;
+    min-height: 320px;
+    max-height: min(560px, 58vh);
     overflow-y: auto;
     padding-right: 4px;
     /* custom scrollbar */
@@ -1188,9 +1230,10 @@ body::after {
 
 .chatBubble {
     max-width: 90%;
-    padding: 12px 16px;
+    padding: 12px 14px;
     border-radius: 18px;
     border: 1px solid var(--border);
+    box-shadow: var(--shadow-sm);
     animation: bubbleIn 220ms var(--ease-out) both;
 }
 
@@ -1208,13 +1251,13 @@ body::after {
 
 .chatBubbleUser {
     margin-left: auto;
-    background: rgba(13, 148, 136, 0.12);
-    border-color: rgba(13, 148, 136, 0.2);
+    background: linear-gradient(135deg, rgba(13, 148, 136, 0.16), rgba(13, 148, 136, 0.08));
+    border-color: rgba(13, 148, 136, 0.3);
     color: var(--text);
 }
 
 .chatBubbleAssistant {
-    background: rgba(255, 253, 247, 0.88);
+    background: rgba(255, 253, 247, 0.92);
     border-color: var(--border);
     box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.9);
 }
@@ -1224,7 +1267,7 @@ body::after {
     font-weight: 700;
     letter-spacing: 0.08em;
     text-transform: uppercase;
-    color: var(--text-muted);
+    color: rgba(28, 23, 18, 0.52);
     margin-bottom: 6px;
 }
 
@@ -1328,6 +1371,9 @@ body::after {
 .historyList {
     display: grid;
     gap: 8px;
+    margin: 0;
+    padding: 0;
+    list-style: none;
     max-height: 520px;
     overflow-y: auto;
     scrollbar-width: thin;
@@ -1376,6 +1422,11 @@ body::after {
 
 .historyItem:active {
     transform: scale(0.99);
+}
+
+.historyItem:focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: 3px;
 }
 
 .historyItemActive {
@@ -1431,6 +1482,12 @@ body::after {
 
 .emptyStateLg {
     min-height: 200px;
+}
+
+.emptyStateAction {
+    margin-top: 6px;
+    width: auto;
+    min-width: 180px;
 }
 
 /* ── Error Banner ────────────────────────────────── */
@@ -1573,13 +1630,21 @@ body::after {
 
     .navPill {
         width: 100%;
-        justify-content: center;
+        justify-content: flex-start;
+        overflow-x: auto;
+        scrollbar-width: none;
+    }
+
+    .navPill::-webkit-scrollbar {
+        display: none;
     }
 
     .navPillItem {
-        flex: 1;
+        flex: 0 0 auto;
+        min-width: max-content;
         text-align: center;
         padding: 9px 12px;
+        white-space: nowrap;
     }
 
     .heroActions {
@@ -1599,5 +1664,38 @@ body::after {
 
     .compactUploadText .uploadTitle {
         max-width: 100%;
+    }
+
+    .analysisHeaderStrip {
+        gap: 8px;
+        margin-bottom: 12px;
+    }
+
+    .chatWindow {
+        max-height: 52vh;
+    }
+
+    .panelTitle {
+        font-size: 1.08rem;
+    }
+
+    .resultName {
+        font-size: 0.92rem;
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+
+    *,
+    *::before,
+    *::after {
+        animation-duration: 1ms !important;
+        animation-iteration-count: 1 !important;
+        transition-duration: 1ms !important;
+        scroll-behavior: auto !important;
+    }
+
+    .glowBlob {
+        display: none;
     }
 }

@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useMemo, useRef, useState } from 'react';
-import type { ChangeEvent } from 'react';
+import type { ChangeEvent, KeyboardEvent } from 'react';
 
 import {
     fetchStsToken,
@@ -46,6 +46,7 @@ interface OverviewTabProps {
     historyLoading: boolean;
     status: string;
     analysisLogs: string[];
+    uploadValidationError: string | null;
     overviewTestDate: string;
     overviewSource: string;
 }
@@ -79,6 +80,14 @@ const STATUS_LABELS: Record<string, string> = {
 
 const SESSION_HISTORY_STORAGE_KEY = 'smartlabs.session_history';
 const PATIENT_NAME_STORAGE_KEY = 'smartlabs.patient_name';
+const MAX_UPLOAD_SIZE_BYTES = 20 * 1024 * 1024;
+const ALLOWED_UPLOAD_TYPES = new Set([
+    'application/pdf',
+    'image/png',
+    'image/jpg',
+    'image/jpeg',
+    'image/webp'
+]);
 
 /* ─── SVG Icons (inline, no external dependency) ─── */
 function IconUpload() {
@@ -149,11 +158,12 @@ function OverviewTab({
     historyLoading,
     status,
     analysisLogs,
+    uploadValidationError,
     overviewTestDate,
     overviewSource
 }: OverviewTabProps) {
     return (
-        <section className={currentAnalysis ? 'workspaceGrid workspaceGridOverviewReady' : 'workspaceGrid workspaceGridOverviewIdle'} role="tabpanel" aria-labelledby="tab-overview">
+        <section id="panel-overview" className={currentAnalysis ? 'workspaceGrid workspaceGridOverviewReady' : 'workspaceGrid workspaceGridOverviewIdle'} role="tabpanel" aria-labelledby="tab-overview" tabIndex={0}>
             {!currentAnalysis && (
                 <article className="panel">
                     <div className="panelInner">
@@ -199,6 +209,12 @@ function OverviewTab({
                                 </label>
                             </div>
                         </div>
+
+                        {uploadValidationError && (
+                            <div className="errorBanner" role="alert" style={{ marginTop: '10px' }}>
+                                {uploadValidationError}
+                            </div>
+                        )}
 
                         <div className="heroActions" style={{ marginTop: '10px' }}>
                             <button className="btn btn-primary" type="button"
@@ -309,6 +325,7 @@ function OverviewTab({
                                             <button
                                                 type="button"
                                                 onClick={() => onSelectOrganId('all')}
+                                                aria-label={`Show all organs (${currentResults.length} indicators)`}
                                                 className={selectedOrganId === 'all' ? 'chip active' : 'chip'}>
                                                 <span className="organFilterIcon" aria-hidden="true">🧭</span>
                                                 All · {currentResults.length}
@@ -323,6 +340,7 @@ function OverviewTab({
                                                         key={organId}
                                                         type="button"
                                                         onClick={() => onSelectOrganId(organId)}
+                                                        aria-label={`Filter ${organLabel(organId)} (${count} indicators)`}
                                                         className={selectedOrganId === organId ? 'chip active' : 'chip'}>
                                                         <span className="organFilterIcon" aria-hidden="true">{organAbbr(organId)}</span>
                                                         {organLabel(organId)} · {count}
@@ -342,7 +360,8 @@ function OverviewTab({
                                                             {organLabel(result.organ_id)} · {result.reference_range || 'N/A'}
                                                         </div>
                                                     </div>
-                                                    <div className={getSeverityClass(result.severity)}>
+                                                    <div className={getSeverityClass(result.severity)} aria-label={`Severity ${severityLabel(result.severity)}`}>
+                                                        <span className="severityIcon" aria-hidden="true">{severityIcon(result.severity)}</span>
                                                         {severityLabel(result.severity)}
                                                     </div>
                                                 </div>
@@ -484,6 +503,7 @@ export default function SmartLabsApp() {
     const [patientNameDraft, setPatientNameDraft] = useState('');
     const [showPatientNamePrompt, setShowPatientNamePrompt] = useState(false);
     const [selectedOrganId, setSelectedOrganId] = useState<string>('all');
+    const [uploadValidationError, setUploadValidationError] = useState<string | null>(null);
 
     const chatEndRef = useRef<HTMLDivElement | null>(null);
     const backendUrl = resolveBackendBaseUrl();
@@ -556,10 +576,27 @@ export default function SmartLabsApp() {
     }, [organCounts]);
 
     const visibleResults = useMemo(() => {
-        if (selectedOrganId === 'all') {
-            return currentResults;
-        }
-        return currentResults.filter((result) => String(result.organ_id || '').toLowerCase() === selectedOrganId);
+        const filtered = selectedOrganId === 'all'
+            ? currentResults
+            : currentResults.filter((result) => String(result.organ_id || '').toLowerCase() === selectedOrganId);
+
+        const severityRank = (severity: string) => {
+            if (severity === 'critical') return 0;
+            if (severity === 'abnormal_high' || severity === 'abnormal_low') return 1;
+            if (severity === 'unknown') return 2;
+            return 3;
+        };
+
+        return filtered
+            .map((result, index) => ({ result, index }))
+            .sort((a, b) => {
+                const rankDiff = severityRank(String(a.result.severity || 'unknown')) - severityRank(String(b.result.severity || 'unknown'));
+                if (rankDiff !== 0) {
+                    return rankDiff;
+                }
+                return a.index - b.index;
+            })
+            .map(({ result }) => result);
     }, [currentResults, selectedOrganId]);
 
     useEffect(() => { void loadHistory(); }, []);
@@ -625,6 +662,18 @@ export default function SmartLabsApp() {
 
     function onPickFile(event: ChangeEvent<HTMLInputElement>) {
         const file = event.target.files?.[0] ?? null;
+        setUploadValidationError(null);
+
+        if (file) {
+            const validationError = validateUploadFile(file);
+            if (validationError) {
+                setSelectedFile(null);
+                setUploadValidationError(validationError);
+                setStatus(validationError);
+                return;
+            }
+        }
+
         setSelectedFile(file);
         if (file) {
             setStatus(`Selected: ${file.name}`);
@@ -634,11 +683,18 @@ export default function SmartLabsApp() {
 
     async function onRunAnalysis() {
         if (!selectedFile) { setStatus('Please select a file first.'); return; }
+        const validationError = validateUploadFile(selectedFile);
+        if (validationError) {
+            setUploadValidationError(validationError);
+            setStatus(validationError);
+            return;
+        }
         if (!patientName.trim()) {
             setShowPatientNamePrompt(true);
             setStatus('Please set patient name before running analysis.');
             return;
         }
+        setUploadValidationError(null);
         setAnalysisBusy(true);
         setChatMessages([]);
         setChatConversationId(null);
@@ -885,6 +941,24 @@ export default function SmartLabsApp() {
         history: 'History'
     };
 
+    function onTabKeyDown(event: KeyboardEvent<HTMLButtonElement>, tab: TabKey) {
+        const tabs: TabKey[] = ['overview', 'chat', 'history'];
+        const currentIndex = tabs.indexOf(tab);
+        if (currentIndex < 0) {
+            return;
+        }
+
+        if (event.key === 'ArrowRight') {
+            event.preventDefault();
+            setActiveTab(tabs[(currentIndex + 1) % tabs.length]);
+        }
+
+        if (event.key === 'ArrowLeft') {
+            event.preventDefault();
+            setActiveTab(tabs[(currentIndex - 1 + tabs.length) % tabs.length]);
+        }
+    }
+
     return (
         <div className="appRoot">
             <div className="glowBlob glowBlobA" aria-hidden="true" />
@@ -909,30 +983,10 @@ export default function SmartLabsApp() {
                 <div className="appHeader">
                     <div className="appLogo">ClinicLens</div>
                 </div>
+                <div className="greetingBanner">
+                    <span className="greetingText">Hello, <strong>{patientName}</strong></span>
+                </div>
 
-                {/* ── Hero ──────────────────────────── */}
-                <section className="panel heroCard" aria-labelledby="hero-title">
-                    <div className="greetingBanner">
-                        <span className="greetingText">Hello, <strong>{patientName}</strong></span>
-                    </div>
-
-                    {/* 
-                    <div className="statsRow" role="list" aria-label="Summary metrics">
-                        {stats.map((item) => (
-                            <div key={item.label} className="statCell" role="listitem">
-                                <span className="metricValueLarge"
-                                    style={{
-                                        color: item.label === 'Critical' && item.value > 0 ? 'var(--danger)'
-                                            : item.label === 'Abnormal' && item.value > 0 ? 'var(--warning)'
-                                                : undefined
-                                    }}>
-                                    {item.value}
-                                </span>
-                                <span className="metricLabel">{item.label}</span>
-                            </div>
-                        ))}
-                    </div> */}
-                </section>
 
                 {/* ── Navigation ───────────────────── */}
                 <nav className="navPill" aria-label="Tab navigation" role="tablist">
@@ -941,8 +995,10 @@ export default function SmartLabsApp() {
                             key={tab} type="button" role="tab"
                             aria-selected={tab === activeTab}
                             id={`tab-${tab}`}
+                            aria-controls={`panel-${tab}`}
                             className={tab === activeTab ? 'navPillItem navPillItemActive' : 'navPillItem'}
                             onClick={() => setActiveTab(tab)}
+                            onKeyDown={(event) => onTabKeyDown(event, tab)}
                         >
                             {TAB_LABELS[tab]}
                         </button>
@@ -967,6 +1023,7 @@ export default function SmartLabsApp() {
                         historyLoading={historyLoading}
                         status={status}
                         analysisLogs={analysisLogs}
+                        uploadValidationError={uploadValidationError}
                         overviewTestDate={overviewTestDate}
                         overviewSource={overviewSource}
                     />
@@ -974,7 +1031,7 @@ export default function SmartLabsApp() {
 
                 {/* ── Chat Tab ─────────────────────── */}
                 {activeTab === 'chat' && (
-                    <section className="workspaceGrid workspaceGridChat" role="tabpanel" aria-labelledby="tab-chat">
+                    <section id="panel-chat" className="workspaceGrid workspaceGridChat" role="tabpanel" aria-labelledby="tab-chat" tabIndex={0}>
                         <article className="panel">
                             <div className="panelInner">
                                 <div className="panelHeader">
@@ -1048,6 +1105,9 @@ export default function SmartLabsApp() {
                                         <div className="emptyState emptyStateLg" role="status">
                                             <div className="emptyStateIcon" aria-hidden="true"><IconChat /></div>
                                             <p>No conversation yet. Select an analysis and ask your first question.</p>
+                                            <button type="button" className="btn btn-secondary emptyStateAction" onClick={() => setActiveTab('overview')}>
+                                                Go to Overview
+                                            </button>
                                         </div>
                                     )}
                                     <div ref={chatEndRef} />
@@ -1130,7 +1190,7 @@ export default function SmartLabsApp() {
 
                 {/* ── History Tab ──────────────────── */}
                 {activeTab === 'history' && (
-                    <section className="workspaceGrid workspaceGridHistory" role="tabpanel" aria-labelledby="tab-history">
+                    <section id="panel-history" className="workspaceGrid workspaceGridHistory" role="tabpanel" aria-labelledby="tab-history" tabIndex={0}>
                         <article className="panel">
                             <div className="panelInner">
                                 <div className="panelHeader">
@@ -1150,7 +1210,7 @@ export default function SmartLabsApp() {
                                     <div className="errorBanner" role="alert">{historyError}</div>
                                 )}
 
-                                <div className="historyList" role="list" aria-label="History records">
+                                <ul className="historyList" aria-label="History records">
                                     {history.length > 0 ? (
                                         history.map((entry, idx) => {
                                             const isSelected = entry.id === selectedHistoryId;
@@ -1158,42 +1218,49 @@ export default function SmartLabsApp() {
                                             const abnormalCount = entry.analysis.results.filter((r) => r.severity !== 'normal').length;
                                             const criticalCount = entry.analysis.results.filter((r) => r.severity === 'critical').length;
                                             return (
-                                                <button key={entry.id} type="button" role="listitem"
-                                                    className={isSelected ? 'historyItem historyItemActive' : 'historyItem'}
-                                                    onClick={() => selectHistory(entry)}
-                                                    style={{ animationDelay: `${idx * 40}ms` }}
-                                                    aria-pressed={isSelected}>
-                                                    <div className="historyItemTopRow">
-                                                        <div>
-                                                            <div className="historyDate">
-                                                                <IconClock /> {formatDateTime(entry.created_at)}
+                                                <li key={entry.id} style={{ listStyle: 'none' }}>
+                                                    <button type="button"
+                                                        className={isSelected ? 'historyItem historyItemActive' : 'historyItem'}
+                                                        onClick={() => selectHistory(entry)}
+                                                        style={{ animationDelay: `${idx * 40}ms` }}
+                                                        aria-pressed={isSelected}>
+                                                        <div className="historyItemTopRow">
+                                                            <div>
+                                                                <div className="historyDate">
+                                                                    <IconClock /> {formatDateTime(entry.created_at)}
+                                                                </div>
+                                                            </div>
+                                                            <div className={getBadgeClass(entry.analysis.status)}>
+                                                                {entry.analysis.status}
                                                             </div>
                                                         </div>
-                                                        <div className={getBadgeClass(entry.analysis.status)}>
-                                                            {entry.analysis.status}
+                                                        <div className="chipWrap" style={{ marginTop: '0' }}>
+                                                            <span className="chip">{indicatorCount} indicators</span>
+                                                            {abnormalCount > 0 && (
+                                                                <span className="chip" style={{ color: 'var(--warning)', background: 'var(--warning-dim)', borderColor: 'rgba(217,119,6,0.2)' }}>
+                                                                    {abnormalCount} abnormal
+                                                                </span>
+                                                            )}
+                                                            {criticalCount > 0 && (
+                                                                <span className="chip danger">{criticalCount} critical</span>
+                                                            )}
                                                         </div>
-                                                    </div>
-                                                    <div className="chipWrap" style={{ marginTop: '0' }}>
-                                                        <span className="chip">{indicatorCount} indicators</span>
-                                                        {abnormalCount > 0 && (
-                                                            <span className="chip" style={{ color: 'var(--warning)', background: 'var(--warning-dim)', borderColor: 'rgba(217,119,6,0.2)' }}>
-                                                                {abnormalCount} abnormal
-                                                            </span>
-                                                        )}
-                                                        {criticalCount > 0 && (
-                                                            <span className="chip danger">{criticalCount} critical</span>
-                                                        )}
-                                                    </div>
-                                                </button>
+                                                    </button>
+                                                </li>
                                             );
                                         })
                                     ) : (
-                                        <div className="emptyState emptyStateLg" role="status">
-                                            <div className="emptyStateIcon" aria-hidden="true"><IconEmpty /></div>
-                                            <p>No history yet. Upload and analyze your first file.</p>
-                                        </div>
+                                        <li style={{ listStyle: 'none' }}>
+                                            <div className="emptyState emptyStateLg" role="status">
+                                                <div className="emptyStateIcon" aria-hidden="true"><IconEmpty /></div>
+                                                <p>No history yet. Upload and analyze your first file.</p>
+                                                <button type="button" className="btn btn-secondary emptyStateAction" onClick={() => setActiveTab('overview')}>
+                                                    Go to Overview
+                                                </button>
+                                            </div>
+                                        </li>
                                     )}
-                                </div>
+                                </ul>
                             </div>
                         </article>
 
@@ -1239,6 +1306,7 @@ export default function SmartLabsApp() {
                                                             </div>
                                                         </div>
                                                         <div className={getSeverityClass(result.severity)}>
+                                                            <span className="severityIcon" aria-hidden="true">{severityIcon(result.severity)}</span>
                                                             {severityLabel(result.severity)}
                                                         </div>
                                                     </div>
@@ -1332,6 +1400,13 @@ function severityLabel(severity: string) {
     return STATUS_LABELS[severity] ?? severity;
 }
 
+function severityIcon(severity: string) {
+    if (severity === 'critical') return '⛔';
+    if (severity === 'abnormal_high' || severity === 'abnormal_low') return '⚠️';
+    if (severity === 'normal') return '✓';
+    return '•';
+}
+
 function getSeverityClass(severity: string) { return `severity-badge severity-${severity}`; }
 
 function getBadgeClass(status: string) {
@@ -1368,4 +1443,16 @@ function formatFileSize(size: number) {
     let value = size / 1024, index = 0;
     while (value >= 1024 && index < units.length - 1) { value /= 1024; index++; }
     return `${value.toFixed(value >= 10 ? 0 : 1)} ${units[index]}`;
+}
+
+function validateUploadFile(file: File) {
+    if (!ALLOWED_UPLOAD_TYPES.has(file.type)) {
+        return 'Unsupported file type. Please upload PDF, PNG, JPG, JPEG, or WEBP.';
+    }
+
+    if (file.size > MAX_UPLOAD_SIZE_BYTES) {
+        return 'File is too large. Maximum supported size is 20 MB.';
+    }
+
+    return null;
 }
