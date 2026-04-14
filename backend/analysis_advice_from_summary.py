@@ -96,32 +96,32 @@ def validate_advice_schema(payload: dict) -> list[str]:
 
 def call_advice_model(api_key: str, summary_payload: dict) -> str:
     system_prompt = (
-        "Ban la bac si co kinh nghiem giai thich ket qua xet nghiem cho benh nhan. "
-        "Nhiem vu: dua ra loi khuyen tong quat dua tren summary da duoc trich xuat. "
-        "Khong chan doan benh chinh thuc, khong ke ten thuoc biet duoc. "
-        "Tra ve JSON THUAN, dung schema yeu cau, khong them text nao ngoai JSON."
+        "You are an experienced clinician-style assistant explaining lab results to a patient. "
+        "Task: provide high-level recommendations based on the extracted summary. "
+        "Do not provide an official diagnosis and do not recommend specific drugs. "
+        "Return pure JSON only, following the required schema, with no extra text outside JSON."
     )
 
     user_prompt = (
-        "Dua tren JSON summary sau, hay tra ve JSON voi schema chinh xac:\n"
+        "Based on the summary JSON below, return JSON with this exact schema:\n"
         "{\n"
         '  "status": "success|error",\n'
         '  "patient_name": "string|null",\n'
         '  "analysis_date": "YYYY-MM-DD|null",\n'
-        '  "overall_assessment": "2-4 cau tieng Viet",\n'
+        '  "overall_assessment": "2-4 English sentences",\n'
         '  "priority_level": "low|medium|high",\n'
         '  "organ_advice": [\n'
         "    {\n"
         '      "organ_id": "kidneys|liver|heart|pancreas|thyroid|blood|bone|immune",\n'
         '      "risk": "normal|watch|alert",\n'
-        '      "summary": "1-2 cau ngan",\n'
-        '      "advice": "1-3 cau cu the, thuc te cho nguoi Viet"\n'
+        '      "summary": "1-2 short sentences",\n'
+        '      "advice": "1-3 clear and practical sentences"\n'
         "    }\n"
         "  ],\n"
         '  "general_recommendations": ["...", "..."],\n'
-        '  "disclaimer": "khong thay the kham bac si"\n'
+        '  "disclaimer": "for reference only, does not replace medical consultation"\n'
         "}\n"
-        "Neu du lieu summary khong hop le, tra ve:\n"
+        "If summary data is invalid, return:\n"
         '{"status":"error","error_message":"..."}\n\n'
         f"SUMMARY_JSON:\n{json.dumps(summary_payload, ensure_ascii=False)}"
     )

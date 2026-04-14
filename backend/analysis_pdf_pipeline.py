@@ -196,10 +196,41 @@ def convert_pdf_to_png(pdf_path: Path, out_dir: Path) -> list[Path]:
     return outputs
 
 
-def classify_page(api_key: str, image_path: Path) -> dict:
+def detect_document_language(api_key: str, image_path: Path) -> dict:
+    prompt = (
+        "You are a document language detector for medical reports. Return JSON only. "
+        "Detect the dominant written language from visible text on the page."
+    )
+    user = (
+        "Return exactly this JSON schema: "
+        '{"language":"ar|vi|fr|en|mixed|unknown","confidence":0.0,"reason":"short"}. '
+        "Use ar for Arabic, vi for Vietnamese, fr for French, en for English."
+    )
+    raw = call_qwen(api_key, prompt, user, image_path, max_tokens=140, temperature=0.0)
+    parsed = extract_json(raw)
+
+    language = str(parsed.get("language", "unknown")).strip().lower()
+    if language not in {"ar", "vi", "fr", "en", "mixed", "unknown"}:
+        language = "unknown"
+
+    confidence = parsed.get("confidence", 0.0)
+    try:
+        confidence = float(confidence)
+    except Exception:
+        confidence = 0.0
+
+    return {
+        "language": language,
+        "confidence": max(0.0, min(1.0, confidence)),
+        "reason": str(parsed.get("reason", "")).strip(),
+    }
+
+
+def classify_page(api_key: str, image_path: Path, language_hint: str = "unknown") -> dict:
     prompt = (
         "You are a strict document page classifier. Return JSON only. "
-        "Classify if this page contains medical lab measurement table with indicators, values, reference ranges, units."
+        "Classify if this page contains medical lab measurement table with indicators, values, reference ranges, units. "
+        f"Document language hint: {language_hint}."
     )
     user = (
         "Return exactly this JSON schema: "
@@ -338,14 +369,25 @@ def main():
     if args.max_pages > 0:
         pages = pages[: args.max_pages]
 
+    if not pages:
+        raise RuntimeError("No pages were generated from the PDF input.")
+
     system_prompt = PROMPT_PATH.read_text(encoding="utf-8").strip()
+
+    print(f"[precheck] detect_language {pages[0].name}", file=log_stream)
+    detected_language = detect_document_language(api_key, pages[0])
+    language_hint = detected_language.get("language", "unknown")
+    print(
+        f"[precheck] language={language_hint} confidence={detected_language.get('confidence', 0.0):.2f}",
+        file=log_stream,
+    )
 
     page_runs = []
     page_meta = []
 
     for idx, image_path in enumerate(pages, start=1):
         print(f"[page {idx}] classify {image_path.name}", file=log_stream)
-        cls = classify_page(api_key, image_path)
+        cls = classify_page(api_key, image_path, language_hint=language_hint)
         is_data = cls.get("page_type") == "medical_data"
         page_meta.append(
             {
@@ -362,7 +404,11 @@ def main():
         raw = call_qwen(
             api_key,
             system_prompt,
-            "Phan tich toan bo chi so xet nghiem tren trang nay va tra ve JSON theo contract.",
+            (
+                "Analyze all lab indicators on this page and return JSON that follows the contract. "
+                f"Document language hint: {language_hint}. "
+                "Read multilingual text robustly and normalize extracted values accurately."
+            ),
             image_path,
             max_tokens=2200,
             temperature=0.0,
@@ -382,6 +428,7 @@ def main():
         )
 
     merged = merge_results(page_runs)
+    merged["document_language"] = detected_language
     merged["pages"] = page_meta
     merged["summary"]["total_pages"] = len(pages)
     merged["summary"]["selected_pages"] = len(page_runs)

@@ -174,7 +174,7 @@ function buildPayload(systemPrompt, fileRef) {
           role: 'user',
           content: [
             { type: 'image', image: fileRef },
-            { type: 'text', text: 'Phan tich tai lieu xet nghiem va tra ve JSON dung contract.' },
+            { type: 'text', text: 'Analyze the lab report document and return JSON that follows the contract.' },
           ],
         },
       ],
