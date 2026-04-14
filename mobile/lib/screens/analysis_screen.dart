@@ -387,165 +387,169 @@ class _AnalysisScreenState extends State<AnalysisScreen>
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final statusColor = _statusColor(_status);
 
     return Scaffold(
       body: Container(
-        decoration: const BoxDecoration(
-          color: Color(0xFFF9FAFF),
-          gradient: LinearGradient(
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
-            colors: [
-              Color(0xFFFFFFFF),
-              Color(0xFFF4F6FC),
-              Color(0xFFE9EEFA),
-            ],
-            stops: [0.0, 0.4, 1.0],
-          ),
-        ),
+        color: const Color(0xFFF0F2F7),
         child: SafeArea(
+          bottom: false,
           child: Column(
             children: [
-              Padding(
-                padding: const EdgeInsets.fromLTRB(16, 8, 16, 8),
-                child: Container(
-                  width: double.infinity,
-                  padding: const EdgeInsets.all(14),
-                  decoration: BoxDecoration(
-                    color: Colors.white,
-                    borderRadius: BorderRadius.circular(22),
-                    border: Border.all(color: const Color(0xFFE2E8F0)),
-                    boxShadow: const [
-                      BoxShadow(
-                        color: Color(0x0A000000),
-                        blurRadius: 24,
-                        offset: Offset(0, 10),
+              Container(
+                width: double.infinity,
+                color: const Color(0xFF0A1734),
+                padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+                child: Row(
+                  children: [
+                    const Icon(Icons.science_rounded, color: Colors.white, size: 20),
+                    const SizedBox(width: 10),
+                    Text(
+                      'smart_labs_analyzer',
+                      style: theme.textTheme.titleMedium?.copyWith(
+                        color: Colors.white,
+                        fontWeight: FontWeight.w700,
+                        letterSpacing: -0.1,
                       ),
-                    ],
-                  ),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Row(
-                        children: [
-                          Container(
-                            width: 36,
-                            height: 36,
+                    ),
+                  ],
+                ),
+              ),
+              Expanded(
+                child: Center(
+                  child: ConstrainedBox(
+                    constraints: const BoxConstraints(maxWidth: 1100),
+                    child: Column(
+                      children: [
+                        Padding(
+                          padding: const EdgeInsets.fromLTRB(14, 14, 14, 8),
+                          child: Container(
+                            width: double.infinity,
+                            padding: const EdgeInsets.all(16),
                             decoration: BoxDecoration(
-                              color: const Color(0xFFFF007F).withValues(alpha: 0.08),
-                              borderRadius: BorderRadius.circular(10),
+                              color: Colors.white,
+                              borderRadius: BorderRadius.circular(20),
+                              border: Border.all(color: const Color(0xFFE3E8F2)),
                             ),
-                            child: const Icon(
-                              Icons.science_rounded,
-                              color: Color(0xFFFF007F),
-                              size: 18,
-                            ),
-                          ),
-                          const SizedBox(width: 10),
-                          Expanded(
                             child: Column(
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
-                                Text(
-                                  'Analysis workspace',
-                                  style: theme.textTheme.titleLarge?.copyWith(
-                                    fontWeight: FontWeight.w800,
-                                    color: const Color(0xFF0F172A),
-                                    letterSpacing: -0.4,
-                                  ),
+                                Row(
+                                  children: [
+                                    Container(
+                                      width: 40,
+                                      height: 40,
+                                      decoration: BoxDecoration(
+                                        color: const Color(0xFFEEF2FF),
+                                        borderRadius: BorderRadius.circular(12),
+                                      ),
+                                      child: const Icon(
+                                        Icons.science_outlined,
+                                        color: Color(0xFF4F46E5),
+                                        size: 20,
+                                      ),
+                                    ),
+                                    const SizedBox(width: 12),
+                                    Expanded(
+                                      child: Column(
+                                        crossAxisAlignment: CrossAxisAlignment.start,
+                                        children: [
+                                          Text(
+                                            'Analysis workspace',
+                                            style: theme.textTheme.titleLarge?.copyWith(
+                                              fontWeight: FontWeight.w800,
+                                              color: const Color(0xFF0F172A),
+                                              letterSpacing: -0.4,
+                                            ),
+                                          ),
+                                          Text(
+                                            _status,
+                                            maxLines: 1,
+                                            overflow: TextOverflow.ellipsis,
+                                            style: theme.textTheme.bodySmall?.copyWith(
+                                              color: statusColor,
+                                              fontWeight: FontWeight.w700,
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                    ),
+                                    const SizedBox(width: 8),
+                                    if (_selectedFile != null)
+                                      _HeaderChip(
+                                        icon: Icons.folder_open_rounded,
+                                        label: _selectedFile!.path.split('/').last,
+                                      )
+                                    else
+                                      const _HeaderChip(
+                                        icon: Icons.cloud_upload_rounded,
+                                        label: 'No file selected',
+                                      ),
+                                  ],
                                 ),
-                                Text(
-                                  _status,
-                                  maxLines: 1,
-                                  overflow: TextOverflow.ellipsis,
-                                  style: theme.textTheme.bodySmall?.copyWith(
-                                    color: const Color(0xFF64748B),
-                                    fontWeight: FontWeight.w500,
+                                const SizedBox(height: 12),
+                                Container(
+                                  padding: const EdgeInsets.all(3),
+                                  decoration: BoxDecoration(
+                                    color: const Color(0xFFF8FAFC),
+                                    borderRadius: BorderRadius.circular(14),
+                                    border: Border.all(color: const Color(0xFFE2E8F0)),
+                                  ),
+                                  child: TabBar(
+                                    controller: _tabController,
+                                    indicatorSize: TabBarIndicatorSize.tab,
+                                    dividerColor: Colors.transparent,
+                                    splashBorderRadius: BorderRadius.circular(12),
+                                    indicator: BoxDecoration(
+                                      color: const Color(0xFF0F172A),
+                                      borderRadius: BorderRadius.circular(12),
+                                    ),
+                                    labelColor: Colors.white,
+                                    unselectedLabelColor: const Color(0xFF64748B),
+                                    labelStyle: const TextStyle(
+                                      fontWeight: FontWeight.w800,
+                                      fontSize: 13,
+                                    ),
+                                    unselectedLabelStyle: const TextStyle(
+                                      fontWeight: FontWeight.w700,
+                                      fontSize: 13,
+                                    ),
+                                    tabs: const [
+                                      Tab(
+                                        height: 42,
+                                        icon: Icon(Icons.grid_view_rounded, size: 16),
+                                        text: 'Overall',
+                                      ),
+                                      Tab(
+                                        height: 42,
+                                        icon: Icon(Icons.accessibility_new_rounded, size: 16),
+                                        text: 'Body View',
+                                      ),
+                                      Tab(
+                                        height: 42,
+                                        icon: Icon(Icons.history_rounded, size: 16),
+                                        text: 'History',
+                                      ),
+                                    ],
                                   ),
                                 ),
                               ],
                             ),
                           ),
-                          const SizedBox(width: 8),
-                          if (_selectedFile != null)
-                            _HeaderChip(
-                              icon: Icons.description_rounded,
-                              label: _selectedFile!.path.split('/').last,
-                            )
-                          else
-                            const _HeaderChip(
-                              icon: Icons.cloud_upload_rounded,
-                              label: 'No file loaded',
-                            ),
-                        ],
-                      ),
-                      const SizedBox(height: 10),
-                      Container(
-                        padding: const EdgeInsets.all(3),
-                        decoration: BoxDecoration(
-                          color: const Color(0xFFF8FAFC),
-                          borderRadius: BorderRadius.circular(14),
-                          border: Border.all(color: const Color(0xFFE2E8F0)),
                         ),
-                        child: TabBar(
-                          controller: _tabController,
-                          indicatorSize: TabBarIndicatorSize.tab,
-                          dividerColor: Colors.transparent,
-                          splashBorderRadius: BorderRadius.circular(12),
-                          indicator: BoxDecoration(
-                            color: const Color(0xFF0F172A),
-                            borderRadius: BorderRadius.circular(12),
-                            boxShadow: const [
-                              BoxShadow(
-                                color: Color(0x12000000),
-                                blurRadius: 8,
-                                offset: Offset(0, 3),
-                              ),
+                        Expanded(
+                          child: TabBarView(
+                            controller: _tabController,
+                            children: [
+                              _buildOverallTab(context),
+                              _buildBodyTab(context),
+                              _buildHistoryTab(context),
                             ],
                           ),
-                          labelColor: Colors.white,
-                          unselectedLabelColor: const Color(0xFF475569),
-                          labelStyle: const TextStyle(
-                            fontWeight: FontWeight.w800,
-                            fontSize: 12,
-                            letterSpacing: -0.1,
-                          ),
-                          unselectedLabelStyle: const TextStyle(
-                            fontWeight: FontWeight.w700,
-                            fontSize: 12,
-                            letterSpacing: -0.1,
-                          ),
-                          tabs: const [
-                            Tab(
-                              height: 40,
-                              icon: Icon(Icons.dashboard_rounded, size: 16),
-                              text: 'Overall',
-                            ),
-                            Tab(
-                              height: 40,
-                              icon: Icon(Icons.accessibility_new_rounded, size: 16),
-                              text: 'Body view',
-                            ),
-                            Tab(
-                              height: 40,
-                              icon: Icon(Icons.history_rounded, size: 16),
-                              text: 'History',
-                            ),
-                          ],
                         ),
-                      ),
-                    ],
+                      ],
+                    ),
                   ),
-                ),
-              ),
-              Expanded(
-                child: TabBarView(
-                  controller: _tabController,
-                  children: [
-                    _buildOverallTab(context),
-                    _buildBodyTab(context),
-                    _buildHistoryTab(context),
-                  ],
                 ),
               ),
             ],
@@ -560,12 +564,12 @@ class _AnalysisScreenState extends State<AnalysisScreen>
 
     return SingleChildScrollView(
       controller: _overallScrollController,
-      padding: const EdgeInsets.fromLTRB(16, 12, 16, 24),
+      padding: const EdgeInsets.fromLTRB(14, 8, 14, 20),
       child: LayoutBuilder(
         builder: (context, constraints) {
-          final wide = constraints.maxWidth >= 1100;
+          final wide = constraints.maxWidth >= 860;
 
-          final analysisColumn = Column(
+          final detailColumn = Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               if (_busy) ...[
@@ -609,7 +613,7 @@ class _AnalysisScreenState extends State<AnalysisScreen>
             ],
           );
 
-          final uploadColumn = Column(
+          return Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               UploadSection(
@@ -620,37 +624,25 @@ class _AnalysisScreenState extends State<AnalysisScreen>
               ),
               const SizedBox(height: 16),
               _StatusRibbon(status: _status, analysis: analysis),
-            ],
-          );
-
-          if (!wide) {
-            return Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                uploadColumn,
-                const SizedBox(height: 20),
-                analysisColumn,
-              ],
-            );
-          }
-
-          return Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Expanded(
-                flex: 5,
-                child: uploadColumn,
-              ),
-              const SizedBox(width: 20),
-              Expanded(
-                flex: 7,
-                child: analysisColumn,
-              ),
+              const SizedBox(height: 16),
+              detailColumn,
             ],
           );
         },
       ),
     );
+  }
+
+  Color _statusColor(String status) {
+    final lower = status.toLowerCase();
+
+    if (lower.contains('error')) {
+      return const Color(0xFFDC2626);
+    }
+    if (lower.contains('ready') || lower.contains('complete')) {
+      return const Color(0xFF16A34A);
+    }
+    return const Color(0xFF64748B);
   }
 
   Widget _buildBodyTab(BuildContext context) {
@@ -762,10 +754,10 @@ class _SectionHeaderCard extends StatelessWidget {
                 width: 42,
                 height: 42,
                 decoration: BoxDecoration(
-                  color: const Color(0xFFFF007F).withValues(alpha: 0.1),
+                  color: const Color(0xFFEEF2FF),
                   borderRadius: BorderRadius.circular(14),
                 ),
-                child: Icon(icon, color: const Color(0xFFFF007F), size: 22),
+                child: Icon(icon, color: const Color(0xFF4F46E5), size: 22),
               ),
               const SizedBox(width: 12),
               Expanded(
@@ -921,10 +913,10 @@ class _EmptyPanel extends StatelessWidget {
             width: 48,
             height: 48,
             decoration: BoxDecoration(
-              color: const Color(0xFFFF007F).withValues(alpha: 0.1),
+              color: const Color(0xFFEEF2FF),
               borderRadius: BorderRadius.circular(16),
             ),
-            child: Icon(icon, color: const Color(0xFFFF007F)),
+            child: Icon(icon, color: const Color(0xFF4F46E5)),
           ),
           const SizedBox(height: 16),
           Text(

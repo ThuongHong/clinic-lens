@@ -52,8 +52,10 @@ app.use(cors({ origin: true }));
 app.use(express.json({ limit: '10mb' }));
 
 const DASHSCOPE_SG_URL = 'https://dashscope-intl.aliyuncs.com/compatible-mode/v1/chat/completions';
-const DASHSCOPE_MODEL = process.env.DASHSCOPE_MODEL || 'qwen-plus';
-const DASHSCOPE_ADVICE_MODEL = process.env.DASHSCOPE_ADVICE_MODEL || DASHSCOPE_MODEL;
+const DASHSCOPE_EXTRACT_MODEL = process.env.DASHSCOPE_EXTRACT_MODEL || process.env.DASHSCOPE_MODEL || 'qwen-vl-plus';
+const DASHSCOPE_SUMMARY_MODEL = process.env.DASHSCOPE_SUMMARY_MODEL || process.env.DASHSCOPE_ADVICE_MODEL || process.env.DASHSCOPE_MODEL || 'qwen-max';
+const DASHSCOPE_RESPONSE_FORMAT_MODE = String(process.env.DASHSCOPE_RESPONSE_FORMAT || '').trim().toLowerCase();
+const DASHSCOPE_RESPONSE_SCHEMA_JSON = process.env.DASHSCOPE_RESPONSE_SCHEMA_JSON;
 const OSS_REGION = process.env.OSS_REGION;
 const OSS_BUCKET_NAME = process.env.OSS_BUCKET_NAME;
 const PORT = Number(process.env.PORT || 9000);
@@ -80,6 +82,102 @@ const ossClient = new OSS({
 function writeSseEvent(res, eventName, payload) {
   res.write(`event: ${eventName}\n`);
   res.write(`data: ${JSON.stringify(payload)}\n\n`);
+}
+
+function buildDashScopeResponseFormat() {
+  if (!DASHSCOPE_RESPONSE_FORMAT_MODE) {
+    return null;
+  }
+
+  if (DASHSCOPE_RESPONSE_FORMAT_MODE === 'json_object') {
+    return { type: 'json_object' };
+  }
+
+  if (DASHSCOPE_RESPONSE_FORMAT_MODE === 'json_schema') {
+    if (!DASHSCOPE_RESPONSE_SCHEMA_JSON) {
+      console.warn('DASHSCOPE_RESPONSE_SCHEMA_JSON is missing, skip response_format=json_schema.');
+      return null;
+    }
+
+    try {
+      const parsedSchema = JSON.parse(DASHSCOPE_RESPONSE_SCHEMA_JSON);
+      return {
+        type: 'json_schema',
+        json_schema: parsedSchema
+      };
+    } catch (error) {
+      console.warn(`Invalid DASHSCOPE_RESPONSE_SCHEMA_JSON: ${error.message}`);
+      return null;
+    }
+  }
+
+  console.warn(`Unsupported DASHSCOPE_RESPONSE_FORMAT value: ${DASHSCOPE_RESPONSE_FORMAT_MODE}`);
+  return null;
+}
+
+function shouldFallbackWithoutResponseFormat(error) {
+  const status = error?.response?.status;
+  const responseData = error?.response?.data;
+  const detail = `${JSON.stringify(responseData || '')} ${String(error?.message || '')}`.toLowerCase();
+
+  if (status !== 400 && status !== 422) {
+    return false;
+  }
+
+  return detail.includes('response_format')
+    || detail.includes('json_schema')
+    || detail.includes('json_object')
+    || detail.includes('unsupported')
+    || detail.includes('invalid parameter');
+}
+
+async function callDashScopeChatCompletion({
+  model,
+  messages,
+  stream,
+  signal,
+  timeout,
+  responseType
+}) {
+  const responseFormat = buildDashScopeResponseFormat();
+  const requestConfig = {
+    method: 'post',
+    url: DASHSCOPE_SG_URL,
+    headers: {
+      Authorization: `Bearer ${process.env.DASHSCOPE_API_KEY}`,
+      'Content-Type': 'application/json'
+    },
+    data: {
+      model,
+      messages,
+      stream
+    },
+    timeout
+  };
+
+  if (signal) {
+    requestConfig.signal = signal;
+  }
+
+  if (responseType) {
+    requestConfig.responseType = responseType;
+  }
+
+  if (responseFormat) {
+    requestConfig.data.response_format = responseFormat;
+  }
+
+  try {
+    return await axios(requestConfig);
+  } catch (error) {
+    if (responseFormat && shouldFallbackWithoutResponseFormat(error)) {
+      console.warn('DashScope rejected response_format, retrying without response_format.');
+      delete requestConfig.data.response_format;
+      return axios(requestConfig);
+    }
+
+    throw error;
+  }
 }
 
 function ensureHistoryStore() {
@@ -139,11 +237,12 @@ function isImageUrl(fileUrl) {
 
 function buildQwenMessages(fileUrl) {
   const userInstruction = [
-    'Hãy phân tích tài liệu xét nghiệm y khoa bên dưới.',
-    'Chỉ trả về JSON hợp lệ theo schema đã yêu cầu.',
-    'Nếu tài liệu không phải xét nghiệm y khoa hoặc quá mờ, hãy trả về JSON error theo contract.',
-    'Nếu thiếu dữ liệu, hãy dùng chuỗi rỗng thay vì suy đoán.',
-    `Tài liệu cần phân tích: ${fileUrl}`
+    'Please analyze the medical lab report below.',
+    'Return valid JSON only, following the required schema.',
+    'If the document is not a medical lab report or is too blurry, return an error JSON based on the contract.',
+    'If data is missing, use empty strings instead of guessing.',
+    'Default output language is English unless explicitly requested otherwise.',
+    `Document to analyze: ${fileUrl}`
   ].join(' ');
 
   if (isImageUrl(fileUrl)) {
@@ -232,6 +331,9 @@ async function runAnalysisPdfPipeline({ pdfUrl, pdfPath, signal }) {
         cwd: path.resolve(__dirname, '..'),
         env: {
           ...process.env,
+          DASHSCOPE_EXTRACT_MODEL,
+          DASHSCOPE_SUMMARY_MODEL,
+          DASHSCOPE_MODEL: DASHSCOPE_EXTRACT_MODEL,
           PYTHONIOENCODING: 'utf-8'
         },
         maxBuffer: 20 * 1024 * 1024,
@@ -274,24 +376,16 @@ function mergePipelineSummary(baseSummary, pipelineSummary) {
 }
 
 async function generateAdviceFromAnalysis(analysis, summary) {
-  const qwenResponse = await axios({
-    method: 'post',
-    url: DASHSCOPE_SG_URL,
-    headers: {
-      Authorization: `Bearer ${process.env.DASHSCOPE_API_KEY}`,
-      'Content-Type': 'application/json'
-    },
-    data: {
-      model: DASHSCOPE_ADVICE_MODEL,
-      messages: buildAdviceMessages({
-        status: analysis.status,
-        patient_name: analysis.patient_name || null,
-        analysis_date: analysis.analysis_date || null,
-        results: analysis.results,
-        summary
-      }),
-      stream: false
-    },
+  const qwenResponse = await callDashScopeChatCompletion({
+    model: DASHSCOPE_SUMMARY_MODEL,
+    messages: buildAdviceMessages({
+      status: analysis.status,
+      patient_name: analysis.patient_name || null,
+      analysis_date: analysis.analysis_date || null,
+      results: analysis.results,
+      summary
+    }),
+    stream: false,
     timeout: 60000
   });
 
@@ -581,18 +675,10 @@ app.post('/api/analyze', async (req, res) => {
       }
     };
 
-    const qwenResponse = await axios({
-      method: 'post',
-      url: DASHSCOPE_SG_URL,
-      headers: {
-        Authorization: `Bearer ${process.env.DASHSCOPE_API_KEY}`,
-        'Content-Type': 'application/json'
-      },
-      data: {
-        model: DASHSCOPE_MODEL,
-        messages: buildQwenMessages(analysisUrl),
-        stream: true
-      },
+    const qwenResponse = await callDashScopeChatCompletion({
+      model: DASHSCOPE_EXTRACT_MODEL,
+      messages: buildQwenMessages(analysisUrl),
+      stream: true,
       signal: abortController.signal,
       timeout: 0,
       responseType: 'stream'

@@ -19,20 +19,21 @@ class UploadSection extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final hasFile = selectedFile != null;
 
     return Semantics(
       label: 'File upload section',
       child: Container(
-        padding: const EdgeInsets.all(20),
+        padding: const EdgeInsets.all(24),
         decoration: BoxDecoration(
           color: Colors.white,
-          borderRadius: BorderRadius.circular(24),
-          border: Border.all(color: const Color(0xFFF1F5F9)),
+          borderRadius: BorderRadius.circular(22),
+          border: Border.all(color: const Color(0xFFE3E8F2)),
           boxShadow: const [
             BoxShadow(
-              color: Color(0x08000000),
-              blurRadius: 20,
-              offset: Offset(0, 8),
+              color: Color(0x080F172A),
+              blurRadius: 14,
+              offset: Offset(0, 6),
             )
           ],
         ),
@@ -44,42 +45,42 @@ class UploadSection extends StatelessWidget {
               style: theme.textTheme.titleMedium
                   ?.copyWith(fontWeight: FontWeight.w800, color: const Color(0xFF0F172A)),
             ),
+            const SizedBox(height: 4),
+            Text(
+              hasFile ? 'File ready for analysis' : 'Choose PDF or image to begin',
+              style: theme.textTheme.bodySmall?.copyWith(
+                color: hasFile ? const Color(0xFF16A34A) : const Color(0xFF64748B),
+                fontWeight: FontWeight.w600,
+              ),
+            ),
             const SizedBox(height: 16),
             // File Status
             Semantics(
               label: selectedFile != null ? 'File selected: ${selectedFile!.path.split('/').last}' : 'No file selected',
               child: Container(
-                padding: const EdgeInsets.all(12),
+                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
                 decoration: BoxDecoration(
-                  color: selectedFile != null
-                      ? const Color(0xFFECFDF5)
-                      : const Color(0xFFF8FAFC),
-                  borderRadius: BorderRadius.circular(16),
+                  color: const Color(0xFFF8FAFC),
+                  borderRadius: BorderRadius.circular(14),
                   border: Border.all(
-                    color: selectedFile != null
-                        ? const Color(0xFF6EE7B7)
-                        : const Color(0xFFE2E8F0),
+                    color: hasFile ? const Color(0xFF93C5FD) : const Color(0xFFD6DFEE),
+                    width: 1,
                   ),
                 ),
                 child: Row(
                   children: [
                     Icon(
-                      selectedFile != null
-                          ? Icons.check_circle_rounded
-                          : Icons.file_present_rounded,
-                      color: selectedFile != null ? const Color(0xFF10B981) : const Color(0xFF64748B),
-                      size: 24,
+                      hasFile ? Icons.description_outlined : Icons.file_present_rounded,
+                      color: hasFile ? const Color(0xFF1D4ED8) : const Color(0xFF64748B),
+                      size: 22,
                     ),
                     const SizedBox(width: 12),
                     Expanded(
                       child: Text(
-                        selectedFile != null
-                            ? selectedFile!.path.split('/').last
-                            : 'No file selected',
+                        hasFile ? selectedFile!.path.split('/').last : 'No file selected',
                         style: theme.textTheme.bodyMedium?.copyWith(
-                          color:
-                              selectedFile != null ? const Color(0xFF065F46) : const Color(0xFF64748B),
-                          fontWeight: FontWeight.w500,
+                          color: hasFile ? const Color(0xFF334155) : const Color(0xFF64748B),
+                          fontWeight: FontWeight.w600,
                         ),
                         overflow: TextOverflow.ellipsis,
                       ),
@@ -98,7 +99,10 @@ class UploadSection extends StatelessWidget {
                     label: 'Pick File Button',
                     child: FilledButton.icon(
                       onPressed: busy ? null : onPickFile,
-                      icon: const Icon(Icons.upload_file),
+                      style: FilledButton.styleFrom(
+                        backgroundColor: const Color(0xFF4F46E5),
+                      ),
+                      icon: const Icon(Icons.upload_file_rounded),
                       label: const Text('Pick File'),
                     ),
                   ),
@@ -109,6 +113,9 @@ class UploadSection extends StatelessWidget {
                     button: true,
                     label: 'Analyze File Button',
                     child: FilledButton(
+                      style: FilledButton.styleFrom(
+                        backgroundColor: const Color(0xFF0F172A),
+                      ),
                       onPressed: (busy || selectedFile == null) ? null : onAnalyze,
                       child: Text(busy ? 'Analyzing...' : 'Analyze'),
                     ),

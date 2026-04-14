@@ -1,44 +1,46 @@
 # Smart Labs Analyzer Workspace Instructions
 
 ## Scope
-- This repo contains a Node.js backend in [backend/](backend/) and a Flutter scaffold in [mobile/](mobile/).
-- Prefer linking to existing docs instead of repeating them in comments or new guidance.
+- This workspace has a Node.js backend in [backend/](backend/) and a Flutter app in [mobile/](mobile/).
+- Keep instructions concise and link existing docs instead of duplicating them.
 
-## Project Rules
-- Keep backend logic in [backend/server.js](backend/server.js) and related backend helpers.
+## Architecture Boundaries
+- Keep backend HTTP and AI orchestration in [backend/server.js](backend/server.js) and backend helpers under [backend/](backend/).
 - Keep Flutter UI in [mobile/lib/screens/](mobile/lib/screens/) and [mobile/lib/widgets/](mobile/lib/widgets/).
-- Keep API and upload logic in [mobile/lib/services/](mobile/lib/services/).
-- Keep shared JSON contracts and models in [mobile/lib/models/](mobile/lib/models/).
-- Do not mix backend concerns into Flutter widgets or UI concerns into backend handlers.
+- Keep API/upload/network logic in [mobile/lib/services/](mobile/lib/services/).
+- Keep shared contracts and app models in [mobile/lib/models/](mobile/lib/models/).
+- Do not mix backend concerns into Flutter widgets, and do not move UI concerns into backend handlers.
+
+## Build and Test Commands
+- Backend run: `cd backend && npm install && PORT=9000 npm start`
+- Backend smoke tests: `./test-backend.sh http://localhost:9000`
+- Full demo bootstrap: `./start.sh`
+- Backend analysis script: `cd backend && npm run analysis:test`
+- Flutter setup/run: follow [FLUTTER_SETUP.md](FLUTTER_SETUP.md)
+
+## API and Contract Conventions
+- Backend routes in current server: `GET /health`, `GET /api/analyses`, `GET /api/sts-token`, `GET /api/sign-url`, `POST /api/analyze`.
+- `POST /api/analyze` streams Server-Sent Events; preserve the SSE event shape consumed by Flutter services.
+- Preserve the normalized data contract used by Flutter, especially `organ_id` and `severity` values.
+- If changing output normalization, update backend runtime logic and Flutter parsing together.
 
 ## Secrets and Environment
-- Root [.env](.env) is loaded before [backend/.env](backend/.env); create the root file first.
-- Never commit `.env` or cloud credentials. Use [.env.example](.env.example) as the template.
-- Required backend env vars are `ALI_ACCESS_KEY`, `ALI_SECRET_KEY`, `ALI_ROLE_ARN`, `OSS_REGION`, `OSS_BUCKET_NAME`, and `DASHSCOPE_API_KEY`.
-
-## Build and Test
-- Backend start: `cd backend && npm install && PORT=9000 npm start`
-- Backend smoke tests: `./test-backend.sh http://localhost:9000`
-- Demo launcher: `./start.sh`
-- Flutter setup and run: follow [FLUTTER_SETUP.md](FLUTTER_SETUP.md)
-
-## Implementation Conventions
-- Backend exposes `GET /health`, `GET /api/sts-token`, `GET /api/sign-url`, and `POST /api/analyze`.
-- `POST /api/analyze` streams results over SSE; keep the event contract stable.
-- Flutter code already uses a mock-driven flow; preserve the existing data contract around `organ_id` and `severity`.
-- `AnalysisScreen` is the integration point for file selection, upload, streaming, and history.
+- Root [.env](.env) is loaded before [backend/.env](backend/.env); create root `.env` first from [.env.example](.env.example).
+- Never commit `.env` or cloud credentials.
+- Required backend variables: `ALI_ACCESS_KEY`, `ALI_SECRET_KEY`, `ALI_ROLE_ARN`, `OSS_REGION`, `OSS_BUCKET_NAME`, `DASHSCOPE_API_KEY`.
 
 ## Team Workflow
-- Follow the branch and merge discipline in [GIT_WORKFLOW.md](GIT_WORKFLOW.md).
-- Avoid direct commits to `main`; integrate through `dev`.
-- Announce before merging shared files such as `main.dart`, shared models, or `.env.example`.
+- Follow branch and merge discipline in [GIT_WORKFLOW.md](GIT_WORKFLOW.md).
+- Do not commit directly to `main`; integrate through `dev`.
+- Announce before merging shared files such as `mobile/lib/main.dart`, model files under `mobile/lib/models/`, and `.env.example`.
 
-## Good Entry Points
-- [README.md](README.md) for architecture and data contract overview.
-- [CODING_GUIDELINES.md](CODING_GUIDELINES.md) for team separation rules.
-- [IMPLEMENTATION.md](IMPLEMENTATION.md) for endpoint and data-flow details.
-- [mobile/README.md](mobile/README.md) for the Flutter scaffold scope.
+## Reference Docs
+- Architecture and contract overview: [README.md](README.md)
+- Endpoint/data flow details: [IMPLEMENTATION.md](IMPLEMENTATION.md)
+- Separation and collaboration rules: [CODING_GUIDELINES.md](CODING_GUIDELINES.md)
+- Flutter scaffold scope: [mobile/README.md](mobile/README.md)
+- Team role split: [team_delegation.md](team_delegation.md)
 
-## When Editing
+## Editing Guidance
 - Keep changes minimal and aligned with the existing scaffold.
-- Preserve the current file/directory split unless the task explicitly requires a refactor.
+- Preserve current directory ownership unless the task explicitly needs refactoring across boundaries.
