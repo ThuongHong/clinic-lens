@@ -239,31 +239,52 @@ body::after {
     }
 }
 
+/* ── Greeting Banner ──────────────────────────────── */
+.greetingBanner {
+    width: 100%;
+    padding: 0 0 12px 0;
+    margin: -20px -24px 12px -24px;
+    padding: 12px 24px 12px 24px;
+    border-bottom: 1px solid rgba(13, 148, 136, 0.1);
+    text-align: right;
+}
+
+.greetingText {
+    font-size: 0.95rem;
+    color: var(--text-soft);
+    font-weight: 500;
+}
+
+.greetingText strong {
+    color: var(--accent);
+    font-weight: 700;
+}
+
 /* ── Hero Section ──────────────────────────────────  */
 .heroCard {
-    padding: 32px;
+    padding: 20px 24px;
 }
 
 .heroLayout {
     display: grid;
-    grid-template-columns: 1fr 280px;
-    gap: 24px;
+    grid-template-columns: 1fr;
+    gap: 16px;
     align-items: start;
 }
 
 .heroCopy {
     display: flex;
     flex-direction: column;
-    gap: 14px;
+    gap: 10px;
 }
 
 .heroCopy h1 {
     font-family: 'Cabinet Grotesk', sans-serif;
-    font-size: clamp(1.8rem, 3vw, 2.8rem);
+    font-size: clamp(1.4rem, 2.5vw, 2rem);
     font-weight: 900;
-    line-height: 1.06;
-    letter-spacing: -0.045em;
-    max-width: 18ch;
+    line-height: 1.1;
+    letter-spacing: -0.04em;
+    max-width: 20ch;
     color: var(--text);
     text-wrap: balance;
 }
@@ -274,10 +295,10 @@ body::after {
 }
 
 .heroCopy p {
-    max-width: 58ch;
+    max-width: 60ch;
     color: var(--text-soft);
-    line-height: 1.68;
-    font-size: 0.95rem;
+    line-height: 1.6;
+    font-size: 0.88rem;
     text-wrap: pretty;
 }
 

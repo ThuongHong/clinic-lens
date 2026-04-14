@@ -52,6 +52,7 @@ const STATUS_LABELS: Record<string, string> = {
 };
 
 const SESSION_HISTORY_STORAGE_KEY = 'smartlabs.session_history';
+const PATIENT_NAME_STORAGE_KEY = 'smartlabs.patient_name';
 
 /* ─── SVG Icons (inline, no external dependency) ─── */
 function IconUpload() {
@@ -125,7 +126,7 @@ export default function SmartLabsApp() {
     const [chatError, setChatError] = useState<string | null>(null);
     const [patientName, setPatientName] = useState('');
     const [patientNameDraft, setPatientNameDraft] = useState('');
-    const [showPatientNamePrompt, setShowPatientNamePrompt] = useState(true);
+    const [showPatientNamePrompt, setShowPatientNamePrompt] = useState(false);
     const [selectedOrganId, setSelectedOrganId] = useState<string>('all');
 
     const chatEndRef = useRef<HTMLDivElement | null>(null);
@@ -162,8 +163,16 @@ export default function SmartLabsApp() {
     useEffect(() => { void loadHistory(); }, []);
 
     useEffect(() => {
-        setShowPatientNamePrompt(true);
-        setStatus('Please set patient name before running analysis.');
+        const savedName = window.sessionStorage.getItem(PATIENT_NAME_STORAGE_KEY);
+        if (savedName && savedName.trim()) {
+            setPatientName(savedName);
+            setPatientNameDraft(savedName);
+            setShowPatientNamePrompt(false);
+            setStatus('Patient profile loaded.');
+        } else {
+            setShowPatientNamePrompt(true);
+            setStatus('Please set patient name before running analysis.');
+        }
     }, []);
 
     useEffect(() => {
@@ -316,6 +325,7 @@ export default function SmartLabsApp() {
 
         setPatientName(normalized);
         setPatientNameDraft(normalized);
+        window.sessionStorage.setItem(PATIENT_NAME_STORAGE_KEY, normalized);
 
         setShowPatientNamePrompt(false);
         setStatus('Patient profile ready.');
@@ -546,45 +556,11 @@ export default function SmartLabsApp() {
 
                 {/* ── Hero ──────────────────────────── */}
                 <section className="panel heroCard" aria-labelledby="hero-title">
-                    <div className="heroLayout">
-                        <div className="heroCopy">
-                            <div className="eyebrow">
-                                <span className="eyebrowDot" />
-                                Smart Labs · Alibaba Cloud + Qwen AI
-                            </div>
-                            <h1 id="hero-title">
-                                Lab analysis,<br />
-                                <em>clinically sharp.</em>
-                            </h1>
-                            <p>
-                                Upload a PDF or image of lab results. The system extracts, analyzes,
-                                and streams clinical insights in real time via Qwen Vision Language Model.
-                            </p>
-                            {/* <div className="heroActions">
-                                <label htmlFor="lab-file-input" className="btn btn-primary btn-label">
-                                    <IconUpload /> Choose file
-                                </label>
-                                <button className="btn btn-secondary" type="button" onClick={() => setActiveTab('chat')}>
-                                    <IconChat /> Open chat
-                                </button>
-                                <button className="btn btn-ghost" type="button" onClick={() => setActiveTab('history')}>
-                                    <IconClock /> History
-                                </button>
-                            </div> */}
-                        </div>
-
-                        {/* <div className="heroMetrics" aria-label="System info">
-                            <div className="heroMetricCard">
-                                <span className="metricLabel">Backend endpoint</span>
-                                <span className="metricValue">{backendUrl}</span>
-                            </div>
-                            <div className="heroMetricCard">
-                                <span className="metricLabel">Current status</span>
-                                <span className="metricValue">{status}</span>
-                            </div>
-                        </div> */}
+                    <div className="greetingBanner">
+                        <span className="greetingText">Hello, <strong>{patientName}</strong></span>
                     </div>
 
+                    {/* 
                     <div className="statsRow" role="list" aria-label="Summary metrics">
                         {stats.map((item) => (
                             <div key={item.label} className="statCell" role="listitem">
@@ -599,7 +575,7 @@ export default function SmartLabsApp() {
                                 <span className="metricLabel">{item.label}</span>
                             </div>
                         ))}
-                    </div>
+                    </div> */}
                 </section>
 
                 {/* ── Navigation ───────────────────── */}
