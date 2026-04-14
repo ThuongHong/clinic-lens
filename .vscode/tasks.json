@@ -2,9 +2,9 @@
 	"version": "2.0.0",
 	"tasks": [
 		{
-			"label": "stage-and-commit-cleanup",
+			"label": "commit-remove-vscode-tasks",
 			"type": "shell",
-			"command": "git add -A && git reset backend/data/chat_history.json backend/data/chat_metrics.json && git commit -m \"chore: remove flutter app and finalize web-first frontend\"",
+			"command": "git add .vscode/tasks.json && git commit -m \"chore: remove accidental vscode task config\"",
 			"isBackground": false
 		}
 	]
