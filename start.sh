@@ -14,7 +14,7 @@ NC='\033[0m' # No Color
 # Step 1: Backend setup
 echo -e "${YELLOW}Step 1: Installing backend dependencies...${NC}"
 cd backend
-if [ ! -d "node_modules" ]; then
+if [ ! -d "node_modules" ] || [ ! -d "node_modules/express" ]; then
   npm install
 else
   echo "✓ Node modules already installed"
