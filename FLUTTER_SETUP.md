@@ -79,21 +79,15 @@ Sau khi app chạy được, cấu hình các credential:
    _uploadService = FileUploadService(baseUrl: 'http://your-backend-url:9000');
    ```
 
-2. **3D Model**: Tải file `human_body.glb` từ Sketchfab hoặc Turbosquid, rồi:
-   - Đặt vào `assets/3d/human_body.glb`
-   - Update `pubspec.yaml`:
+2. **UI Panels**: Tinh chỉnh các panel hiển thị kết quả trong `lib/screens/analysis_screen.dart`:
+   - Summary panel
+   - Results panel
+   - History panel
 
-     ```yaml
-     flutter:
-       uses-material-design: true
-       assets:
-         - assets/3d/human_body.glb
-     ```
-
-3. **Add flutter_scene** (khi sẵn sàng):
+3. **File Upload Integration** (khi sẵn sàng):
 
    ```bash
-   flutter pub add flutter_scene
+   flutter pub add file_picker
    ```
 
-   Rồi import và dùng trong `lib/widgets/body_scene_panel.dart`.
+   Sau đó hoàn thiện luồng chọn file thật trong app.

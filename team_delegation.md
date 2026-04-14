@@ -20,14 +20,14 @@
 - **Task 3:** Viết **Few-shot Prompt** cực xịn cho Qwen3.6-Plus. Ép mô hình luôn phải trả về chuẩn mã JSON.
 - **Task 4:** Bắt các lỗ hổng của Qwen (Ví dụ: đưa file ảnh mờ, đưa file PDF không phải y khoa) xem mô hình phản ứng sao và chỉnh lại prompt.
 
-## 🎨 Member 3: 2D Visualization & UI Polish (Chuyên gia Frontend Giao diện)
+## 🎨 Member 3: Insight UI & UX Polish (Chuyên gia Frontend Giao diện)
 
-*Người tập trung vào trải nghiệm thị giác với 2D silhouette body diagram.*
+*Người tập trung vào trải nghiệm đọc kết quả xét nghiệm nhanh, rõ và dễ hành động.*
 
-- **Task 1:** Polish giao diện `BodyScenePanel` - silhouette cơ thể người 2D: adjust organ positions, borders, gradients.
-- **Task 2:** Enhance organ tag UI - thêm icon, animation khi highlight, tooltip chi tiết chỉ số.
-- **Task 3:** Viết animated color transition: Khi nhận JSON `{organ: "kidneys", severity: "high"}` → không gian vùng Thận chuyển sang Đỏ với animation mượt mà.
-- **Task 4:** Test responsive layout trên các kích cỡ màn hình (phone/tablet). Đảm bảo organ tags luôn aligned đúng.
+- **Task 1:** Polish giao diện `AnalysisSummaryPanel`: card hierarchy rõ, màu cảnh báo dễ đọc.
+- **Task 2:** Enhance `AnalysisResultsPanel`: filter theo severity, nhấn mạnh chỉ số bất thường.
+- **Task 3:** Cải thiện copywriting và trạng thái loading/empty/error để người dùng không bị mơ hồ.
+- **Task 4:** Test responsive layout trên phone/tablet để panel luôn dễ đọc.
 
 ## ⚙️ Member 4: Mobile Logic & Integration (Chuyên gia Frontend Luồng xử lý)
 
@@ -42,5 +42,5 @@
 
 ## 🕒 Workflow Tích Hợp (Integration Point)
 
-- Khi thời gian Hackathon trôi qua 2/3, **Member 3 (3D)** và **Member 4 (Logic)** tiến hành gộp code Flutter lại (Merge nhánh).
+- Khi thời gian Hackathon trôi qua 2/3, **Member 3 (UI)** và **Member 4 (Logic)** tiến hành gộp code Flutter lại (Merge nhánh).
 - Toàn team tập hợp để test quét file thật và tinh chỉnh độ trễ.

@@ -9,7 +9,6 @@ import '../services/file_upload_service.dart';
 import '../widgets/analysis_history_panel.dart';
 import '../widgets/analysis_results_panel.dart';
 import '../widgets/analysis_summary_panel.dart';
-import '../widgets/body_scene_panel.dart';
 import '../widgets/loading_panel.dart';
 import '../widgets/stream_log_panel.dart';
 import '../widgets/streaming_transcript_panel.dart';
@@ -48,7 +47,7 @@ class _AnalysisScreenState extends State<AnalysisScreen>
     super.initState();
     _backendApi = BackendApi(baseUrl: resolveBackendBaseUrl());
     _uploadService = FileUploadService();
-    _tabController = TabController(length: 3, vsync: this);
+    _tabController = TabController(length: 2, vsync: this);
     _streamLines.add('Backend: ${_backendApi.baseUrl}');
     _loadHistory();
   }
@@ -522,11 +521,6 @@ class _AnalysisScreenState extends State<AnalysisScreen>
                                       ),
                                       Tab(
                                         height: 42,
-                                        icon: Icon(Icons.accessibility_new_rounded, size: 16),
-                                        text: 'Body View',
-                                      ),
-                                      Tab(
-                                        height: 42,
                                         icon: Icon(Icons.history_rounded, size: 16),
                                         text: 'History',
                                       ),
@@ -542,7 +536,6 @@ class _AnalysisScreenState extends State<AnalysisScreen>
                             controller: _tabController,
                             children: [
                               _buildOverallTab(context),
-                              _buildBodyTab(context),
                               _buildHistoryTab(context),
                             ],
                           ),
@@ -567,8 +560,6 @@ class _AnalysisScreenState extends State<AnalysisScreen>
       padding: const EdgeInsets.fromLTRB(14, 8, 14, 20),
       child: LayoutBuilder(
         builder: (context, constraints) {
-          final wide = constraints.maxWidth >= 860;
-
           final detailColumn = Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
@@ -643,43 +634,6 @@ class _AnalysisScreenState extends State<AnalysisScreen>
       return const Color(0xFF16A34A);
     }
     return const Color(0xFF64748B);
-  }
-
-  Widget _buildBodyTab(BuildContext context) {
-    final analysis = _analysis;
-
-    return SingleChildScrollView(
-      padding: const EdgeInsets.fromLTRB(16, 12, 16, 24),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          _SectionHeaderCard(
-            icon: Icons.accessibility_new_rounded,
-            title: 'Body visualization',
-            description:
-                'A focused view of the organs that carry the latest signal in this report.',
-            stats: [
-              _SectionStat(label: 'Tracked', value: '${analysis?.trackedOrganCount ?? 0}'),
-              _SectionStat(label: 'Alerts', value: '${analysis?.abnormalCount ?? 0}'),
-              _SectionStat(label: 'Critical', value: '${analysis?.criticalCount ?? 0}'),
-            ],
-          ),
-          const SizedBox(height: 18),
-          if (analysis == null) ...[
-            _EmptyPanel(
-              icon: Icons.accessibility_new_rounded,
-              title: 'No analysis loaded yet',
-              description:
-                  'Run an analysis or choose one from history and the body map will highlight affected organs here.',
-              actionLabel: 'Go to Overall',
-              onAction: () => _tabController.animateTo(0),
-            ),
-          ] else ...[
-            BodyScenePanel(highlightedOrgans: analysis.results),
-          ],
-        ],
-      ),
-    );
   }
 
   Widget _buildHistoryTab(BuildContext context) {

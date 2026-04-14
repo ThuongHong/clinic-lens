@@ -62,8 +62,8 @@ git checkout -b feat/analysis-screen dev
 # Branch 2: File picker
 git checkout -b feat/file-picker dev
 
-# Branch 3: 3D scene
-git checkout -b feat/flutter-scene-3d dev
+# Branch 3: insight UI
+git checkout -b feat/analysis-insights dev
 ```
 
 ### Work on analysis screen
@@ -71,9 +71,10 @@ git checkout -b feat/flutter-scene-3d dev
 ```bash
 git checkout feat/analysis-screen
 # Edit mobile/lib/screens/analysis_screen.dart
-# Edit mobile/lib/widgets/body_scene_panel.dart
+# Edit mobile/lib/widgets/analysis_summary_panel.dart
+# Edit mobile/lib/widgets/analysis_results_panel.dart
 git add mobile/lib/screens/ mobile/lib/widgets/
-git commit -m "feat(mobile): Add analysis screen and organ highlighting"
+git commit -m "feat(mobile): Add analysis screen insight panels"
 git push origin feat/analysis-screen
 ```
 
@@ -103,7 +104,7 @@ git pull origin main
 git merge dev --no-ff -m "final(submission): Complete Smart Labs Analyzer
 
 - Backend: STS, OSS, Qwen streaming
-- Mobile: File picker, 3D highlighting
+- Mobile: File picker, summary/results/history UX
 - Integration: End-to-end flow tested"
 git push origin main
 ```

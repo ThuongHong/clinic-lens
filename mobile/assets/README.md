@@ -1,1 +1,3 @@
-Place the real `human_body.glb` asset here once the 3D model is finalized.
+# Assets Notes
+
+Place sample report assets here (PDF/image) for local demo and UI testing.

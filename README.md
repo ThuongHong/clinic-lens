@@ -1,6 +1,6 @@
 # Smart Labs Analyzer (Qwen AI Build Day 2026)
 
-Dự án phát triển nền tảng phân tích kết quả xét nghiệm y khoa thông minh, trực quan hóa trên mô hình cơ thể người 3D, được thiết kế đặc biệt cho giải đấu **Qwen AI Build Day 2026**.
+Dự án phát triển nền tảng phân tích kết quả xét nghiệm y khoa thông minh theo hướng text-first, được thiết kế đặc biệt cho giải đấu **Qwen AI Build Day 2026**.
 
 Dự án tận dụng sức mạnh đa phương thức của mô hình **Qwen3.6-Plus** kết hợp vùng không gian điện toán toàn diện của hệ sinh thái **Alibaba Cloud** để đem lại trải nghiệm mượt mà, bảo mật và chính xác cho bệnh nhân/người dùng đầu cuối.
 
@@ -28,7 +28,7 @@ sequenceDiagram
     FC-->>User: Streaming Server-Sent Events (SSE)
     end
     
-    Note over User: Bước 4: Ứng dụng vẽ dữ liệu lên 3D theo Real-time
+    Note over User: Bước 4: Ứng dụng hiển thị summary và insights theo thời gian thực
 ```
 
 ---
@@ -42,13 +42,13 @@ sequenceDiagram
 
 ### Client App
 * **Frontend Framework:** `Flutter` (iOS / Android)
-* **3D Visualization:** Sử dụng package `flutter_scene` (Engine Impeller) để render mô hình người dạng `.glb` trực tiếp với hiệu năng > 90fps. Không sử dụng WebView giúp tăng tốc độ tải và tiết kiệm RAM thiết bị. 
+* **Result Experience:** Tập trung vào summary card, bảng chỉ số và history panel để người dùng đọc kết quả nhanh và rõ ràng.
 
 ---
 
 ## 🔄 3. Dữ Liệu Đầu Ra Chuẩn Hóa (Data Contract)
 
-Để mô hình 3D biết vùng nào trên cơ thể cần phản hồi (highlight), Qwen3.6-Plus được thiết lập hệ thống Prompting khắt khe nhằm đảm bảo đầu ra luôn là chuẩn **JSON Array**.
+Qwen3.6-Plus được thiết lập hệ thống prompting khắt khe nhằm đảm bảo đầu ra luôn là chuẩn **JSON Array** và phù hợp để render trực tiếp lên UI panel.
 
 **Ví dụ một JSON Output trả về từ Qwen khi phân tích file Gan & Thận:**
 
@@ -79,7 +79,7 @@ sequenceDiagram
   ]
 }
 ```
-*(App Flutter sẽ map `organ_id = "kidneys"` với object Thận trên `flutter_scene` và đổi màu dựa theo `severity` = `abnormal_high` thành màu Đỏ cảnh báo).*
+*(App Flutter dùng `organ_id` và `severity` để nhóm mức độ cảnh báo trong summary/results panel.)*
 
 ---
 
@@ -95,8 +95,8 @@ sequenceDiagram
 
 ## 🚀 5. Lộ Trình Phát Triển (Next Steps)
 
-- [ ] Khởi tạo dự án Flutter, cấu hình `flutter_scene` cơ bản và import file `human_body.glb`.
+- [ ] Khởi tạo dự án Flutter và hoàn thiện bộ summary/results/history panel.
 - [ ] Thiết lập tài khoản Alibaba Cloud: Tạo OSS Bucket, setup IAM Policy & Role cho STS Token.
 - [ ] Code Serverless bằng Function Compute (API lấy STS và API Call Qwen Studio).
 - [ ] Tối ưu System Prompting (Thử nghiệm Few-shot Prompt) cho mô hình Qwen3.6-Plus.
-- [ ] Tích hợp Luồng giao diện toàn vẹn (Upload -> Streaming Response -> Highlight 3D).
+- [ ] Tích hợp Luồng giao diện toàn vẹn (Upload -> Streaming Response -> Summary + Results).

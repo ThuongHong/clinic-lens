@@ -74,7 +74,7 @@ Qwen is constrained to always output **valid JSON** matching this schema:
 - `mobile/pubspec.yaml` ✅
   - Flutter 3.3.0+ compatible
   - Dependencies: `http`, `flutter` (core)
-  - Ready to add: `file_picker`, `ali_oss`, `flutter_scene`
+  - Ready to add: `file_picker`, `ali_oss`
 
 - `mobile/lib/main.dart` ✅
   - App entry point
@@ -83,7 +83,7 @@ Qwen is constrained to always output **valid JSON** matching this schema:
 
 - `mobile/lib/screens/analysis_screen.dart` ✅ **NEW**
   - Main UI for member 3
-  - Orchestrates all flows: pick file → STS → upload → analyze → highlight
+  - Orchestrates all flows: pick file → STS → upload → analyze → summary/results
   - Responsive layout (tablet/mobile aware)
   - Status display + streaming log
 
@@ -102,11 +102,13 @@ Qwen is constrained to always output **valid JSON** matching this schema:
   - JSON serialization/deserialization
   - Data contract validation
 
-- `mobile/lib/widgets/body_scene_panel.dart` ✅
-  - 2D silhouette visualization with full organ layout
-  - Organ highlighting (blue=normal, red=abnormal)
-  - Interactive organ tags with status display
-  - Smooth color animation on severity changes
+- `mobile/lib/widgets/analysis_summary_panel.dart` ✅
+  - Summary cards for total indicators, alerts, and critical signals
+  - Organized severity outlook for faster triage
+
+- `mobile/lib/widgets/analysis_results_panel.dart` ✅
+  - Detailed lab-result listing
+  - Clear emphasis on abnormal/critical values
 
 - `mobile/lib/widgets/stream_log_panel.dart` ✅ **NEW**
   - Displays API stream output
@@ -116,7 +118,7 @@ Qwen is constrained to always output **valid JSON** matching this schema:
 - `mobile/lib/views/home_view.dart` ✅ (Deprecated in favor of analysis_screen)
 
 - `mobile/assets/README.md` ✅
-  - Placeholder for human_body.glb
+  - Placeholder for sample report assets
 
 - `mobile/.gitignore` ✅
   - Flutter build artifacts ignored
@@ -167,7 +169,7 @@ Qwen is constrained to always output **valid JSON** matching this schema:
 │  │       ↓                                            │  │
 │  │  Stream Analysis from Backend via SSE              │  │
 │  │       ↓                                            │  │
-│  │  Parse JSON → Update BodyScenePanel → Highlight   │  │
+│  │  Parse JSON → Update Summary/Results Panels        │  │
 │  └──────────────────────────────────────────────────────┘  │
 └─────────────────────────────────────────────────────────────┘
            ↑
@@ -251,11 +253,11 @@ flutter run
 | Backend Server | ✅ Complete | All 3 endpoints ready, SSE streaming works |
 | STS Integration | ✅ Complete | Validates credentials, auto-expiry 15min |
 | Qwen Prompting | ✅ Complete | Enforces JSON-only output, multimodal support |
-| Mobile UI (2D) | ✅ Complete | Silhouette + organ highlighting in place |
+| Mobile UI (Panels) | ✅ Complete | Summary/results/history panels in place |
 | Mobile Services | ✅ Complete | API client + file upload service scaffold |
 | File Picker | ⏳ TODO | Add `file_picker` package + UI integration |
 | Real OSS Upload | ⏳ TODO | Add `ali_oss` package + STS token usage |
-| 3D Rendering | ⏳ TODO | Add `flutter_scene` + human_body.glb asset |
+| Insight UX Polish | ⏳ TODO | Add severity filters + compare view |
 | Alibaba Cloud Setup | ⏳ TODO | Create bucket, IAM role, API keys |
 
 ---
@@ -273,7 +275,7 @@ flutter run
    - Test with `./start.sh` first
    - Then deploy `backend/server.js` to Alibaba Function Compute
 
-### Member 3 (Flutter/3D)
+### Member 3 (Flutter/UI)
 
 1. **Complete File Picker**
 
@@ -291,15 +293,11 @@ flutter run
 
    Implement `FileUploadService.uploadFileToOss()` using STS credentials
 
-3. **3D Visualization**
+3. **Insight UX Polish**
 
-   ```bash
-   flutter pub add flutter_scene
-   ```
-
-   - Download `human_body.glb` from Sketchfab
-   - Add to `assets/3d/` and update `pubspec.yaml`
-   - Wire into `BodyScenePanel` using flutter_scene API
+- Add severity filters on results panel
+- Add quick-jump from summary to detailed indicator section
+- Add compare mode for selected history entries
 
 ---
 
@@ -311,10 +309,10 @@ flutter run
 - [ ] Sign-URL endpoint works: `curl http://localhost:9000/api/sign-url?object_key=test.pdf`
 - [ ] Analyze endpoint streams SSE: `curl -X POST http://localhost:9000/api/analyze -d '{"file_url":"..."}'`
 - [ ] Flutter app builds: `flutter pub get && flutter run`
-- [ ] Mock data loads in BodyScenePanel
+- [ ] Mock data renders in summary/results panels
 - [ ] File picker integrates correctly
 - [ ] Real STS upload flow completes
-- [ ] 3D model renders and responds to severity changes
+- [ ] Results filtering and history compare work as expected
 
 ---
 
@@ -349,7 +347,8 @@ flutter run
 | `mobile/lib/main.dart` | Flutter app entry |
 | `mobile/lib/screens/analysis_screen.dart` | Main screen (Member 3) |
 | `mobile/lib/services/backend_api.dart` | API client |
-| `mobile/lib/widgets/body_scene_panel.dart` | 3D/2D visualization |
+| `mobile/lib/widgets/analysis_summary_panel.dart` | Summary insights |
+| `mobile/lib/widgets/analysis_results_panel.dart` | Detailed results |
 | `FLUTTER_SETUP.md` | Flutter installation guide |
 | `IMPLEMENTATION.md` | Technical reference |
 | `start.sh` | One-click startup |
@@ -362,7 +361,7 @@ flutter run
 2. **Real-Time Feel**: SSE streaming makes analysis feel instant
 3. **Multimodal**: Qwen reads images AND PDFs without OCR
 4. **Localized**: Vietnamese patient advice from Qwen3.6-Plus
-5. **Impressive UX**: 3D organ highlighting with real test results
+5. **Impressive UX**: Focused insight cards with real test results
 
 ---
 
@@ -375,6 +374,6 @@ Team can now:
 
 - Deploy backend immediately to test
 - Start building Flutter UI with real file picker
-- Integrate 3D rendering once human_body.glb is available
+- Continue improving summary/results UX for production readiness
 
 Good luck with the hackathon! 🚀

@@ -6,10 +6,9 @@ What is included:
 
 - A JSON data model for lab analysis results.
 - A backend API client for STS, signed OSS URLs, and SSE analysis.
-- A responsive UI shell with a body highlight panel and a streaming log panel.
+- A responsive UI shell with summary/results/history panels and a streaming log panel.
 
 What is intentionally left as the next integration step:
 
-- Pinning the exact `flutter_scene` package version.
-- Wiring the real `.glb` body asset into a 3D renderer.
+- Refining result cards and filters for better readability.
 - Adding camera/file-picker flows once the final Flutter project is created.

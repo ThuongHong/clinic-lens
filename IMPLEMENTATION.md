@@ -1,6 +1,6 @@
 # Smart Labs Analyzer - Qwen Build Day 2026
 
-# Dự án phân tích xét nghiệm y khoa thông minh với trực quan hóa 3D
+# Dự án phân tích xét nghiệm y khoa thông minh với trải nghiệm text-first
 
 ## 📁 Cấu trúc Thư mục
 
@@ -15,7 +15,7 @@ qwen_build_day/
 │   │   ├── screens/      # Member 3: giao diện chính (analysis_screen.dart)
 │   │   ├── services/     # Backend API + OSS upload
 │   │   ├── models/       # JSON data contract
-│   │   └── widgets/      # 3D scene + stream log panel
+│   │   └── widgets/      # summary/results/history + stream log panel
 │   └── pubspec.yaml
 ├── .env                  # Secrets (tạo từ .env.example)
 ├── .env.example          # Template biến môi trường
@@ -56,7 +56,7 @@ Server Express chạy 3 API endpoint:
 
 1. **AnalysisScreen** (main UI)
    - Pick file → Get STS token → Upload OSS → Stream analysis
-   - Map kết quả lên BodyScenePanel để highlight organ
+   - Hiển thị kết quả qua summary panel, results panel và history panel
 
 2. **BackendApi** (service)
    - fetchStsToken(): GET /api/sts-token
@@ -66,11 +66,10 @@ Server Express chạy 3 API endpoint:
    - uploadFileToOss(): Dùng STS token upload trực tiếp OSS
    - (Hiện tại mock; cần thêm ali_oss package để dùng thực)
 
-4. **BodyScenePanel** (widget)
-   - Vẽ silhouette cơ thể người 2D với organ layout
-   - Highlight organ tags theo kết quả severity (xanh: normal, đỏ: abnormal)
-   - Animate color transitions khi dữ liệu cập nhật
-   - Fully responsive cho all screen sizes
+4. **Analysis Panels** (widget)
+   - `AnalysisSummaryPanel`: tổng hợp nhanh chỉ số bất thường và mức độ rủi ro
+   - `AnalysisResultsPanel`: liệt kê chi tiết kết quả xét nghiệm
+   - `AnalysisHistoryPanel`: xem lại các lần phân tích trước
 
 ## 🔄 Data Contract: JSON Từ Qwen
 
@@ -136,11 +135,11 @@ bash test-backend.sh http://localhost:9000
 
 - ✅ Analysis screen + control panel
 - ✅ Backend API client (STS, sign-url, stream)
-- ✅ 3D scene panel (silhouette + organ highlighting)
+- ✅ Summary/results/history panels
 - ✅ Mock file upload service
 - ⏳ Real file picker (thêm file_picker package)
 - ⏳ Real OSS upload (thêm ali_oss package)
-- ⏳ Real 3D rendering (flutter_scene + human_body.glb)
+- ⏳ Polish trải nghiệm đọc kết quả và lọc theo mức độ
 
 ## 🔗 Liên Kết Ngoài
 
@@ -159,4 +158,4 @@ bash test-backend.sh http://localhost:9000
 
 **Last updated**: 2026-04-13
 **Member 1**: Cloud Architect (Backend + STS setup)
-**Member 3**: 3D UI (Flutter + highlighting)
+**Member 3**: Flutter UI (analysis panels)

@@ -1,5 +1,5 @@
 ---
-description: "Use when editing Flutter UI screens/widgets, responsive layout, organ highlighting panels, or interaction flows in mobile/lib/screens and mobile/lib/widgets. Keep service logic in services layer."
+description: "Use when editing Flutter UI screens/widgets, responsive layout, summary/results/history panels, or interaction flows in mobile/lib/screens and mobile/lib/widgets. Keep service logic in services layer."
 name: "Flutter UI Boundary Guardrails"
 applyTo:
   - "mobile/lib/screens/**"

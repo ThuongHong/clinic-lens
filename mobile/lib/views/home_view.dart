@@ -4,7 +4,6 @@ import 'package:flutter/material.dart';
 
 import '../models/lab_analysis.dart';
 import '../services/backend_api.dart';
-import '../widgets/body_scene_panel.dart';
 
 class HomeView extends StatefulWidget {
   const HomeView({super.key});
@@ -120,7 +119,6 @@ class _HomeViewState extends State<HomeView> {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final highlightedOrgans = _analysis.results;
 
     return Scaffold(
       body: Container(
@@ -146,7 +144,7 @@ class _HomeViewState extends State<HomeView> {
                 ),
                 const SizedBox(height: 8),
                 Text(
-                  'SCaffold member 1 + member 3: STS, signed OSS URLs, SSE stream, and organ highlighting.',
+                  'Scaffold member 1 + member 3: STS, signed OSS URLs, SSE stream, and insight panels.',
                   style: theme.textTheme.bodyMedium?.copyWith(color: Colors.white70),
                 ),
                 const SizedBox(height: 20),
@@ -155,7 +153,7 @@ class _HomeViewState extends State<HomeView> {
                     builder: (context, constraints) {
                       final isWide = constraints.maxWidth >= 1000;
 
-                      final scenePanel = BodyScenePanel(highlightedOrgans: highlightedOrgans);
+                      final scenePanel = _InsightsPreviewPanel(analysis: _analysis);
                       final controlPanel = _ControlPanel(
                         baseUrlController: _baseUrlController,
                         fileUrlController: _fileUrlController,
@@ -190,6 +188,94 @@ class _HomeViewState extends State<HomeView> {
             ),
           ),
         ),
+      ),
+    );
+  }
+}
+
+class _InsightsPreviewPanel extends StatelessWidget {
+  const _InsightsPreviewPanel({required this.analysis});
+
+  final LabAnalysis analysis;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final abnormal = analysis.results.where((result) => result.severity != 'normal').toList();
+    final preview = (abnormal.isNotEmpty ? abnormal : analysis.results).take(6).toList();
+
+    return Container(
+      padding: const EdgeInsets.all(18),
+      decoration: BoxDecoration(
+        color: const Color(0xFF0B1729).withValues(alpha: 0.92),
+        borderRadius: BorderRadius.circular(28),
+        border: Border.all(color: Colors.white.withValues(alpha: 0.08)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            'Analysis insights',
+            style: theme.textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w800),
+          ),
+          const SizedBox(height: 8),
+          Text(
+            'Status: ${analysis.status} • Alerts: ${abnormal.length} • Total: ${analysis.results.length}',
+            style: theme.textTheme.bodySmall?.copyWith(color: Colors.white70),
+          ),
+          const SizedBox(height: 14),
+          Expanded(
+            child: preview.isEmpty
+                ? Center(
+                    child: Text(
+                      'No parsed indicators yet. Run mock data or start SSE analysis.',
+                      style: theme.textTheme.bodyMedium?.copyWith(color: Colors.white70),
+                      textAlign: TextAlign.center,
+                    ),
+                  )
+                : ListView.separated(
+                    itemCount: preview.length,
+                    separatorBuilder: (_, __) => const SizedBox(height: 10),
+                    itemBuilder: (context, index) {
+                      final item = preview[index];
+                      final alert = item.severity != 'normal';
+
+                      return Container(
+                        padding: const EdgeInsets.all(12),
+                        decoration: BoxDecoration(
+                          color: Colors.white.withValues(alpha: 0.05),
+                          borderRadius: BorderRadius.circular(14),
+                          border: Border.all(
+                            color: alert
+                                ? const Color(0xFFF87171).withValues(alpha: 0.45)
+                                : Colors.white.withValues(alpha: 0.12),
+                          ),
+                        ),
+                        child: Row(
+                          children: [
+                            Expanded(
+                              child: Text(
+                                item.indicatorName,
+                                style: theme.textTheme.bodyMedium?.copyWith(
+                                  color: Colors.white,
+                                  fontWeight: FontWeight.w700,
+                                ),
+                              ),
+                            ),
+                            Text(
+                              '${item.value} ${item.unit}'.trim(),
+                              style: theme.textTheme.bodyMedium?.copyWith(
+                                color: alert ? const Color(0xFFFDA4AF) : Colors.white70,
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                          ],
+                        ),
+                      );
+                    },
+                  ),
+          ),
+        ],
       ),
     );
   }
