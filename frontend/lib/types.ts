@@ -69,6 +69,7 @@ export interface AnalysisHistoryEntry {
     created_at: string;
     object_key?: string;
     file_url?: string;
+    source_file_name?: string;
     analysis: LabAnalysis;
 }
 

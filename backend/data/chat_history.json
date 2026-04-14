@@ -696,5 +696,72 @@
         ]
       }
     }
+  },
+  "analysis_1776186397011_a44590": {
+    "conversations": {
+      "a5bde446-3b19-47c0-bdc5-83e11f6a661e": {
+        "conversation_id": "a5bde446-3b19-47c0-bdc5-83e11f6a661e",
+        "language": "en",
+        "detail_level": "simple",
+        "created_at": "2026-04-14T17:08:02.309Z",
+        "updated_at": "2026-04-14T17:08:02.309Z",
+        "turns": [
+          {
+            "role": "user",
+            "message": "What should I do care now",
+            "created_at": "2026-04-14T17:08:02.309Z"
+          },
+          {
+            "role": "assistant",
+            "message": "You have several abnormal lab results that need prompt attention: slightly high CA 19-9 (possible pancreatic or GI concern), elevated Free T4 (suggesting hyperthyroidism), low total testosterone, high SHBG, high free testosterone index, low vitamin D, and low urine pH. These point to possible thyroid, hormonal, bone, and metabolic issues — none are emergencies, but they require coordinated follow-up with your doctor.",
+            "payload": {
+              "answer_text": "You have several abnormal lab results that need prompt attention: slightly high CA 19-9 (possible pancreatic or GI concern), elevated Free T4 (suggesting hyperthyroidism), low total testosterone, high SHBG, high free testosterone index, low vitamin D, and low urine pH. These point to possible thyroid, hormonal, bone, and metabolic issues — none are emergencies, but they require coordinated follow-up with your doctor.",
+              "risk_level": "high",
+              "cited_indicators": [
+                "CA 19-9",
+                "Free T4",
+                "Testosterone",
+                "SHBG",
+                "Chỉ số Testosterone tự do",
+                "25-OH Vitamin D",
+                "pH"
+              ],
+              "cited_organs": [
+                "other",
+                "thyroid",
+                "blood",
+                "bone",
+                "lungs"
+              ],
+              "recommended_actions": [
+                "Schedule an appointment with your primary care provider within 7 days to review all abnormal results.",
+                "Ask for referral to an endocrinologist for thyroid and testosterone evaluation.",
+                "Discuss vitamin D supplementation (e.g., 1000–2000 IU/day) after provider approval.",
+                "Avoid self-treating — do not start thyroid meds, testosterone, or strong acid-base supplements without guidance.",
+                "Stay well-hydrated and note any symptoms (e.g., fatigue, weight changes, palpitations, muscle cramps, frequent urination)."
+              ],
+              "follow_up_questions": [
+                "Have you noticed recent weight loss, tremors, rapid heartbeat, or heat intolerance? (related to thyroid)",
+                "Are you experiencing low energy, reduced libido, mood changes, or decreased muscle strength? (related to testosterone)",
+                "Do you have bone pain, frequent fractures, or muscle weakness? (related to vitamin D and bone health)",
+                "Any nausea, vomiting, confusion, or shortness of breath? (related to acid-base balance)"
+              ],
+              "seven_day_plan": [
+                "Day 1: Record symptoms and list questions for your doctor.",
+                "Day 2: Call clinic to schedule appointment (aim for within 7 days).",
+                "Day 3: Start drinking more water; avoid excessive soda or processed meats (can worsen acidosis).",
+                "Day 4: Check if you have vitamin D supplement at home — hold off until doctor confirms dose.",
+                "Day 5: Review family history of thyroid disease, diabetes, or pancreatic conditions.",
+                "Day 6: Prepare list of all current medications/supplements to bring to visit.",
+                "Day 7: Attend appointment and request next steps (e.g., repeat labs, ultrasound, or specialist consult)."
+              ],
+              "disclaimer": "This summary is for informational use only and does not replace professional medical advice, diagnosis, or treatment. Always consult a licensed healthcare provider before making health decisions.",
+              "escalation": true
+            },
+            "created_at": "2026-04-14T17:08:02.309Z"
+          }
+        ]
+      }
+    }
   }
 }

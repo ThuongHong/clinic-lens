@@ -30,6 +30,32 @@ interface ChatMessage {
     pending?: boolean;
 }
 
+interface OverviewTabProps {
+    currentAnalysis: LabAnalysis | null;
+    currentResults: LabAnalysis['results'];
+    selectedOrganId: string;
+    onSelectOrganId: (organId: string) => void;
+    visibleOrganIds: string[];
+    organCounts: Map<string, number>;
+    visibleResults: LabAnalysis['results'];
+    selectedFile: File | null;
+    analysisBusy: boolean;
+    onPickFile: (event: ChangeEvent<HTMLInputElement>) => void;
+    onRunAnalysis: () => Promise<void>;
+    loadHistory: () => Promise<void>;
+    historyLoading: boolean;
+    status: string;
+    analysisLogs: string[];
+    overviewTestDate: string;
+    overviewSource: string;
+}
+
+interface PatientNamePromptProps {
+    patientNameDraft: string;
+    setPatientNameDraft: (value: string) => void;
+    onSave: () => void;
+}
+
 const ORGAN_LABELS: Record<string, string> = {
     kidneys: 'Kidneys',
     liver: 'Liver',
@@ -107,6 +133,336 @@ function IconEmpty() {
     );
 }
 
+function OverviewTab({
+    currentAnalysis,
+    currentResults,
+    selectedOrganId,
+    onSelectOrganId,
+    visibleOrganIds,
+    organCounts,
+    visibleResults,
+    selectedFile,
+    analysisBusy,
+    onPickFile,
+    onRunAnalysis,
+    loadHistory,
+    historyLoading,
+    status,
+    analysisLogs,
+    overviewTestDate,
+    overviewSource
+}: OverviewTabProps) {
+    return (
+        <section className={currentAnalysis ? 'workspaceGrid workspaceGridOverviewReady' : 'workspaceGrid workspaceGridOverviewIdle'} role="tabpanel" aria-labelledby="tab-overview">
+            {!currentAnalysis && (
+                <article className="panel">
+                    <div className="panelInner">
+                        <div className="panelHeader">
+                            <div className="panelTitleGroup">
+                                <div className="panelTitle">Upload &amp; analyze</div>
+                                <div className="panelSubtitle">
+                                    Select a PDF or image, upload to OSS, and stream results from the backend.
+                                </div>
+                            </div>
+                            <div className={analysisBusy ? 'badge accent' : 'badge'}>
+                                <span className="badgeDot" />
+                                {analysisBusy ? 'Processing' : 'Ready'}
+                            </div>
+                        </div>
+
+                        <div className={`uploadZone${selectedFile ? ' hasFile' : ''}`}
+                            role="group" aria-label="File upload area">
+                            <input
+                                id="lab-file-input" type="file"
+                                accept=".pdf,.png,.jpg,.jpeg,.webp"
+                                onChange={onPickFile}
+                                aria-label="Select lab report file"
+                            />
+                            <div className="compactUploadBar">
+                                <div className="compactUploadLeft">
+                                    <div className="uploadIcon" aria-hidden="true">
+                                        {selectedFile ? <IconFile /> : <IconUpload />}
+                                    </div>
+                                    <div className="compactUploadText">
+                                        <div className="uploadTitle">
+                                            {selectedFile ? selectedFile.name : 'Choose lab file'}
+                                        </div>
+                                        <div className="uploadHint">
+                                            {selectedFile
+                                                ? `${formatFileSize(selectedFile.size)} · tap to change`
+                                                : 'PDF, PNG, JPG, JPEG, WEBP · Max 20 MB'}
+                                        </div>
+                                    </div>
+                                </div>
+                                <label htmlFor="lab-file-input" className="btn btn-secondary btn-label compactPickBtn">
+                                    Change
+                                </label>
+                            </div>
+                        </div>
+
+                        <div className="heroActions" style={{ marginTop: '10px' }}>
+                            <button className="btn btn-primary" type="button"
+                                onClick={() => { void onRunAnalysis(); }} disabled={analysisBusy || !selectedFile}
+                                aria-busy={analysisBusy}>
+                                {analysisBusy
+                                    ? <span className="pendingDots">Analyzing</span>
+                                    : 'Run analysis'}
+                            </button>
+                            <button className="btn btn-secondary" type="button"
+                                onClick={() => { void loadHistory(); }} disabled={historyLoading} aria-busy={historyLoading}>
+                                <IconRefresh />
+                                {historyLoading ? 'Loading...' : 'Refresh'}
+                            </button>
+                        </div>
+
+                        <div className="statusRail" role="status" aria-live="polite">
+                            <span className="statusRailLabel">Status</span>
+                            <span className="statusRailValue">{status}</span>
+                        </div>
+
+                        <div className="logBlock" aria-label="Stream log">
+                            <div className="logBlockHeader">Stream log</div>
+                            {analysisLogs.length > 0 ? (
+                                <ul className="logList" aria-live="polite">
+                                    {analysisLogs.map((line, i) => (
+                                        <li key={`${i}-${line}`}>{line}</li>
+                                    ))}
+                                </ul>
+                            ) : (
+                                <div style={{ padding: '12px 14px' }}>
+                                    <span style={{ fontSize: '0.78rem', color: 'var(--text-muted)', fontFamily: 'Geist Mono, monospace' }}>
+                                        No stream output yet.
+                                    </span>
+                                </div>
+                            )}
+                        </div>
+                    </div>
+                </article>
+            )}
+
+            {currentAnalysis && (
+                <article className="panel">
+                    <div className="panelInner">
+                        <div className="panelHeader">
+                            <div className="panelTitleGroup">
+                                <div className="panelTitle">Analysis result</div>
+                                <div className="panelSubtitle">
+                                    Summary and abnormal markers from the AI backend.
+                                </div>
+                            </div>
+                            <div className="resultHeaderActions">
+                                <input
+                                    id="lab-file-input-compact"
+                                    type="file"
+                                    accept=".pdf,.png,.jpg,.jpeg,.webp"
+                                    onChange={onPickFile}
+                                    aria-label="Select another lab report file"
+                                    className="visuallyHiddenInput"
+                                />
+                                <label htmlFor="lab-file-input-compact" className="btn btn-secondary btn-label compactHeaderUploadBtn">
+                                    <IconFile />
+                                    {selectedFile ? 'Change file' : 'Upload file'}
+                                </label>
+                                <button
+                                    className="btn btn-primary compactRunBtn"
+                                    type="button"
+                                    onClick={() => { void onRunAnalysis(); }}
+                                    disabled={analysisBusy || !selectedFile}
+                                    aria-busy={analysisBusy}
+                                >
+                                    {analysisBusy ? <span className="pendingDots">Analyzing</span> : 'Run again'}
+                                </button>
+                                <div className={getBadgeClass(currentAnalysis.status)}>
+                                    <span className="badgeDot" />
+                                    {currentAnalysis.status}
+                                </div>
+                            </div>
+                        </div>
+
+                        <div style={{ display: 'grid', gap: '12px' }}>
+                            <div className="analysisHeaderStrip">
+                                <div className="analysisHeaderCell">
+                                    <div className="metricLabel">Patient</div>
+                                    <strong style={{ fontSize: '0.92rem', color: 'var(--text)' }}>
+                                        {currentAnalysis.patient_name?.trim() || 'Unknown patient'}
+                                    </strong>
+                                </div>
+                                <div className="analysisHeaderCell">
+                                    <div className="metricLabel">Test date</div>
+                                    <strong style={{ fontSize: '0.92rem', color: 'var(--text)' }}>
+                                        {overviewTestDate}
+                                    </strong>
+                                </div>
+                                <div className="analysisHeaderCell">
+                                    <div className="metricLabel">Source</div>
+                                    <strong style={{ fontSize: '0.92rem', color: 'var(--text)' }}>
+                                        {overviewSource}
+                                    </strong>
+                                </div>
+                            </div>
+
+                            {currentResults.length > 0 && (
+                                <>
+                                    <div className="sectionCard" style={{ marginTop: 0 }}>
+                                        <div className="sectionTitle">Filter by organ</div>
+                                        <div className="chipWrap" style={{ marginTop: 0 }}>
+                                            <button
+                                                type="button"
+                                                onClick={() => onSelectOrganId('all')}
+                                                className={selectedOrganId === 'all' ? 'chip active' : 'chip'}>
+                                                <span className="organFilterIcon" aria-hidden="true">🧭</span>
+                                                All · {currentResults.length}
+                                            </button>
+                                            {visibleOrganIds.map((organId) => {
+                                                const count = organCounts.get(organId) || 0;
+                                                if (count === 0) {
+                                                    return null;
+                                                }
+                                                return (
+                                                    <button
+                                                        key={organId}
+                                                        type="button"
+                                                        onClick={() => onSelectOrganId(organId)}
+                                                        className={selectedOrganId === organId ? 'chip active' : 'chip'}>
+                                                        <span className="organFilterIcon" aria-hidden="true">{organAbbr(organId)}</span>
+                                                        {organLabel(organId)} · {count}
+                                                    </button>
+                                                );
+                                            })}
+                                        </div>
+                                    </div>
+
+                                    <div className="resultGrid">
+                                        {visibleResults.map((result) => (
+                                            <div key={`${result.indicator_name}-${result.organ_id}`} className="resultCard">
+                                                <div className="resultTopRow">
+                                                    <div>
+                                                        <div className="resultName">{result.indicator_name}</div>
+                                                        <div className="resultMeta">
+                                                            {organLabel(result.organ_id)} · {result.reference_range || 'N/A'}
+                                                        </div>
+                                                    </div>
+                                                    <div className={getSeverityClass(result.severity)}>
+                                                        {severityLabel(result.severity)}
+                                                    </div>
+                                                </div>
+                                                <div className="resultValueRow">
+                                                    <strong>{result.value || '—'}</strong>
+                                                    <span>{result.unit}</span>
+                                                </div>
+                                                {result.patient_advice && (
+                                                    <p className="resultAdvice">{result.patient_advice}</p>
+                                                )}
+                                            </div>
+                                        ))}
+                                    </div>
+
+                                    {visibleResults.length === 0 && (
+                                        <div className="emptyState" role="status">
+                                            <div className="emptyStateIcon" aria-hidden="true"><IconEmpty /></div>
+                                            <p>No indicators found for this organ.</p>
+                                        </div>
+                                    )}
+                                </>
+                            )}
+
+                            {currentAnalysis.summary?.organ_summary?.length ? (
+                                <div className="sectionCard">
+                                    <div className="sectionTitle">Organ summary</div>
+                                    <div className="chipWrap">
+                                        {currentAnalysis.summary.organ_summary.map((item) => (
+                                            <span key={item.organ_id} className="chip">
+                                                {organLabel(item.organ_id)} · {STATUS_LABELS[item.worst_severity] ?? item.worst_severity} · {item.abnormal_count}/{item.indicator_count}
+                                            </span>
+                                        ))}
+                                    </div>
+                                </div>
+                            ) : null}
+
+                            {currentAnalysis.advice?.general_recommendations?.length ? (
+                                <div className="sectionCard">
+                                    <div className="sectionTitle">General recommendations</div>
+                                    <ul className="bulletList">
+                                        {currentAnalysis.advice.general_recommendations.map((item) => (
+                                            <li key={item}>{item}</li>
+                                        ))}
+                                    </ul>
+                                </div>
+                            ) : null}
+                        </div>
+                    </div>
+                </article>
+            )}
+        </section>
+    );
+}
+
+function PatientNamePrompt({
+    patientNameDraft,
+    setPatientNameDraft,
+    onSave
+}: PatientNamePromptProps) {
+    return (
+        <div style={{
+            position: 'fixed',
+            inset: 0,
+            background: 'rgba(250, 248, 243, 0.28)',
+            backdropFilter: 'blur(2px)',
+            WebkitBackdropFilter: 'blur(2px)',
+            display: 'grid',
+            placeItems: 'center',
+            zIndex: 2000,
+            padding: '16px'
+        }}>
+            <div style={{
+                width: 'min(480px, 100%)',
+                background: 'rgba(255, 253, 247, 0.98)',
+                border: '2px solid var(--border-hi)',
+                borderRadius: '16px',
+                boxShadow: '0 24px 56px rgba(60, 40, 10, 0.18)',
+                padding: '20px',
+                display: 'grid',
+                gap: '12px'
+            }}>
+                <div style={{ fontSize: '1rem', fontWeight: 700, color: 'var(--text)' }}>
+                    Set patient name
+                </div>
+                <div style={{ fontSize: '0.86rem', color: 'var(--text-muted)' }}>
+                    This name is used for analysis records and trend tracking.
+                </div>
+                <input
+                    value={patientNameDraft}
+                    onChange={(e) => setPatientNameDraft(e.target.value)}
+                    onKeyDown={(e) => {
+                        if (e.key === 'Enter') {
+                            e.preventDefault();
+                            onSave();
+                        }
+                    }}
+                    placeholder="Enter patient name"
+                    maxLength={120}
+                    autoFocus
+                    style={{
+                        width: '100%',
+                        height: '40px',
+                        borderRadius: '10px',
+                        border: '2px solid var(--border-md)',
+                        background: 'var(--surface)',
+                        color: 'var(--text)',
+                        padding: '0 12px'
+                    }}
+                    aria-label="Patient name"
+                />
+                <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
+                    <button className="btn btn-primary" type="button" onClick={onSave}>
+                        Save and continue
+                    </button>
+                </div>
+            </div>
+        </div>
+    );
+}
+
 /* ─── Main App Component ─────────────────────────── */
 export default function SmartLabsApp() {
     const [activeTab, setActiveTab] = useState<TabKey>('overview');
@@ -139,6 +495,52 @@ export default function SmartLabsApp() {
 
     const currentAnalysis = analysis ?? selectedHistory?.analysis ?? null;
     const currentResults = currentAnalysis?.results ?? [];
+
+    const currentHistoryEntry = useMemo(() => {
+        if (!currentAnalysis) {
+            return null;
+        }
+
+        const historyId = currentAnalysis.history_id || selectedHistoryId;
+        if (historyId) {
+            const matched = history.find((entry) => entry.id === historyId);
+            if (matched) {
+                return matched;
+            }
+        }
+
+        return selectedHistory;
+    }, [currentAnalysis, selectedHistoryId, history, selectedHistory]);
+
+    const overviewTestDate = useMemo(() => {
+        const analysisDate = currentAnalysis?.analysis_date?.trim();
+        if (analysisDate) {
+            return analysisDate;
+        }
+        if (currentHistoryEntry?.created_at) {
+            return formatDateTime(currentHistoryEntry.created_at);
+        }
+        if (currentAnalysis?.created_at) {
+            return formatDateTime(currentAnalysis.created_at);
+        }
+        return 'N/A';
+    }, [currentAnalysis, currentHistoryEntry]);
+
+    const overviewSource = useMemo(() => {
+        if (currentHistoryEntry?.source_file_name) {
+            return currentHistoryEntry.source_file_name;
+        }
+        if (currentHistoryEntry?.object_key) {
+            return sourceNameFromPath(currentHistoryEntry.object_key);
+        }
+        if (currentHistoryEntry?.file_url) {
+            return sourceNameFromPath(currentHistoryEntry.file_url);
+        }
+        if (selectedFile?.name) {
+            return selectedFile.name;
+        }
+        return 'Unknown source';
+    }, [currentHistoryEntry, selectedFile]);
 
     const organCounts = useMemo(() => {
         const counts = new Map<string, number>();
@@ -292,6 +694,9 @@ export default function SmartLabsApp() {
                         upsertSessionHistoryEntry({
                             id: nextHistoryId,
                             created_at: createdAt,
+                            object_key: uploadResult.objectKey,
+                            file_url: uploadResult.objectUrl,
+                            source_file_name: selectedFile.name,
                             analysis: parsed
                         });
                         if (nextHistoryId) setSelectedHistoryId(nextHistoryId);
@@ -486,63 +891,11 @@ export default function SmartLabsApp() {
             <div className="glowBlob glowBlobB" aria-hidden="true" />
 
             {showPatientNamePrompt && (
-                <div style={{
-                    position: 'fixed',
-                    inset: 0,
-                    background: 'rgba(250, 248, 243, 0.28)',
-                    backdropFilter: 'blur(2px)',
-                    WebkitBackdropFilter: 'blur(2px)',
-                    display: 'grid',
-                    placeItems: 'center',
-                    zIndex: 2000,
-                    padding: '16px'
-                }}>
-                    <div style={{
-                        width: 'min(480px, 100%)',
-                        background: 'rgba(255, 253, 247, 0.98)',
-                        border: '2px solid var(--border-hi)',
-                        borderRadius: '16px',
-                        boxShadow: '0 24px 56px rgba(60, 40, 10, 0.18)',
-                        padding: '20px',
-                        display: 'grid',
-                        gap: '12px'
-                    }}>
-                        <div style={{ fontSize: '1rem', fontWeight: 700, color: 'var(--text)' }}>
-                            Set patient name
-                        </div>
-                        <div style={{ fontSize: '0.86rem', color: 'var(--text-muted)' }}>
-                            This name is used for analysis records and trend tracking.
-                        </div>
-                        <input
-                            value={patientNameDraft}
-                            onChange={(e) => setPatientNameDraft(e.target.value)}
-                            onKeyDown={(e) => {
-                                if (e.key === 'Enter') {
-                                    e.preventDefault();
-                                    savePatientNameFromDraft();
-                                }
-                            }}
-                            placeholder="Enter patient name"
-                            maxLength={120}
-                            autoFocus
-                            style={{
-                                width: '100%',
-                                height: '40px',
-                                borderRadius: '10px',
-                                border: '2px solid var(--border-md)',
-                                background: 'var(--surface)',
-                                color: 'var(--text)',
-                                padding: '0 12px'
-                            }}
-                            aria-label="Patient name"
-                        />
-                        <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
-                            <button className="btn btn-primary" type="button" onClick={savePatientNameFromDraft}>
-                                Save and continue
-                            </button>
-                        </div>
-                    </div>
-                </div>
+                <PatientNamePrompt
+                    patientNameDraft={patientNameDraft}
+                    setPatientNameDraft={setPatientNameDraft}
+                    onSave={savePatientNameFromDraft}
+                />
             )}
 
             <a href="#main-content" className="btn btn-primary"
@@ -553,6 +906,9 @@ export default function SmartLabsApp() {
             </a>
 
             <main className="appShell" id="main-content">
+                <div className="appHeader">
+                    <div className="appLogo">ClinicLens</div>
+                </div>
 
                 {/* ── Hero ──────────────────────────── */}
                 <section className="panel heroCard" aria-labelledby="hero-title">
@@ -595,231 +951,25 @@ export default function SmartLabsApp() {
 
                 {/* ── Overview Tab ─────────────────── */}
                 {activeTab === 'overview' && (
-                    <section className="workspaceGrid" role="tabpanel" aria-labelledby="tab-overview">
-                        <article className="panel">
-                            <div className="panelInner">
-                                <div className="panelHeader">
-                                    <div className="panelTitleGroup">
-                                        <div className="panelTitle">Upload &amp; analyze</div>
-                                        <div className="panelSubtitle">
-                                            Select a PDF or image, upload to OSS, and stream results from the backend.
-                                        </div>
-                                    </div>
-                                    <div className={analysisBusy ? 'badge accent' : 'badge'}>
-                                        <span className="badgeDot" />
-                                        {analysisBusy ? 'Processing' : 'Ready'}
-                                    </div>
-                                </div>
-
-                                <div className={`uploadZone${selectedFile ? ' hasFile' : ''}`}
-                                    role="group" aria-label="File upload area">
-                                    <input
-                                        id="lab-file-input" type="file"
-                                        accept=".pdf,.png,.jpg,.jpeg,.webp"
-                                        onChange={onPickFile}
-                                        aria-label="Select lab report file"
-                                    />
-                                    <div className="compactUploadBar">
-                                        <div className="compactUploadLeft">
-                                            <div className="uploadIcon" aria-hidden="true">
-                                                {selectedFile ? <IconFile /> : <IconUpload />}
-                                            </div>
-                                            <div className="compactUploadText">
-                                                <div className="uploadTitle">
-                                                    {selectedFile ? selectedFile.name : 'Choose lab file'}
-                                                </div>
-                                                <div className="uploadHint">
-                                                    {selectedFile
-                                                        ? `${formatFileSize(selectedFile.size)} · tap to change`
-                                                        : 'PDF, PNG, JPG, JPEG, WEBP · Max 20 MB'}
-                                                </div>
-                                            </div>
-                                        </div>
-                                        <label htmlFor="lab-file-input" className="btn btn-secondary btn-label compactPickBtn">
-                                            Change
-                                        </label>
-                                    </div>
-                                </div>
-
-                                <div className="heroActions" style={{ marginTop: '10px' }}>
-                                    <button className="btn btn-primary" type="button"
-                                        onClick={onRunAnalysis} disabled={analysisBusy || !selectedFile}
-                                        aria-busy={analysisBusy}>
-                                        {analysisBusy
-                                            ? <span className="pendingDots">Analyzing</span>
-                                            : 'Run analysis'}
-                                    </button>
-                                    <button className="btn btn-secondary" type="button"
-                                        onClick={loadHistory} disabled={historyLoading} aria-busy={historyLoading}>
-                                        <IconRefresh />
-                                        {historyLoading ? 'Loading...' : 'Refresh'}
-                                    </button>
-                                </div>
-
-                                <div className="statusRail" role="status" aria-live="polite">
-                                    <span className="statusRailLabel">Status</span>
-                                    <span className="statusRailValue">{status}</span>
-                                </div>
-
-                                <div className="logBlock" aria-label="Stream log">
-                                    <div className="logBlockHeader">Stream log</div>
-                                    {analysisLogs.length > 0 ? (
-                                        <ul className="logList" aria-live="polite">
-                                            {analysisLogs.map((line, i) => (
-                                                <li key={`${i}-${line}`}>{line}</li>
-                                            ))}
-                                        </ul>
-                                    ) : (
-                                        <div style={{ padding: '12px 14px' }}>
-                                            <span style={{ fontSize: '0.78rem', color: 'var(--text-muted)', fontFamily: 'Geist Mono, monospace' }}>
-                                                No stream output yet.
-                                            </span>
-                                        </div>
-                                    )}
-                                </div>
-                            </div>
-                        </article>
-
-                        <article className="panel">
-                            <div className="panelInner">
-                                <div className="panelHeader">
-                                    <div className="panelTitleGroup">
-                                        <div className="panelTitle">Analysis result</div>
-                                        <div className="panelSubtitle">
-                                            Summary and abnormal markers from the AI backend.
-                                        </div>
-                                    </div>
-                                    {currentAnalysis ? (
-                                        <div className={getBadgeClass(currentAnalysis.status)}>
-                                            <span className="badgeDot" />
-                                            {currentAnalysis.status}
-                                        </div>
-                                    ) : (
-                                        <div className="badge">No result</div>
-                                    )}
-                                </div>
-
-                                {currentAnalysis ? (
-                                    <div style={{ display: 'grid', gap: '12px' }}>
-                                        <div className="analysisHeaderStrip">
-                                            <div className="analysisHeaderCell">
-                                                <div className="metricLabel">Patient</div>
-                                                <strong style={{ fontSize: '0.92rem', color: 'var(--text)' }}>
-                                                    {currentAnalysis.patient_name?.trim() || 'Unknown patient'}
-                                                </strong>
-                                            </div>
-                                            <div className="analysisHeaderCell">
-                                                <div className="metricLabel">Test date</div>
-                                                <strong style={{ fontSize: '0.92rem', color: 'var(--text)' }}>
-                                                    {currentAnalysis.analysis_date || 'N/A'}
-                                                </strong>
-                                            </div>
-                                            <div className="analysisHeaderCell">
-                                                <div className="metricLabel">Source</div>
-                                                <strong style={{ fontSize: '0.92rem', color: 'var(--text)' }}>
-                                                    {selectedFile?.name || 'From history'}
-                                                </strong>
-                                            </div>
-                                        </div>
-
-                                        {currentResults.length > 0 && (
-                                            <>
-                                                <div className="sectionCard" style={{ marginTop: 0 }}>
-                                                    <div className="sectionTitle">Filter by organ</div>
-                                                    <div className="chipWrap" style={{ marginTop: 0 }}>
-                                                        <button
-                                                            type="button"
-                                                            onClick={() => setSelectedOrganId('all')}
-                                                            className={selectedOrganId === 'all' ? 'chip active' : 'chip'}>
-                                                            <span className="organFilterIcon" aria-hidden="true">🧭</span>
-                                                            All · {currentResults.length}
-                                                        </button>
-                                                        {visibleOrganIds.map((organId) => {
-                                                            const count = organCounts.get(organId) || 0;
-                                                            if (count === 0) {
-                                                                return null;
-                                                            }
-                                                            return (
-                                                                <button
-                                                                    key={organId}
-                                                                    type="button"
-                                                                    onClick={() => setSelectedOrganId(organId)}
-                                                                    className={selectedOrganId === organId ? 'chip active' : 'chip'}>
-                                                                    <span className="organFilterIcon" aria-hidden="true">{organAbbr(organId)}</span>
-                                                                    {organLabel(organId)} · {count}
-                                                                </button>
-                                                            );
-                                                        })}
-                                                    </div>
-                                                </div>
-
-                                                <div className="resultGrid">
-                                                    {visibleResults.map((result) => (
-                                                        <div key={`${result.indicator_name}-${result.organ_id}`} className="resultCard">
-                                                            <div className="resultTopRow">
-                                                                <div>
-                                                                    <div className="resultName">{result.indicator_name}</div>
-                                                                    <div className="resultMeta">
-                                                                        {organLabel(result.organ_id)} · {result.reference_range || 'N/A'}
-                                                                    </div>
-                                                                </div>
-                                                                <div className={getSeverityClass(result.severity)}>
-                                                                    {severityLabel(result.severity)}
-                                                                </div>
-                                                            </div>
-                                                            <div className="resultValueRow">
-                                                                <strong>{result.value || '—'}</strong>
-                                                                <span>{result.unit}</span>
-                                                            </div>
-                                                            {result.patient_advice && (
-                                                                <p className="resultAdvice">{result.patient_advice}</p>
-                                                            )}
-                                                        </div>
-                                                    ))}
-                                                </div>
-
-                                                {visibleResults.length === 0 && (
-                                                    <div className="emptyState" role="status">
-                                                        <div className="emptyStateIcon" aria-hidden="true"><IconEmpty /></div>
-                                                        <p>No indicators found for this organ.</p>
-                                                    </div>
-                                                )}
-                                            </>
-                                        )}
-
-                                        {currentAnalysis.summary?.organ_summary?.length ? (
-                                            <div className="sectionCard">
-                                                <div className="sectionTitle">Organ summary</div>
-                                                <div className="chipWrap">
-                                                    {currentAnalysis.summary.organ_summary.map((item) => (
-                                                        <span key={item.organ_id} className="chip">
-                                                            {organLabel(item.organ_id)} · {STATUS_LABELS[item.worst_severity] ?? item.worst_severity} · {item.abnormal_count}/{item.indicator_count}
-                                                        </span>
-                                                    ))}
-                                                </div>
-                                            </div>
-                                        ) : null}
-
-                                        {currentAnalysis.advice?.general_recommendations?.length ? (
-                                            <div className="sectionCard">
-                                                <div className="sectionTitle">General recommendations</div>
-                                                <ul className="bulletList">
-                                                    {currentAnalysis.advice.general_recommendations.map((item) => (
-                                                        <li key={item}>{item}</li>
-                                                    ))}
-                                                </ul>
-                                            </div>
-                                        ) : null}
-                                    </div>
-                                ) : (
-                                    <div className="emptyState emptyStateLg" role="status">
-                                        <div className="emptyStateIcon" aria-hidden="true"><IconEmpty /></div>
-                                        <p>No results yet. Upload a file and run an analysis to get started.</p>
-                                    </div>
-                                )}
-                            </div>
-                        </article>
-                    </section>
+                    <OverviewTab
+                        currentAnalysis={currentAnalysis}
+                        currentResults={currentResults}
+                        selectedOrganId={selectedOrganId}
+                        onSelectOrganId={setSelectedOrganId}
+                        visibleOrganIds={visibleOrganIds}
+                        organCounts={organCounts}
+                        visibleResults={visibleResults}
+                        selectedFile={selectedFile}
+                        analysisBusy={analysisBusy}
+                        onPickFile={onPickFile}
+                        onRunAnalysis={onRunAnalysis}
+                        loadHistory={loadHistory}
+                        historyLoading={historyLoading}
+                        status={status}
+                        analysisLogs={analysisLogs}
+                        overviewTestDate={overviewTestDate}
+                        overviewSource={overviewSource}
+                    />
                 )}
 
                 {/* ── Chat Tab ─────────────────────── */}
@@ -846,7 +996,7 @@ export default function SmartLabsApp() {
                                             <div key={msg.id}
                                                 className={msg.role === 'user' ? 'chatBubble chatBubbleUser' : 'chatBubble chatBubbleAssistant'}>
                                                 <div className="chatBubbleMeta">
-                                                    {msg.role === 'user' ? 'You' : 'Smart Labs AI'}
+                                                    {msg.role === 'user' ? 'You' : 'ClinicLens AI'}
                                                 </div>
                                                 <div className="chatBubbleText">
                                                     {msg.pending
@@ -1113,7 +1263,7 @@ export default function SmartLabsApp() {
 
                 <footer className="footer">
                     <p>
-                        Smart Labs Analyzer · Alibaba Cloud · Qwen VL ·{' '}
+                        ClinicLens · Alibaba Cloud · Qwen VL ·{' '}
                         <a href="/privacy">Privacy policy</a> ·{' '}
                         <a href="/terms">Terms of use</a>
                     </p>
@@ -1203,6 +1353,13 @@ function formatDateTime(value: string) {
     const date = new Date(value);
     if (Number.isNaN(date.getTime())) return value;
     return new Intl.DateTimeFormat('en-US', { dateStyle: 'medium', timeStyle: 'short' }).format(date);
+}
+
+function sourceNameFromPath(value: string) {
+    if (!value) return 'Unknown source';
+    const normalized = value.split('?')[0].replace(/\\/g, '/');
+    const parts = normalized.split('/').filter(Boolean);
+    return parts[parts.length - 1] || value;
 }
 
 function formatFileSize(size: number) {

@@ -1,8 +1,8 @@
 {
-  "total_requests": 13,
-  "total_tokens_streamed": 780,
-  "total_response_chars": 2603,
-  "total_latency_ms": 64202,
-  "average_latency_ms": 4939,
-  "updated_at": "2026-04-14T15:16:43.980Z"
+  "total_requests": 14,
+  "total_tokens_streamed": 907,
+  "total_response_chars": 3023,
+  "total_latency_ms": 75645,
+  "average_latency_ms": 5403,
+  "updated_at": "2026-04-14T17:08:02.312Z"
 }

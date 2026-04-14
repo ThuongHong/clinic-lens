@@ -189,6 +189,22 @@ body::after {
     gap: var(--gap);
 }
 
+/* ── App Header ───────────────────────────────────  */
+.appHeader {
+    padding: 12px var(--gap-page);
+    margin: -28px 0 0 0;
+    display: flex;
+    align-items: center;
+    justify-content: flex-start;
+}
+
+.appLogo {
+    font-size: 1rem;
+    font-weight: 700;
+    color: var(--text);
+    letter-spacing: -0.5px;
+}
+
 /* ── Glass Panel Base ──────────────────────────────  */
 .panel {
     background: var(--bg-glass);
@@ -438,6 +454,12 @@ body::after {
     align-items: start;
 }
 
+.workspaceGridOverviewIdle,
+.workspaceGridOverviewReady {
+    grid-template-columns: minmax(0, 1fr);
+    transition: grid-template-columns var(--dur) var(--ease-out);
+}
+
 .workspaceGridChat {
     grid-template-columns: minmax(0, 1.3fr) minmax(0, 0.8fr);
 }
@@ -477,6 +499,32 @@ body::after {
     font-size: 0.875rem;
     color: var(--text-muted);
     line-height: 1.55;
+}
+
+.resultHeaderActions {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    flex-wrap: wrap;
+    justify-content: flex-end;
+}
+
+.visuallyHiddenInput {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    padding: 0;
+    margin: -1px;
+    overflow: hidden;
+    clip: rect(0, 0, 0, 0);
+    border: 0;
+}
+
+.compactHeaderUploadBtn,
+.compactRunBtn {
+    height: 34px;
+    padding: 0 12px;
+    font-size: 0.78rem;
 }
 
 /* ── Badges / Pills ─────────────────────────────────  */
