@@ -1,0 +1,8 @@
+{
+  "total_requests": 7,
+  "total_tokens_streamed": 98,
+  "total_response_chars": 839,
+  "total_latency_ms": 19,
+  "average_latency_ms": 3,
+  "updated_at": "2026-04-14T09:46:55.327Z"
+}
