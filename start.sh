@@ -1,6 +1,6 @@
 #!/bin/bash
 
-set -e
+set -euo pipefail
 
 echo "🚀 Starting Smart Labs Analyzer Backend + Web Demo"
 echo ""
@@ -11,15 +11,36 @@ YELLOW='\033[1;33m'
 RED='\033[0;31m'
 NC='\033[0m' # No Color
 
+ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+BACKEND_LOG="/tmp/smart-labs-backend.log"
+FRONTEND_LOG="/tmp/smart-labs-frontend.log"
+BACKEND_PID_FILE="/tmp/smart-labs-backend.pid"
+FRONTEND_PID_FILE="/tmp/smart-labs-frontend.pid"
+
+wait_for_url() {
+  local url="$1"
+  local retries="${2:-30}"
+  local delay_seconds="${3:-1}"
+
+  for ((i = 1; i <= retries; i++)); do
+    if curl -fsS "$url" > /dev/null 2>&1; then
+      return 0
+    fi
+    sleep "$delay_seconds"
+  done
+
+  return 1
+}
+
 # Step 1: Backend setup
 echo -e "${YELLOW}Step 1: Installing backend dependencies...${NC}"
-cd backend
+cd "$ROOT_DIR/backend"
 if [ ! -d "node_modules" ] || [ ! -d "node_modules/express" ]; then
   npm install
 else
   echo "✓ Node modules already installed"
 fi
-cd ..
+cd "$ROOT_DIR"
 echo -e "${GREEN}✓ Backend ready${NC}"
 echo ""
 
@@ -36,51 +57,35 @@ else
 fi
 echo ""
 
-# Step 3: Start backend
-echo -e "${YELLOW}Step 3: Starting backend server...${NC}"
-BACKEND_STARTED_BY_SCRIPT=0
-BACKEND_PID=""
-
-if curl -s http://localhost:9000/health | jq . > /dev/null 2>&1; then
-  echo -e "${GREEN}✓ Backend already running on http://localhost:9000${NC}"
-
-  CHAT_ROUTE_CODE=$(curl -s -o /dev/null -w "%{http_code}" -X POST \
-    http://localhost:9000/api/chat \
-    -H "Content-Type: application/json" \
-    -d '{}')
-
-  if [ "$CHAT_ROUTE_CODE" = "404" ]; then
-    echo -e "${YELLOW}⚠ Running backend is missing /api/chat. Restarting backend...${NC}"
-
-    OLD_BACKEND_PID=$(lsof -ti tcp:9000 | head -n 1)
-    if [ -n "$OLD_BACKEND_PID" ]; then
-      kill "$OLD_BACKEND_PID" 2>/dev/null || true
-      sleep 1
-    fi
-
-    cd backend
-    PORT=9000 npm start &
-    BACKEND_PID=$!
-    BACKEND_STARTED_BY_SCRIPT=1
-    cd ..
-    sleep 2
-  fi
-else
-  cd backend
-  PORT=9000 npm start &
-  BACKEND_PID=$!
-  BACKEND_STARTED_BY_SCRIPT=1
-  cd ..
-  sleep 2
+# Step 3: Restart backend + frontend processes
+echo -e "${YELLOW}Step 3: Restarting backend and frontend processes...${NC}"
+if [ -f "$BACKEND_PID_FILE" ]; then
+  kill "$(cat "$BACKEND_PID_FILE")" 2>/dev/null || true
+fi
+if [ -f "$FRONTEND_PID_FILE" ]; then
+  kill "$(cat "$FRONTEND_PID_FILE")" 2>/dev/null || true
 fi
 
-# Test backend health
-echo -e "${YELLOW}Step 4: Testing backend health...${NC}"
-if curl -s http://localhost:9000/health | jq . > /dev/null 2>&1; then
-  echo -e "${GREEN}✓ Backend is running on http://localhost:9000${NC}"
+pkill -f "node server.js" 2>/dev/null || true
+pkill -f "next dev|next/dist/bin/next" 2>/dev/null || true
+sleep 1
+echo -e "${GREEN}✓ Old processes stopped${NC}"
+echo ""
+
+# Step 4: Start backend and wait for health
+echo -e "${YELLOW}Step 4: Starting backend server...${NC}"
+cd "$ROOT_DIR/backend"
+PORT=9000 npm start > "$BACKEND_LOG" 2>&1 &
+BACKEND_PID=$!
+echo "$BACKEND_PID" > "$BACKEND_PID_FILE"
+cd "$ROOT_DIR"
+
+if wait_for_url "http://127.0.0.1:9000/health" 30 1; then
+  echo -e "${GREEN}✓ Backend is running on http://127.0.0.1:9000 (pid: $BACKEND_PID)${NC}"
 else
   echo -e "${RED}❌ Backend health check failed${NC}"
-  kill $BACKEND_PID 2>/dev/null || true
+  echo "Last backend log lines:"
+  tail -n 40 "$BACKEND_LOG" || true
   exit 1
 fi
 echo ""
@@ -97,7 +102,7 @@ if ! command -v node &> /dev/null; then
   exit 1
 fi
 
-cd frontend
+cd "$ROOT_DIR/frontend"
 if [ ! -d "node_modules" ] || [ ! -d "node_modules/next" ]; then
   npm install
 else
@@ -114,6 +119,31 @@ if [ ! -f ".env.local" ]; then
 fi
 
 echo ""
-echo -e "${YELLOW}Step 6: Running Next.js frontend...${NC}"
-NEXT_PUBLIC_BACKEND_BASE_URL=http://localhost:9000 PORT=3000 npm run dev
+echo -e "${YELLOW}Step 6: Starting Next.js frontend...${NC}"
+NEXT_PUBLIC_BACKEND_BASE_URL=http://127.0.0.1:9000 PORT=3000 npm run dev > "$FRONTEND_LOG" 2>&1 &
+FRONTEND_PID=$!
+echo "$FRONTEND_PID" > "$FRONTEND_PID_FILE"
+cd "$ROOT_DIR"
+
+if wait_for_url "http://127.0.0.1:3000" 60 1; then
+  echo -e "${GREEN}✓ Frontend is running on http://127.0.0.1:3000 (pid: $FRONTEND_PID)${NC}"
+else
+  echo -e "${RED}❌ Frontend startup check failed${NC}"
+  echo "Last frontend log lines:"
+  tail -n 60 "$FRONTEND_LOG" || true
+  exit 1
+fi
+
+echo ""
+echo -e "${GREEN}✅ All services are up${NC}"
+echo "Backend health: http://127.0.0.1:9000/health"
+echo "Frontend: http://127.0.0.1:3000"
+echo ""
+echo "Logs:"
+echo "  backend:  $BACKEND_LOG"
+echo "  frontend: $FRONTEND_LOG"
+echo ""
+echo "PIDs:"
+echo "  backend:  $BACKEND_PID_FILE"
+echo "  frontend: $FRONTEND_PID_FILE"
 

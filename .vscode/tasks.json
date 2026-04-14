@@ -6,6 +6,12 @@
 			"type": "shell",
 			"command": "git add .vscode/tasks.json && git commit -m \"chore: remove accidental vscode task config\"",
 			"isBackground": false
+		},
+		{
+			"label": "backend-health-check",
+			"type": "shell",
+			"command": "curl -sS http://127.0.0.1:9000/health",
+			"isBackground": false
 		}
 	]
 }

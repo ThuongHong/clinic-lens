@@ -44,10 +44,10 @@ SEVERITY_RANK = {
 }
 
 
-def read_env_file() -> dict:
-    env_path = BACKEND_DIR / ".env"
+def parse_env_file(env_path: Path) -> dict:
     if not env_path.exists():
         return {}
+
     data = {}
     for line in env_path.read_text(encoding="utf-8").splitlines():
         line = line.strip()
@@ -55,6 +55,14 @@ def read_env_file() -> dict:
             continue
         k, v = line.split("=", 1)
         data[k.strip()] = v.strip().strip('"').strip("'")
+    return data
+
+
+def read_env_file() -> dict:
+    # Keep parity with backend/server env precedence: root .env, then backend/.env.
+    data = {}
+    data.update(parse_env_file(ROOT / ".env"))
+    data.update(parse_env_file(BACKEND_DIR / ".env"))
     return data
 
 
@@ -153,6 +161,46 @@ def extract_json(raw: str):
     m = re.search(r"```(?:json)?\s*([\s\S]*?)\s*```", txt)
     if m:
         return json.loads(m.group(1).strip())
+
+    start = -1
+    opening = ""
+    for index, char in enumerate(txt):
+        if char in "[{":
+            start = index
+            opening = char
+            break
+
+    if start >= 0:
+        closing = "}" if opening == "{" else "]"
+        depth = 0
+        in_string = False
+        escaped = False
+
+        for index in range(start, len(txt)):
+            char = txt[index]
+
+            if escaped:
+                escaped = False
+                continue
+
+            if char == "\\":
+                escaped = True
+                continue
+
+            if char == '"':
+                in_string = not in_string
+                continue
+
+            if in_string:
+                continue
+
+            if char == opening:
+                depth += 1
+            elif char == closing:
+                depth -= 1
+                if depth == 0:
+                    return json.loads(txt[start : index + 1])
+
     raise ValueError("Model output is not valid JSON")
 
 
@@ -207,7 +255,14 @@ def detect_document_language(api_key: str, image_path: Path) -> dict:
         "Use ar for Arabic, vi for Vietnamese, fr for French, en for English."
     )
     raw = call_qwen(api_key, prompt, user, image_path, max_tokens=140, temperature=0.0)
-    parsed = extract_json(raw)
+    try:
+        parsed = extract_json(raw)
+    except Exception:
+        return {
+            "language": "unknown",
+            "confidence": 0.0,
+            "reason": "language detection output was not valid JSON",
+        }
 
     language = str(parsed.get("language", "unknown")).strip().lower()
     if language not in {"ar", "vi", "fr", "en", "mixed", "unknown"}:
@@ -226,7 +281,9 @@ def detect_document_language(api_key: str, image_path: Path) -> dict:
     }
 
 
-def classify_page(api_key: str, image_path: Path, language_hint: str = "unknown") -> dict:
+def classify_page(
+    api_key: str, image_path: Path, language_hint: str = "unknown"
+) -> dict:
     prompt = (
         "You are a strict document page classifier. Return JSON only. "
         "Classify if this page contains medical lab measurement table with indicators, values, reference ranges, units. "
@@ -238,7 +295,15 @@ def classify_page(api_key: str, image_path: Path, language_hint: str = "unknown"
         "If mostly stamp/signature/logo/footer with no useful lab table, use non_medical_page."
     )
     raw = call_qwen(api_key, prompt, user, image_path, max_tokens=200, temperature=0.0)
-    parsed = extract_json(raw)
+    try:
+        parsed = extract_json(raw)
+    except Exception:
+        return {
+            "page_type": "non_medical_page",
+            "confidence": 0.0,
+            "reason": "classification output was not valid JSON",
+        }
+
     if "page_type" not in parsed:
         parsed["page_type"] = "non_medical_page"
     return parsed
@@ -401,19 +466,42 @@ def main():
             continue
 
         print(f"[page {idx}] extract", file=log_stream)
-        raw = call_qwen(
-            api_key,
-            system_prompt,
-            (
-                "Analyze all lab indicators on this page and return JSON that follows the contract. "
-                f"Document language hint: {language_hint}. "
-                "Read multilingual text robustly and normalize extracted values accurately."
-            ),
-            image_path,
-            max_tokens=2200,
-            temperature=0.0,
-        )
-        payload = extract_json(raw)
+        try:
+            raw = call_qwen(
+                api_key,
+                system_prompt,
+                (
+                    "Analyze all lab indicators on this page and return JSON that follows the contract. "
+                    f"Document language hint: {language_hint}. "
+                    "Read multilingual text robustly and normalize extracted values accurately."
+                ),
+                image_path,
+                max_tokens=2200,
+                temperature=0.0,
+            )
+            payload = extract_json(raw)
+        except Exception as error:
+            page_error = {
+                "status": "error",
+                "error_code": "PARTIAL_DATA",
+                "error_message": f"Page extraction failed: {error}",
+                "results": [],
+            }
+            out_file = page_output_dir / f"page_{idx:02d}.json"
+            out_file.write_text(
+                json.dumps(page_error, ensure_ascii=False, indent=2), encoding="utf-8"
+            )
+            page_runs.append(
+                {
+                    "page_number": idx,
+                    "image": str(image_path),
+                    "payload": page_error,
+                    "output": str(out_file),
+                }
+            )
+            print(f"[page {idx}] extraction failed: {error}", file=log_stream)
+            continue
+
         out_file = page_output_dir / f"page_{idx:02d}.json"
         out_file.write_text(
             json.dumps(payload, ensure_ascii=False, indent=2), encoding="utf-8"

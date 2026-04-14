@@ -85,6 +85,7 @@ const ossClient = process.env.ALI_ACCESS_KEY && process.env.ALI_SECRET_KEY && OS
   ? new OSS({
     region: OSS_REGION,
     bucket: OSS_BUCKET_NAME,
+    secure: true,
     accessKeyId: process.env.ALI_ACCESS_KEY,
     accessKeySecret: process.env.ALI_SECRET_KEY
   })
@@ -698,10 +699,42 @@ function signObjectKey(objectKey, expiresInSeconds = 300) {
     throw new Error('OSS client is not configured');
   }
 
-  return ossClient.signatureUrl(objectKey, {
+  const signedUrl = ossClient.signatureUrl(objectKey, {
     method: 'GET',
     expires: expiresInSeconds
   });
+
+  // Force HTTPS to avoid bucket/CDN policies that reject plain HTTP requests.
+  return signedUrl.replace(/^http:\/\//i, 'https://');
+}
+
+async function signObjectKeyViaSts(objectKey, expiresInSeconds = 300) {
+  if (!stsClient || !process.env.ALI_ROLE_ARN || !OSS_BUCKET_NAME || !OSS_REGION) {
+    throw new Error('STS client is not configured');
+  }
+
+  const params = {
+    RoleArn: process.env.ALI_ROLE_ARN,
+    RoleSessionName: 'qwen-analyze-get-object',
+    DurationSeconds: 900
+  };
+
+  const result = await stsClient.request('AssumeRole', params, { method: 'POST' });
+  const tempClient = new OSS({
+    region: OSS_REGION,
+    bucket: OSS_BUCKET_NAME,
+    secure: true,
+    accessKeyId: result.Credentials.AccessKeyId,
+    accessKeySecret: result.Credentials.AccessKeySecret,
+    stsToken: result.Credentials.SecurityToken
+  });
+
+  const signedUrl = tempClient.signatureUrl(objectKey, {
+    method: 'GET',
+    expires: expiresInSeconds
+  });
+
+  return signedUrl.replace(/^http:\/\//i, 'https://');
 }
 
 function isImageUrl(fileUrl) {
@@ -757,15 +790,36 @@ function isPdfReference({ fileUrl, objectKey }) {
 }
 
 async function downloadRemoteFile(sourceUrl, destinationPath, signal) {
-  const response = await axios({
-    method: 'get',
-    url: sourceUrl,
-    responseType: 'arraybuffer',
-    signal,
-    timeout: 0
-  });
+  try {
+    const response = await axios({
+      method: 'get',
+      url: sourceUrl,
+      responseType: 'arraybuffer',
+      signal,
+      timeout: 0
+    });
 
-  await fs.promises.writeFile(destinationPath, Buffer.from(response.data));
+    await fs.promises.writeFile(destinationPath, Buffer.from(response.data));
+  } catch (error) {
+    const status = error?.response?.status;
+    const body = typeof error?.response?.data === 'string'
+      ? error.response.data
+      : Buffer.isBuffer(error?.response?.data)
+        ? error.response.data.toString('utf8')
+        : JSON.stringify(error?.response?.data || '');
+    const detail = String(body || '').slice(0, 300).replace(/\s+/g, ' ').trim();
+
+    throw new Error(`Failed to download PDF from signed URL (HTTP ${status || 'unknown'}): ${detail || error.message}`);
+  }
+}
+
+async function readPipelineSummaryPayload(summaryPath) {
+  try {
+    const summaryRaw = await fs.promises.readFile(summaryPath, 'utf8');
+    return parseJsonFromModelOutput(summaryRaw);
+  } catch (_) {
+    return null;
+  }
 }
 
 async function runAnalysisPdfPipeline({ pdfUrl, pdfPath, signal }) {
@@ -786,37 +840,69 @@ async function runAnalysisPdfPipeline({ pdfUrl, pdfPath, signal }) {
       await downloadRemoteFile(pdfUrl, workingPdfPath, signal);
     }
 
-    const { stdout, stderr } = await execFileAsync(
-      pythonBin,
-      [
-        path.resolve(__dirname, 'analysis_pdf_pipeline.py'),
-        '--pdf',
-        workingPdfPath,
-        '--images-dir',
-        imagesDir,
-        '--page-output-dir',
-        pageOutputDir,
-        '--summary-out',
-        summaryPath,
-        '--stdout-json'
-      ],
-      {
-        cwd: path.resolve(__dirname, '..'),
-        env: {
-          ...process.env,
-          DASHSCOPE_EXTRACT_MODEL,
-          DASHSCOPE_SUMMARY_MODEL,
-          DASHSCOPE_MODEL: DASHSCOPE_EXTRACT_MODEL,
-          PYTHONIOENCODING: 'utf-8'
-        },
-        maxBuffer: 20 * 1024 * 1024,
-        timeout: timeoutMs,
-        signal
+    let stdout = '';
+    let stderr = '';
+
+    try {
+      const completed = await execFileAsync(
+        pythonBin,
+        [
+          path.resolve(__dirname, 'analysis_pdf_pipeline.py'),
+          '--pdf',
+          workingPdfPath,
+          '--images-dir',
+          imagesDir,
+          '--page-output-dir',
+          pageOutputDir,
+          '--summary-out',
+          summaryPath,
+          '--stdout-json'
+        ],
+        {
+          cwd: path.resolve(__dirname, '..'),
+          env: {
+            ...process.env,
+            DASHSCOPE_EXTRACT_MODEL,
+            DASHSCOPE_SUMMARY_MODEL,
+            DASHSCOPE_MODEL: DASHSCOPE_EXTRACT_MODEL,
+            PYTHONIOENCODING: 'utf-8'
+          },
+          maxBuffer: 20 * 1024 * 1024,
+          timeout: timeoutMs,
+          signal
+        }
+      );
+      stdout = completed.stdout || '';
+      stderr = completed.stderr || '';
+    } catch (error) {
+      stdout = error?.stdout || '';
+      stderr = error?.stderr || '';
+
+      const summaryPayload = await readPipelineSummaryPayload(summaryPath);
+      if (summaryPayload) {
+        return {
+          payload: summaryPayload,
+          logs: [stderr, 'Recovered payload from summary file after Python process failure.'].filter(Boolean).join('\n')
+        };
       }
-    );
+
+      throw error;
+    }
+
+    let payload;
+    try {
+      payload = parseJsonFromModelOutput(stdout);
+    } catch (_) {
+      const summaryPayload = await readPipelineSummaryPayload(summaryPath);
+      if (!summaryPayload) {
+        throw _;
+      }
+      payload = summaryPayload;
+      stderr = [stderr, 'Recovered payload from summary file because stdout JSON parsing failed.'].filter(Boolean).join('\n');
+    }
 
     return {
-      payload: parseJsonFromModelOutput(stdout),
+      payload,
       logs: stderr
     };
   } finally {
@@ -990,14 +1076,23 @@ app.get('/api/sign-url', async (req, res) => {
     }
 
     const expiresInSeconds = Number(req.query.expires_in || 300);
-    const signedUrl = signObjectKey(sanitizedObjectKey, expiresInSeconds);
+    let signedUrl;
+    let signer = 'server_ak';
+
+    try {
+      signedUrl = await signObjectKeyViaSts(sanitizedObjectKey, expiresInSeconds);
+      signer = 'sts';
+    } catch (_) {
+      signedUrl = signObjectKey(sanitizedObjectKey, expiresInSeconds);
+    }
 
     res.json({
       bucket: OSS_BUCKET_NAME,
       region: OSS_REGION,
       object_key: sanitizedObjectKey,
       expires_in: expiresInSeconds,
-      signed_url: signedUrl
+      signed_url: signedUrl,
+      signer
     });
   } catch (error) {
     console.error('OSS Sign URL Error:', error);
@@ -1061,10 +1156,18 @@ app.post('/api/analyze', async (req, res) => {
         writeSseEvent(res, 'error', { message: 'Invalid object_key' });
         return res.end();
       }
-      analysisUrl = signObjectKey(normalizedObjectKey, 600);
+      let signer = 'server_ak';
+      try {
+        analysisUrl = await signObjectKeyViaSts(normalizedObjectKey, 600);
+        signer = 'sts';
+      } catch (_) {
+        analysisUrl = signObjectKey(normalizedObjectKey, 600);
+      }
+
       writeSseEvent(res, 'signed_url_ready', {
         object_key: normalizedObjectKey,
-        expires_in: 600
+        expires_in: 600,
+        signer
       });
     }
 
