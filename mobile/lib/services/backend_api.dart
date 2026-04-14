@@ -76,8 +76,34 @@ class BackendApi {
     );
   }
 
-  Uri _uri(String path, [Map<String, String>? queryParameters]) {
-    return Uri.parse('$baseUrl$path').replace(queryParameters: queryParameters);
+  Future<http.StreamedResponse> _sendStreamWithFallback({
+    required String path,
+    required Map<String, dynamic> body,
+  }) async {
+    Object? lastError;
+
+    for (final candidateBaseUrl in _baseUrlCandidates) {
+      final request = http.Request('POST', Uri.parse('$candidateBaseUrl$path'));
+      request.headers['Content-Type'] = 'application/json';
+      request.body = jsonEncode(body);
+
+      try {
+        final streamed = await _client.send(request);
+
+        if (streamed.statusCode < 500 || candidateBaseUrl == _baseUrlCandidates.last) {
+          return streamed;
+        }
+      } on SocketException catch (error) {
+        lastError = error;
+      } on http.ClientException catch (error) {
+        lastError = error;
+      }
+    }
+
+    throw StateError(
+      'Backend unreachable at ${_baseUrlCandidates.join(' / ')}. '
+      'Check that the backend is running on port 9000. ${lastError ?? ''}'.trim(),
+    );
   }
 
   Future<Map<String, dynamic>> fetchStsToken() async {
@@ -142,18 +168,16 @@ class BackendApi {
       throw ArgumentError('Either fileUrl, objectKey or localFilePath must be provided.');
     }
 
-    final request = http.Request('POST', _uri('/api/analyze'));
-    request.headers['Content-Type'] = 'application/json';
-    request.body = jsonEncode(<String, dynamic>{
+    final payload = <String, dynamic>{
       if (fileUrl != null && fileUrl.isNotEmpty) 'file_url': fileUrl,
       if (objectKey != null && objectKey.isNotEmpty) 'object_key': objectKey,
       if (localFilePath != null && localFilePath.isNotEmpty) 'local_file_path': localFilePath,
-    });
+    };
 
     http.StreamedResponse streamed;
 
     try {
-      streamed = await _client.send(request);
+      streamed = await _sendStreamWithFallback(path: '/api/analyze', body: payload);
     } on SocketException catch (error) {
       throw StateError(
         'Backend unreachable at ${_baseUrlCandidates.join(' / ')}. '
@@ -169,6 +193,95 @@ class BackendApi {
     if (streamed.statusCode >= 400) {
       final body = await streamed.stream.bytesToString();
       throw StateError('Failed to start analysis: $body');
+    }
+
+    final lines = streamed.stream
+        .transform(utf8.decoder)
+        .transform(const LineSplitter());
+
+    String? eventName;
+    final dataBuffer = StringBuffer();
+
+    await for (final line in lines) {
+      if (line.isEmpty) {
+        if (dataBuffer.isNotEmpty) {
+          yield SseEvent(
+            event: eventName ?? 'message',
+            data: dataBuffer.toString(),
+          );
+        }
+        eventName = null;
+        dataBuffer.clear();
+        continue;
+      }
+
+      if (line.startsWith('event:')) {
+        eventName = line.substring(6).trim();
+        continue;
+      }
+
+      if (line.startsWith('data:')) {
+        if (dataBuffer.isNotEmpty) {
+          dataBuffer.write('\n');
+        }
+        dataBuffer.write(line.substring(5).trimLeft());
+      }
+    }
+
+    if (dataBuffer.isNotEmpty) {
+      yield SseEvent(
+        event: eventName ?? 'message',
+        data: dataBuffer.toString(),
+      );
+    }
+  }
+
+  Stream<SseEvent> streamChat({
+    required String historyId,
+    required String message,
+    String? conversationId,
+    String language = 'vi',
+    String detailLevel = 'patient',
+  }) async* {
+    final trimmedHistoryId = historyId.trim();
+    final trimmedMessage = message.trim();
+
+    if (trimmedHistoryId.isEmpty) {
+      throw ArgumentError('historyId is required.');
+    }
+
+    if (trimmedMessage.isEmpty) {
+      throw ArgumentError('message is required.');
+    }
+
+    final payload = <String, dynamic>{
+      'history_id': trimmedHistoryId,
+      'message': trimmedMessage,
+      'language': language,
+      'detail_level': detailLevel,
+      if (conversationId != null && conversationId.trim().isNotEmpty)
+        'conversation_id': conversationId.trim(),
+    };
+
+    http.StreamedResponse streamed;
+
+    try {
+      streamed = await _sendStreamWithFallback(path: '/api/chat', body: payload);
+    } on SocketException catch (error) {
+      throw StateError(
+        'Backend unreachable at ${_baseUrlCandidates.join(' / ')}. '
+        'Check that the backend is running on port 9000. $error',
+      );
+    } on http.ClientException catch (error) {
+      throw StateError(
+        'Backend unreachable at ${_baseUrlCandidates.join(' / ')}. '
+        'Check that the backend is running on port 9000. $error',
+      );
+    }
+
+    if (streamed.statusCode >= 400) {
+      final body = await streamed.stream.bytesToString();
+      throw StateError('Failed to start chat: $body');
     }
 
     final lines = streamed.stream

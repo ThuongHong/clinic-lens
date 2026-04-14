@@ -39,6 +39,12 @@ class _AnalysisScreenState extends State<AnalysisScreen>
   String? _selectedHistoryId;
   String? _focusedOrganId;
   String? _historyError;
+  final TextEditingController _chatController = TextEditingController();
+  String _chatDraft = '';
+  _ChatAssistantPayload? _chatAssistant;
+  String? _chatConversationId;
+  String? _chatError;
+  bool _chatBusy = false;
   bool _busy = false;
   bool _historyLoading = false;
 
@@ -56,6 +62,7 @@ class _AnalysisScreenState extends State<AnalysisScreen>
   void dispose() {
     _overallScrollController.dispose();
     _tabController.dispose();
+    _chatController.dispose();
     _backendApi.dispose();
     _uploadService.dispose();
     super.dispose();
@@ -106,6 +113,10 @@ class _AnalysisScreenState extends State<AnalysisScreen>
       _status = 'Getting STS token...';
       _analysis = null;
       _focusedOrganId = null;
+      _chatAssistant = null;
+      _chatConversationId = null;
+      _chatError = null;
+      _chatDraft = '';
       _streamedResponse = '';
       _streamLines.clear();
     });
@@ -353,8 +364,110 @@ class _AnalysisScreenState extends State<AnalysisScreen>
       _analysis = entry.analysis;
       _selectedHistoryId = entry.id;
       _focusedOrganId = null;
+      _chatAssistant = null;
+      _chatConversationId = null;
+      _chatError = null;
+      _chatDraft = '';
       _status = 'Viewing saved analysis from ${entry.analysis.analysisDate}';
     });
+  }
+
+  Future<void> _sendChatQuestion() async {
+    final historyId = _selectedHistoryId;
+    final message = _chatController.text.trim();
+
+    if (historyId == null || historyId.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Please select an analysis first.')),
+      );
+      return;
+    }
+
+    if (message.isEmpty) {
+      return;
+    }
+
+    setState(() {
+      _chatBusy = true;
+      _chatError = null;
+      _chatDraft = '';
+      _chatAssistant = null;
+      _status = 'Smart Labs Chat is generating an answer...';
+    });
+
+    try {
+      await for (final event in _backendApi.streamChat(
+        historyId: historyId,
+        message: message,
+        conversationId: _chatConversationId,
+        language: 'vi',
+        detailLevel: 'patient',
+      )) {
+        if (!mounted) {
+          break;
+        }
+
+        final payload = _tryParseEventJson(event);
+
+        switch (event.event) {
+          case 'stream':
+            final token = payload?['text']?.toString() ?? '';
+            if (token.isNotEmpty) {
+              setState(() {
+                _chatDraft += token;
+              });
+            }
+            break;
+          case 'warning':
+            final warning = payload?['message']?.toString() ?? event.data;
+            setState(() {
+              _chatError = warning;
+            });
+            break;
+          case 'result':
+            if (payload == null) {
+              break;
+            }
+            final assistantJson = payload['assistant'];
+            setState(() {
+              _chatConversationId = payload['conversation_id']?.toString() ?? _chatConversationId;
+              if (assistantJson is Map<String, dynamic>) {
+                _chatAssistant = _ChatAssistantPayload.fromJson(assistantJson);
+                _chatDraft = _chatAssistant?.answerText ?? _chatDraft;
+              }
+            });
+            break;
+          case 'error':
+            throw StateError(payload?['message']?.toString() ?? event.data);
+          default:
+            break;
+        }
+      }
+
+      if (!mounted) {
+        return;
+      }
+
+      setState(() {
+        _status = 'Chat response is ready';
+        _chatController.clear();
+      });
+    } catch (error) {
+      if (!mounted) {
+        return;
+      }
+
+      setState(() {
+        _chatError = error.toString();
+        _status = 'Chat failed';
+      });
+    } finally {
+      if (mounted) {
+        setState(() {
+          _chatBusy = false;
+        });
+      }
+    }
   }
 
   void _focusOrganFromOutlook(String organId) {
@@ -597,6 +710,16 @@ class _AnalysisScreenState extends State<AnalysisScreen>
                     onBackToOutlook: _backToOutlook,
                   ),
                 ),
+                const SizedBox(height: 20),
+                _ChatPanel(
+                  historyId: _selectedHistoryId,
+                  busy: _chatBusy,
+                  errorMessage: _chatError,
+                  streamedText: _chatDraft,
+                  assistant: _chatAssistant,
+                  controller: _chatController,
+                  onSend: _sendChatQuestion,
+                ),
               ] else ...[
                 _EmptyPanel(
                   icon: Icons.cloud_upload_rounded,
@@ -677,6 +800,269 @@ class _AnalysisScreenState extends State<AnalysisScreen>
           ),
         ],
       ),
+    );
+  }
+}
+
+class _ChatPanel extends StatelessWidget {
+  const _ChatPanel({
+    required this.historyId,
+    required this.busy,
+    required this.errorMessage,
+    required this.streamedText,
+    required this.assistant,
+    required this.controller,
+    required this.onSend,
+  });
+
+  final String? historyId;
+  final bool busy;
+  final String? errorMessage;
+  final String streamedText;
+  final _ChatAssistantPayload? assistant;
+  final TextEditingController controller;
+  final VoidCallback onSend;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final canSend = !busy && (historyId?.isNotEmpty ?? false);
+
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(22),
+        border: Border.all(color: const Color(0xFFE3E8F2)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            'Smart Labs Chat',
+            style: theme.textTheme.titleMedium?.copyWith(
+              color: const Color(0xFF0F172A),
+              fontWeight: FontWeight.w800,
+            ),
+          ),
+          const SizedBox(height: 6),
+          Text(
+            historyId == null
+                ? 'Run or select an analysis first, then ask follow-up questions.'
+                : 'Ask about abnormal indicators, risk level, and next 7-day actions.',
+            style: theme.textTheme.bodySmall?.copyWith(
+              color: const Color(0xFF64748B),
+              fontWeight: FontWeight.w500,
+            ),
+          ),
+          const SizedBox(height: 12),
+          Row(
+            children: [
+              Expanded(
+                child: TextField(
+                  controller: controller,
+                  enabled: historyId != null,
+                  textInputAction: TextInputAction.send,
+                  onSubmitted: (_) {
+                    if (canSend) {
+                      onSend();
+                    }
+                  },
+                  decoration: InputDecoration(
+                    hintText: 'Vi du: toi can uu tien thay doi gi trong 7 ngay toi?',
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(12),
+                      borderSide: const BorderSide(color: Color(0xFFE2E8F0)),
+                    ),
+                    enabledBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(12),
+                      borderSide: const BorderSide(color: Color(0xFFE2E8F0)),
+                    ),
+                    contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+                  ),
+                ),
+              ),
+              const SizedBox(width: 10),
+              FilledButton.icon(
+                onPressed: canSend ? onSend : null,
+                icon: busy
+                    ? const SizedBox(
+                        width: 14,
+                        height: 14,
+                        child: CircularProgressIndicator(strokeWidth: 2),
+                      )
+                    : const Icon(Icons.send_rounded, size: 16),
+                label: Text(busy ? 'Sending...' : 'Ask'),
+              ),
+            ],
+          ),
+          if (errorMessage != null && errorMessage!.isNotEmpty) ...[
+            const SizedBox(height: 12),
+            Text(
+              errorMessage!,
+              style: theme.textTheme.bodySmall?.copyWith(
+                color: const Color(0xFFDC2626),
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          ],
+          if (streamedText.isNotEmpty) ...[
+            const SizedBox(height: 14),
+            Text(
+              streamedText,
+              style: theme.textTheme.bodyMedium?.copyWith(
+                color: const Color(0xFF0F172A),
+                height: 1.45,
+              ),
+            ),
+          ],
+          if (assistant != null) ...[
+            const SizedBox(height: 12),
+            Wrap(
+              spacing: 8,
+              runSpacing: 8,
+              children: [
+                _Chip(label: 'Risk: ${assistant!.riskLevel.toUpperCase()}'),
+                if (assistant!.escalation) const _Chip(label: 'Escalation: ON'),
+              ],
+            ),
+            if (assistant!.recommendedActions.isNotEmpty) ...[
+              const SizedBox(height: 10),
+              _BulletSection(
+                title: 'Recommended actions',
+                items: assistant!.recommendedActions,
+              ),
+            ],
+            if (assistant!.followUpQuestions.isNotEmpty) ...[
+              const SizedBox(height: 10),
+              _BulletSection(
+                title: 'Follow-up questions',
+                items: assistant!.followUpQuestions,
+              ),
+            ],
+            if (assistant!.sevenDayPlan.isNotEmpty) ...[
+              const SizedBox(height: 10),
+              _BulletSection(
+                title: '7-day plan',
+                items: assistant!.sevenDayPlan,
+              ),
+            ],
+            if (assistant!.disclaimer.isNotEmpty) ...[
+              const SizedBox(height: 10),
+              Text(
+                assistant!.disclaimer,
+                style: theme.textTheme.bodySmall?.copyWith(
+                  color: const Color(0xFF64748B),
+                ),
+              ),
+            ],
+          ],
+        ],
+      ),
+    );
+  }
+}
+
+class _Chip extends StatelessWidget {
+  const _Chip({required this.label});
+
+  final String label;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+      decoration: BoxDecoration(
+        color: const Color(0xFFF8FAFC),
+        borderRadius: BorderRadius.circular(999),
+        border: Border.all(color: const Color(0xFFE2E8F0)),
+      ),
+      child: Text(
+        label,
+        style: Theme.of(context).textTheme.labelSmall?.copyWith(
+          color: const Color(0xFF334155),
+          fontWeight: FontWeight.w700,
+        ),
+      ),
+    );
+  }
+}
+
+class _BulletSection extends StatelessWidget {
+  const _BulletSection({required this.title, required this.items});
+
+  final String title;
+  final List<String> items;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          title,
+          style: theme.textTheme.bodySmall?.copyWith(
+            color: const Color(0xFF0F172A),
+            fontWeight: FontWeight.w700,
+          ),
+        ),
+        const SizedBox(height: 4),
+        for (final item in items.take(5))
+          Padding(
+            padding: const EdgeInsets.only(bottom: 2),
+            child: Text(
+              '• $item',
+              style: theme.textTheme.bodySmall?.copyWith(
+                color: const Color(0xFF334155),
+                height: 1.4,
+              ),
+            ),
+          ),
+      ],
+    );
+  }
+}
+
+class _ChatAssistantPayload {
+  const _ChatAssistantPayload({
+    required this.answerText,
+    required this.riskLevel,
+    required this.recommendedActions,
+    required this.followUpQuestions,
+    required this.sevenDayPlan,
+    required this.disclaimer,
+    required this.escalation,
+  });
+
+  final String answerText;
+  final String riskLevel;
+  final List<String> recommendedActions;
+  final List<String> followUpQuestions;
+  final List<String> sevenDayPlan;
+  final String disclaimer;
+  final bool escalation;
+
+  factory _ChatAssistantPayload.fromJson(Map<String, dynamic> json) {
+    return _ChatAssistantPayload(
+      answerText: json['answer_text']?.toString() ?? '',
+      riskLevel: json['risk_level']?.toString() ?? 'unknown',
+      recommendedActions: (json['recommended_actions'] as List?)
+              ?.map((item) => item.toString())
+              .toList(growable: false) ??
+          const <String>[],
+      followUpQuestions: (json['follow_up_questions'] as List?)
+              ?.map((item) => item.toString())
+              .toList(growable: false) ??
+          const <String>[],
+      sevenDayPlan: (json['seven_day_plan'] as List?)
+              ?.map((item) => item.toString())
+              .toList(growable: false) ??
+          const <String>[],
+      disclaimer: json['disclaimer']?.toString() ?? '',
+      escalation: json['escalation'] == true,
     );
   }
 }
