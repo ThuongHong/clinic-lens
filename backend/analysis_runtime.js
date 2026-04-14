@@ -4,15 +4,15 @@ const path = require('path');
 const ANALYSIS_PROMPT_PATH = path.resolve(__dirname, 'prompts', 'analysis_system_prompt.md');
 
 const DEFAULT_SYSTEM_PROMPT = `
-Ban la MedScan AI - tro ly phan tich ket qua xet nghiem y khoa cho ung dung Smart Labs Analyzer.
-Nhiem vu: nhan tai lieu xet nghiem (anh/PDF), boc tach chi so va tra ve JSON dung contract.
+You are MedScan AI, a medical lab report analysis assistant for the Smart Labs Analyzer app.
+Task: read medical lab documents (image/PDF), extract indicators, and return JSON that strictly follows the contract.
 
 ## Hard Rules
-- Khong chan doan benh chinh thuc.
-- Khong ke ten thuoc biet duoc.
-- Khong tu bo sung so lieu khi khong doc duoc.
-- Chi tra ve JSON thuan (khong markdown, khong giai thich them).
-- patient_advice phai bang tieng Viet, ro rang, thuc te.
+- Do not provide an official medical diagnosis.
+- Do not recommend or name specific drugs.
+- Do not invent values when they cannot be read.
+- Return pure JSON only (no markdown, no extra explanation).
+- patient_advice must be in English, clear, and practical.
 
 ## Output Contract
 Success:
@@ -28,7 +28,7 @@ Success:
       "reference_range": "...",
       "organ_id": "kidneys|liver|heart|lungs|blood|pancreas|thyroid|bone|immune|other",
       "severity": "normal|abnormal_high|abnormal_low|critical|unknown",
-      "patient_advice": "Tieng Viet, 1-3 cau"
+      "patient_advice": "English, 1-3 sentences"
     }
   ]
 }
@@ -37,7 +37,7 @@ Error:
 {
   "status": "error",
   "error_code": "IMAGE_BLURRY|NOT_MEDICAL|UNSUPPORTED_FORMAT|PARTIAL_DATA",
-  "error_message": "Tieng Viet",
+  "error_message": "English",
   "results": []
 }
 `;
@@ -216,7 +216,7 @@ function normalizeAnalysisPayload(payload) {
     return {
       status,
       error_code: sanitizeText(payload?.error_code || 'PARTIAL_DATA', 'PARTIAL_DATA'),
-      error_message: sanitizeText(payload?.error_message || 'Khong the doc day du du lieu xet nghiem.', 'Khong the doc day du du lieu xet nghiem.'),
+      error_message: sanitizeText(payload?.error_message || 'Unable to read complete lab data from the document.', 'Unable to read complete lab data from the document.'),
       results: []
     };
   }
@@ -299,32 +299,32 @@ function buildAnalysisSummary(analysis) {
 
 function buildAdviceMessages(summaryPayload) {
   const systemPrompt = [
-    'Ban la tro ly giai thich ket qua xet nghiem cho benh nhan.',
-    'Dua tren du lieu summary co san, hay tao ra JSON THUAN dung schema.',
-    'Khong chan doan benh chinh thuc. Khong de xuat thuoc cu the.',
-    'Noi dung phai bang tieng Viet, thuc te, de hieu.'
+    'You are a medical lab explanation assistant for patients.',
+    'Based on the available summary data, return pure JSON that follows the schema.',
+    'Do not provide an official diagnosis. Do not recommend specific drugs.',
+    'All text content must be in clear, practical English.'
   ].join(' ');
 
   const userPrompt = [
-    'Hay tra ve JSON voi schema sau:',
+    'Return JSON with this exact schema:',
     '{',
     '  "status": "success|error",',
     '  "patient_name": "<string|null>",',
     '  "analysis_date": "<YYYY-MM-DD|null>",',
-    '  "overall_assessment": "<2-4 cau>",',
+    '  "overall_assessment": "<2-4 sentences>",',
     '  "priority_level": "low|medium|high",',
     '  "organ_advice": [',
     '    {',
     '      "organ_id": "kidneys|liver|heart|lungs|blood|pancreas|thyroid|bone|immune|other",',
     '      "risk": "normal|watch|alert",',
-    '      "summary": "<1-2 cau>",',
-    '      "advice": "<1-3 cau>"',
+    '      "summary": "<1-2 sentences>",',
+    '      "advice": "<1-3 sentences>"',
     '    }',
     '  ],',
     '  "general_recommendations": ["..."],',
     '  "disclaimer": "..."',
     '}',
-    'Neu summary khong hop le, tra ve {"status":"error","error_message":"..."}',
+    'If the summary is invalid, return {"status":"error","error_message":"..."}',
     '',
     `SUMMARY_JSON: ${JSON.stringify(summaryPayload)}`
   ].join('\n');
@@ -337,7 +337,7 @@ function buildAdviceMessages(summaryPayload) {
 
 function normalizeAdvicePayload(payload, analysis, summary) {
   if (!payload || payload.status === 'error') {
-    const message = sanitizeText(payload?.error_message || 'Khong tao duoc loi khuyen tong quat.', 'Khong tao duoc loi khuyen tong quat.');
+    const message = sanitizeText(payload?.error_message || 'Unable to generate overall recommendations.', 'Unable to generate overall recommendations.');
     return {
       status: 'error',
       error_message: message
@@ -368,15 +368,15 @@ function normalizeAdvicePayload(payload, analysis, summary) {
     patient_name: sanitizeText(payload.patient_name || analysis.patient_name || '', '') || null,
     analysis_date: sanitizeText(payload.analysis_date || analysis.analysis_date || '', '') || null,
     overall_assessment: sanitizeText(
-      payload.overall_assessment || `Phat hien ${summary.abnormal_results} chi so can theo doi tren ${summary.total_results} chi so da trich xuat.`,
-      `Phat hien ${summary.abnormal_results} chi so can theo doi tren ${summary.total_results} chi so da trich xuat.`
+      payload.overall_assessment || `Detected ${summary.abnormal_results} indicators requiring follow-up out of ${summary.total_results} extracted indicators.`,
+      `Detected ${summary.abnormal_results} indicators requiring follow-up out of ${summary.total_results} extracted indicators.`
     ),
     priority_level: ['low', 'medium', 'high'].includes(String(payload.priority_level || '').trim().toLowerCase())
       ? String(payload.priority_level).trim().toLowerCase()
       : fallbackPriority,
     organ_advice: organAdvice,
     general_recommendations: generalRecommendations,
-    disclaimer: sanitizeText(payload.disclaimer || 'Thong tin chi co tinh chat tham khao, khong thay the kham bac si.', 'Thong tin chi co tinh chat tham khao, khong thay the kham bac si.')
+    disclaimer: sanitizeText(payload.disclaimer || 'This information is for reference only and does not replace medical consultation.', 'This information is for reference only and does not replace medical consultation.')
   };
 }
 

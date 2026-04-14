@@ -315,6 +315,12 @@ function createConversationId() {
 
 function normalizeLanguagePreference({ requestedLanguage, message }) {
   const explicit = String(requestedLanguage || '').trim().toLowerCase();
+  if (explicit === 'fr' || explicit === 'french' || explicit === 'francais' || explicit === 'français') {
+    return 'fr';
+  }
+  if (explicit === 'ar' || explicit === 'arabic' || explicit === 'العربية' || explicit === 'عربي') {
+    return 'ar';
+  }
   if (explicit === 'vi' || explicit === 'vn' || explicit === 'vietnamese') {
     return 'vi';
   }
@@ -322,10 +328,24 @@ function normalizeLanguagePreference({ requestedLanguage, message }) {
     return 'en';
   }
 
-  const source = String(message || '').toLowerCase();
+  const source = String(message || '');
+  const lowered = source.toLowerCase();
+  const hasArabicScript = /[\u0600-\u06FF]/.test(source);
+  if (hasArabicScript) {
+    return 'ar';
+  }
+
   const vietnameseHints = ['khong', 'khẩn', 'bao', 'xet nghiem', 'gan', 'than', 'toi', 'mình', 'tôi'];
-  const matched = vietnameseHints.some((hint) => source.includes(hint));
-  return matched ? 'vi' : 'en';
+  if (vietnameseHints.some((hint) => lowered.includes(hint))) {
+    return 'vi';
+  }
+
+  const frenchHints = ['bonjour', 'douleur', 'fatigue', 'analyse', 'resultat', 'résultat', 'sang', 'foie', 'rein'];
+  if (frenchHints.some((hint) => lowered.includes(hint))) {
+    return 'fr';
+  }
+
+  return 'en';
 }
 
 function normalizeDetailLevel(rawDetailLevel) {
@@ -476,14 +496,11 @@ function buildAnalysisContextForChat({ analysis, trendSnapshot }) {
   };
 }
 
-function buildDefaultDisclaimer(language) {
-  if (language === 'vi') {
-    return 'Thong tin nay chi de tham khao, khong thay the chan doan va chi dinh dieu tri tu bac si.';
-  }
+function buildDefaultDisclaimer() {
   return 'This information is for reference only and does not replace diagnosis or treatment from a licensed clinician.';
 }
 
-function sanitizeChatResult(raw, { allowedIndicators, allowedOrgans, language, emergencySignal, analysisRiskLevel }) {
+function sanitizeChatResult(raw, { allowedIndicators, allowedOrgans, emergencySignal, analysisRiskLevel }) {
   const fallbackRisk = emergencySignal ? 'urgent' : analysisRiskLevel;
   const normalizedRisk = (() => {
     const value = String(raw?.risk_level || '').trim().toLowerCase();
@@ -529,9 +546,7 @@ function sanitizeChatResult(raw, { allowedIndicators, allowedOrgans, language, e
     : [];
 
   const answerText = String(raw?.answer_text || '').trim();
-  const fallbackText = language === 'vi'
-    ? 'Da nhan cau hoi. Vui long tham khao ket qua xet nghiem va trao doi bac si neu co trieu chung bat thuong.'
-    : 'I received your question. Please review your lab results and contact a clinician if symptoms worsen.';
+  const fallbackText = 'I received your question. Please review your lab results and contact a clinician if symptoms worsen.';
 
   const escalation = Boolean(raw?.escalation) || normalizedRisk === 'urgent';
 
@@ -543,13 +558,12 @@ function sanitizeChatResult(raw, { allowedIndicators, allowedOrgans, language, e
     recommended_actions: recommendedActions,
     follow_up_questions: followUpQuestions,
     seven_day_plan: sevenDayPlan,
-    disclaimer: String(raw?.disclaimer || '').trim() || buildDefaultDisclaimer(language),
+    disclaimer: String(raw?.disclaimer || '').trim() || buildDefaultDisclaimer(),
     escalation
   };
 }
 
-function buildChatSystemPrompt({ language, detailLevel, emergencySignal }) {
-  const outputLanguage = language === 'vi' ? 'Vietnamese' : 'English';
+function buildChatSystemPrompt({ detailLevel, emergencySignal }) {
   const detailInstruction = detailLevel === 'clinical'
     ? 'Use clinically detailed wording while staying understandable for non-experts.'
     : 'Use simple, concise wording for everyday users.';
@@ -563,7 +577,8 @@ function buildChatSystemPrompt({ language, detailLevel, emergencySignal }) {
     emergencySignal
       ? 'Emergency signal is detected. Prioritize urgent safety guidance and escalation.'
       : 'If risk appears low or medium, provide calm practical guidance.',
-    `Respond in ${outputLanguage}.`,
+    'The user input can be English, Vietnamese, French, or Arabic.',
+    'Always respond in English, regardless of user input language.',
     'Return JSON only with schema:',
     '{',
     '  "answer_text": "string",',
@@ -699,7 +714,7 @@ function buildQwenMessages(fileUrl) {
     'Return valid JSON only, following the required schema.',
     'If the document is not a medical lab report or is too blurry, return an error JSON based on the contract.',
     'If data is missing, use empty strings instead of guessing.',
-    'Default output language is English unless explicitly requested otherwise.',
+    'All output text fields must be in English.',
     `Document to analyze: ${fileUrl}`
   ].join(' ');
 
@@ -866,20 +881,20 @@ async function persistAndEmitAnalysis({
 
   writeSseEvent(res, 'post_process', {
     stage: 'summary',
-    message: 'Da trich xuat xong chi so, dang tong hop ket qua.'
+    message: 'Indicator extraction completed. Building summary results.'
   });
 
   if (normalizedAnalysis.status === 'success') {
     try {
       writeSseEvent(res, 'post_process', {
         stage: 'advice',
-        message: 'Dang tao loi khuyen ca nhan hoa tu analysis pipeline.'
+        message: 'Generating personalized recommendations from the analysis pipeline.'
       });
       advice = await generateAdviceFromAnalysis(normalizedAnalysis, summary);
     } catch (adviceError) {
       console.error('Advice Generation Error:', adviceError.response?.data || adviceError.message);
       writeSseEvent(res, 'warning', {
-        message: 'Khong tao duoc loi khuyen tong quat, se tra ket qua xet nghiem co ban.'
+        message: 'Unable to generate overall recommendations. Returning core lab analysis results.'
       });
     }
   }
@@ -917,7 +932,7 @@ app.get('/api/analyses', (req, res) => {
     });
   } catch (error) {
     console.error('Analysis History Error:', error.message);
-    res.status(500).json({ error: 'Không thể đọc lịch sử xét nghiệm' });
+    res.status(500).json({ error: 'Unable to read analysis history' });
   }
 });
 
@@ -952,7 +967,7 @@ app.get('/api/sts-token', async (req, res) => {
     });
   } catch (error) {
     console.error('STS Error:', error);
-    res.status(500).json({ error: 'Không thể cấp quyền STS' });
+    res.status(500).json({ error: 'Unable to issue STS credentials' });
   }
 });
 
@@ -964,14 +979,14 @@ app.get('/api/sign-url', async (req, res) => {
   const { object_key } = req.query;
 
   if (!object_key) {
-    return res.status(400).json({ error: 'Thiếu object_key' });
+    return res.status(400).json({ error: 'Missing object_key' });
   }
 
   try {
     const sanitizedObjectKey = String(object_key).trim().replace(/^\/+/, '');
 
     if (!sanitizedObjectKey) {
-      return res.status(400).json({ error: 'object_key không hợp lệ' });
+      return res.status(400).json({ error: 'Invalid object_key' });
     }
 
     const expiresInSeconds = Number(req.query.expires_in || 300);
@@ -986,7 +1001,7 @@ app.get('/api/sign-url', async (req, res) => {
     });
   } catch (error) {
     console.error('OSS Sign URL Error:', error);
-    res.status(500).json({ error: 'Không thể tạo signed URL cho OSS object' });
+    res.status(500).json({ error: 'Unable to create signed URL for OSS object' });
   }
 });
 
@@ -999,7 +1014,7 @@ app.post('/api/analyze', async (req, res) => {
   const { file_url, object_key, local_file_path } = req.body;
 
   if (!file_url && !object_key && !local_file_path) {
-    return res.status(400).json({ error: 'Thiếu file_url, object_key hoặc local_file_path để phân tích' });
+    return res.status(400).json({ error: 'Missing file_url, object_key, or local_file_path for analysis' });
   }
 
   res.setHeader('Content-Type', 'text/event-stream; charset=utf-8');
@@ -1043,7 +1058,7 @@ app.post('/api/analyze', async (req, res) => {
 
     if (!analysisUrl && typeof object_key === 'string') {
       if (!normalizedObjectKey) {
-        writeSseEvent(res, 'error', { message: 'object_key không hợp lệ' });
+        writeSseEvent(res, 'error', { message: 'Invalid object_key' });
         return res.end();
       }
       analysisUrl = signObjectKey(normalizedObjectKey, 600);
@@ -1060,7 +1075,7 @@ app.post('/api/analyze', async (req, res) => {
         await fs.promises.access(localFilePath, fs.constants.R_OK);
       } catch (_) {
         writeSseEvent(res, 'error', {
-          message: 'Khong the doc file PDF cuc bo duoc chon tren may nay.'
+          message: 'Unable to read the selected local PDF file on this machine.'
         });
         return res.end();
       }
@@ -1071,8 +1086,8 @@ app.post('/api/analyze', async (req, res) => {
         writeSseEvent(res, 'post_process', {
           stage: 'pdf_pipeline',
           message: shouldUseLocalPdfPipeline
-            ? 'Dang chay pipeline PDF cuc bo cua analysis tren may demo.'
-            : 'Da nhan PDF, dang chay pipeline tach trang cua analysis.'
+            ? 'Running the local PDF analysis pipeline on this demo machine.'
+            : 'PDF received. Running the page-splitting analysis pipeline.'
         });
 
         const pipelineResult = await runAnalysisPdfPipeline({
@@ -1104,13 +1119,13 @@ app.post('/api/analyze', async (req, res) => {
         console.error('Analysis PDF Pipeline Error:', pdfPipelineError.stderr || pdfPipelineError.message);
         writeSseEvent(res, 'warning', {
           message: shouldUseLocalPdfPipeline
-            ? 'PDF pipeline cuc bo cua analysis gap loi.'
-            : 'PDF pipeline analysis khong kha dung, dang fallback ve luong phan tich mac dinh.'
+            ? 'The local analysis PDF pipeline failed.'
+            : 'The PDF analysis pipeline is unavailable. Falling back to the default analysis flow.'
         });
 
         if (shouldUseLocalPdfPipeline) {
           writeSseEvent(res, 'error', {
-            message: 'Khong the phan tich PDF cuc bo tren may demo. Thu lai voi anh chup hoac kiem tra pipeline PDF.'
+            message: 'Unable to analyze the local PDF on this demo machine. Retry with images or check the PDF pipeline setup.'
           });
           return res.end();
         }
@@ -1139,7 +1154,7 @@ app.post('/api/analyze', async (req, res) => {
       } catch (parseError) {
         if (emitError) {
           writeSseEvent(res, 'error', {
-            message: 'Không thể parse JSON cuối từ luồng Qwen',
+            message: 'Unable to parse the final JSON from the Qwen stream',
             raw_output: aggregatedText
           });
         }
@@ -1223,7 +1238,7 @@ app.post('/api/analyze', async (req, res) => {
         return res.end();
       }
       console.error('Qwen stream error:', streamError.message);
-      writeSseEvent(res, 'error', { message: 'Lỗi stream từ DashScope Singapore' });
+      writeSseEvent(res, 'error', { message: 'Stream error from DashScope Singapore' });
       res.end();
     });
   } catch (error) {
@@ -1231,7 +1246,7 @@ app.post('/api/analyze', async (req, res) => {
       return res.end();
     }
     console.error('Qwen API Error:', error.response?.data || error.message);
-    writeSseEvent(res, 'error', { message: 'Internal Server Lỗi khi gọi Qwen' });
+    writeSseEvent(res, 'error', { message: 'Internal server error while calling Qwen' });
     res.end();
   }
 });
@@ -1245,16 +1260,16 @@ app.post('/api/chat', async (req, res) => {
   const detailLevel = normalizeDetailLevel(req.body?.detail_level);
 
   if (!historyId) {
-    return res.status(400).json({ error: 'Thiếu history_id' });
+    return res.status(400).json({ error: 'Missing history_id' });
   }
 
   if (!message) {
-    return res.status(400).json({ error: 'Thiếu message' });
+    return res.status(400).json({ error: 'Missing message' });
   }
 
   const historyEntry = findAnalysisHistoryEntryById(historyId);
   if (!historyEntry) {
-    return res.status(404).json({ error: 'Không tìm thấy history_id tương ứng' });
+    return res.status(404).json({ error: 'No analysis found for the provided history_id' });
   }
 
   res.setHeader('Content-Type', 'text/event-stream; charset=utf-8');
@@ -1280,10 +1295,11 @@ app.post('/api/chat', async (req, res) => {
   });
 
   const conversationId = requestedConversationId || createConversationId();
-  const language = normalizeLanguagePreference({
+  const inputLanguage = normalizeLanguagePreference({
     requestedLanguage,
     message
   });
+  const outputLanguage = 'en';
 
   const analysis = historyEntry.analysis || {};
   const analysisRiskLevel = computeRiskLevelFromAnalysis(analysis);
@@ -1315,16 +1331,12 @@ app.post('/api/chat', async (req, res) => {
 
     writeSseEvent(res, 'post_process', {
       stage: 'context_ready',
-      message: language === 'vi'
-        ? 'Da nap bo nho hoi thoai va ket qua xet nghiem.'
-        : 'Conversation memory and analysis context loaded.'
+      message: 'Conversation memory and analysis context loaded.'
     });
 
     if (emergencySignal) {
       writeSseEvent(res, 'warning', {
-        message: language === 'vi'
-          ? 'Phat hien dau hieu nguy co cao. Chatbot se uu tien huong dan an toan va khuyen nghi di kham som.'
-          : 'High-risk signal detected. Chatbot will prioritize safety guidance and escalation.'
+        message: 'High-risk signal detected. Chatbot will prioritize safety guidance and escalation.'
       });
     }
 
@@ -1332,7 +1344,6 @@ app.post('/api/chat', async (req, res) => {
       {
         role: 'system',
         content: buildChatSystemPrompt({
-          language,
           detailLevel,
           emergencySignal
         })
@@ -1376,7 +1387,7 @@ app.post('/api/chat', async (req, res) => {
           recommended_actions: [],
           follow_up_questions: [],
           seven_day_plan: [],
-          disclaimer: buildDefaultDisclaimer(language),
+          disclaimer: buildDefaultDisclaimer(),
           escalation: emergencySignal
         };
       }
@@ -1396,7 +1407,6 @@ app.post('/api/chat', async (req, res) => {
       const assistantPayload = sanitizeChatResult(parsed, {
         allowedIndicators,
         allowedOrgans,
-        language,
         emergencySignal,
         analysisRiskLevel
       });
@@ -1406,7 +1416,7 @@ app.post('/api/chat', async (req, res) => {
         conversationId,
         userMessage: message,
         assistantPayload,
-        language,
+        language: outputLanguage,
         detailLevel
       });
 
@@ -1420,7 +1430,8 @@ app.post('/api/chat', async (req, res) => {
         history_id: historyId,
         conversation_id: conversationId,
         model: CHAT_LOCAL_MOCK ? 'local-mock' : DASHSCOPE_CHAT_MODEL,
-        language,
+        language: outputLanguage,
+        input_language: inputLanguage,
         detail_level: detailLevel,
         stream_completed: streamCompleted,
         message_count: Array.isArray(savedConversation.turns) ? savedConversation.turns.length : 0,
@@ -1437,18 +1448,14 @@ app.post('/api/chat', async (req, res) => {
 
     if (!process.env.DASHSCOPE_API_KEY && !CHAT_LOCAL_MOCK) {
       writeSseEvent(res, 'error', {
-        message: language === 'vi'
-          ? 'Thieu DASHSCOPE_API_KEY. Hay cau hinh key hoac bat CHAT_LOCAL_MOCK=1 de test local.'
-          : 'Missing DASHSCOPE_API_KEY. Configure the key or set CHAT_LOCAL_MOCK=1 for local testing.'
+        message: 'Missing DASHSCOPE_API_KEY. Configure the key or set CHAT_LOCAL_MOCK=1 for local testing.'
       });
       return res.end();
     }
 
     if (CHAT_LOCAL_MOCK) {
       const mockPayload = {
-        answer_text: language === 'vi'
-          ? 'Day la phan hoi mock de test local. He thong da doc context tu analysis, xac dinh nguy co va de xuat cac buoc tiep theo ngan gon.'
-          : 'This is a local mock response. The system grounded to analysis context, assessed risk, and proposed next actions.',
+        answer_text: 'This is a local mock response. The system grounded to analysis context, assessed risk, and proposed next actions.',
         risk_level: emergencySignal ? 'urgent' : analysisRiskLevel,
         cited_indicators: (Array.isArray(analysis?.results) ? analysis.results : [])
           .slice(0, 3)
@@ -1458,16 +1465,10 @@ app.post('/api/chat', async (req, res) => {
           .slice(0, 3)
           .map((item) => String(item.organ_id || '').toLowerCase())
           .filter(Boolean),
-        recommended_actions: language === 'vi'
-          ? ['Theo doi trieu chung hang ngay', 'Uu tien tai kham neu co dau hieu bat thuong', 'Duy tri che do an it muoi, du nuoc']
-          : ['Track symptoms daily', 'Schedule follow-up if symptoms worsen', 'Maintain low-sodium hydration-friendly habits'],
-        follow_up_questions: language === 'vi'
-          ? ['Chi so nao dang nguy co cao nhat?', 'Toi nen xet nghiem lai khi nao?', 'Can uu tien thay doi gi trong 7 ngay toi?']
-          : ['Which indicator has the highest risk?', 'When should I retest?', 'What are top priorities for the next 7 days?'],
-        seven_day_plan: language === 'vi'
-          ? ['Ngay 1-2: Uong du nuoc va theo doi trieu chung.', 'Ngay 3-4: Ghi lai che do an va huyet ap neu co.', 'Ngay 5-7: Danh gia lai trieu chung va lap lich tai kham neu can.']
-          : ['Day 1-2: Hydrate and monitor symptoms.', 'Day 3-4: Log diet and blood pressure if relevant.', 'Day 5-7: Reassess symptoms and book follow-up if needed.'],
-        disclaimer: buildDefaultDisclaimer(language),
+        recommended_actions: ['Track symptoms daily', 'Schedule follow-up if symptoms worsen', 'Maintain low-sodium hydration-friendly habits'],
+        follow_up_questions: ['Which indicator has the highest risk?', 'When should I retest?', 'What are top priorities for the next 7 days?'],
+        seven_day_plan: ['Day 1-2: Hydrate and monitor symptoms.', 'Day 3-4: Log diet and blood pressure if relevant.', 'Day 5-7: Reassess symptoms and book follow-up if needed.'],
+        disclaimer: buildDefaultDisclaimer(),
         escalation: emergencySignal
       };
 
@@ -1539,9 +1540,7 @@ app.post('/api/chat', async (req, res) => {
           }
         } catch (_) {
           writeSseEvent(res, 'warning', {
-            message: language === 'vi'
-              ? 'Nhan du lieu stream khong theo dinh dang JSON chunk. He thong bo qua chunk loi.'
-              : 'Received malformed stream chunk. The chunk was skipped.'
+            message: 'Received malformed stream chunk. The chunk was skipped.'
           });
         }
 
@@ -1557,9 +1556,7 @@ app.post('/api/chat', async (req, res) => {
       }
       console.error('Qwen chat stream error:', streamError.message);
       writeSseEvent(res, 'error', {
-        message: language === 'vi'
-          ? 'Loi stream tu DashScope khi chat.'
-          : 'DashScope stream error during chat.'
+        message: 'DashScope stream error during chat.'
       });
       res.end();
     });
@@ -1569,9 +1566,7 @@ app.post('/api/chat', async (req, res) => {
     }
     console.error('Chat API Error:', error.response?.data || error.message);
     writeSseEvent(res, 'error', {
-      message: language === 'vi'
-        ? 'Khong the xu ly chat luc nay. Thu lai sau it phut.'
-        : 'Unable to process chat right now. Please try again shortly.'
+      message: 'Unable to process chat right now. Please try again shortly.'
     });
     res.end();
   }
