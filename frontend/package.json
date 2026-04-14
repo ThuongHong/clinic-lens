@@ -1,0 +1,22 @@
+{
+    "name": "smart-labs-frontend",
+    "private": true,
+    "version": "0.1.0",
+    "scripts": {
+        "dev": "next dev",
+        "build": "next build",
+        "start": "next start"
+    },
+    "dependencies": {
+        "ali-oss": "^6.23.0",
+        "next": "14.2.33",
+        "react": "18.3.1",
+        "react-dom": "18.3.1"
+    },
+    "devDependencies": {
+        "@types/node": "^22.15.30",
+        "@types/react": "^18.3.23",
+        "@types/react-dom": "^18.3.7",
+        "typescript": "^5.8.3"
+    }
+}

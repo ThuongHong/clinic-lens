@@ -2,7 +2,7 @@
 
 set -e
 
-echo "🚀 Starting Smart Labs Analyzer Backend + Mobile Demo"
+echo "🚀 Starting Smart Labs Analyzer Backend + Web Demo"
 echo ""
 
 # Color codes
@@ -85,26 +85,35 @@ else
 fi
 echo ""
 
-# Step 5: Flutter
-echo -e "${YELLOW}Step 5: Flutter project setup...${NC}"
-if command -v flutter &> /dev/null; then
-  echo -e "${GREEN}✓ Flutter SDK found${NC}"
-  echo ""
-  echo -e "${YELLOW}Step 6: Running Flutter app...${NC}"
-  cd mobile
-  flutter pub get
-  flutter run
-  cd ..
-else
-  echo -e "${YELLOW}⚠ Flutter SDK not found locally${NC}"
-  echo "To run the Flutter app, please:"
-  echo "  1. Install Flutter from https://flutter.dev"
-  echo "  2. Run: cd mobile && flutter pub get && flutter run"
-  echo ""
-  echo "Backend is still running at http://localhost:9000"
-  echo "Press Ctrl+C to stop the backend server"
+# Step 5: Frontend
+echo -e "${YELLOW}Step 5: Frontend project setup...${NC}"
+if [ ! -d "frontend" ]; then
+  echo -e "${RED}❌ Frontend directory not found${NC}"
+  exit 1
+fi
 
-  if [ "$BACKEND_STARTED_BY_SCRIPT" -eq 1 ] && [ -n "$BACKEND_PID" ]; then
-    wait $BACKEND_PID
+if ! command -v node &> /dev/null; then
+  echo -e "${RED}❌ Node.js is required to run the frontend${NC}"
+  exit 1
+fi
+
+cd frontend
+if [ ! -d "node_modules" ] || [ ! -d "node_modules/next" ]; then
+  npm install
+else
+  echo "✓ Frontend dependencies already installed"
+fi
+
+if [ ! -f ".env.local" ]; then
+  if [ -f ".env.example" ]; then
+    cp .env.example .env.local
+    echo "✓ Created frontend/.env.local from .env.example"
+  else
+    echo -e "${YELLOW}⚠ frontend/.env.example not found; continuing without .env.local${NC}"
   fi
 fi
+
+echo ""
+echo -e "${YELLOW}Step 6: Running Next.js frontend...${NC}"
+NEXT_PUBLIC_BACKEND_BASE_URL=http://localhost:9000 PORT=3000 npm run dev
+

@@ -1,161 +1,63 @@
-# Smart Labs Analyzer - Qwen Build Day 2026
+# Smart Labs Analyzer - Implementation Summary
 
-# Dự án phân tích xét nghiệm y khoa thông minh với trải nghiệm text-first
+## Architecture
 
-## 📁 Cấu trúc Thư mục
+- Frontend: [frontend/](frontend/) built with Next.js.
+- Backend: [backend/](backend/) with Node.js + Express.
+- Storage: Alibaba Cloud OSS with STS-based direct upload.
+- Streaming: SSE from `POST /api/analyze` and `POST /api/chat`.
 
-```
-qwen_build_day/
-├── backend/               # Node.js/Express server proxy cho Qwen API
-│   ├── server.js         # Định nghĩa 3 endpoints: STS, sign-url, analyze
-│   └── package.json
-├── mobile/               # Flutter scaffold (chứa code Dart chuẩn)
-│   ├── lib/
-│   │   ├── main.dart
-│   │   ├── screens/      # Member 3: giao diện chính (analysis_screen.dart)
-│   │   ├── services/     # Backend API + OSS upload
-│   │   ├── models/       # JSON data contract
-│   │   └── widgets/      # summary/results/history + stream log panel
-│   └── pubspec.yaml
-├── .env                  # Secrets (tạo từ .env.example)
-├── .env.example          # Template biến môi trường
-├── FLUTTER_SETUP.md      # Hướng dẫn setup Flutter project chính thức
-├── CODING_GUIDELINES.md  # Quy tắc Git branching, Clean separation
-├── team_delegation.md    # Phân công 4 member
-└── README.md             # (File này) Kiến trúc hệ thống
-```
+## Backend Workflow
 
-## 🏗️ Backend Workflow
+### `GET /api/sts-token`
 
-Server Express chạy 3 API endpoint:
+- Returns temporary Alibaba STS credentials.
+- Used by the web frontend to upload directly to OSS.
 
-### 1. GET /api/sts-token
+### `GET /api/sign-url?object_key=...&expires_in=600`
 
-- Mobile gọi để xin quyền tạm (15 phút)
-- Server call Alibaba STS AssumeRole
-- Trả về AccessKeyId, AccessKeySecret, SecurityToken
+- Creates a short-lived signed URL for private OSS objects.
 
-### 2. GET /api/sign-url?object_key=...&expires_in=600
+### `POST /api/analyze`
 
-- Tạo signed URL cho file private trên OSS
-- TTL có thể cấu hình (mặc định 300 giây)
-- Dùng khi cần lấy file mà không expose bucket
+- Accepts uploaded file references and streams analysis output as SSE.
 
-### 3. POST /api/analyze
+### `POST /api/chat`
 
-- Mobile gửi URL file (ảnh/PDF trên OSS)
-- Server forward tới Qwen3.6-Plus API (DashScope)
-- Stream kết quả dưới dạng **SSE (Server-Sent Events)**
-- Qwen trả JSON theo data contract chuẩn
+- Accepts a selected history entry plus follow-up question.
+- Streams assistant text and final structured payload as SSE.
 
-### GET /health
+### `GET /health`
 
-- Health check endpoint (debug purpose)
+- Health check endpoint.
 
-## 📱 Mobile Flutter Flow
+## Data Contract
 
-1. **AnalysisScreen** (main UI)
-   - Pick file → Get STS token → Upload OSS → Stream analysis
-   - Hiển thị kết quả qua summary panel, results panel và history panel
+The backend normalizes lab analysis responses around:
 
-2. **BackendApi** (service)
-   - fetchStsToken(): GET /api/sts-token
-   - streamAnalysis(fileUrl): POST /api/analyze → SSE stream
+- `organ_id`: `kidneys`, `liver`, `heart`, `lungs`, `blood`, `pancreas`, `thyroid`, `bone`, `immune`, `other`
+- `severity`: `normal`, `abnormal_high`, `abnormal_low`, `critical`, `unknown`
 
-3. **FileUploadService** (service)
-   - uploadFileToOss(): Dùng STS token upload trực tiếp OSS
-   - (Hiện tại mock; cần thêm ali_oss package để dùng thực)
+## How to Run
 
-4. **Analysis Panels** (widget)
-   - `AnalysisSummaryPanel`: tổng hợp nhanh chỉ số bất thường và mức độ rủi ro
-   - `AnalysisResultsPanel`: liệt kê chi tiết kết quả xét nghiệm
-   - `AnalysisHistoryPanel`: xem lại các lần phân tích trước
-
-## 🔄 Data Contract: JSON Từ Qwen
-
-```json
-{
-  "status": "success",
-  "analysis_date": "2026-04-13",
-  "results": [
-    {
-      "indicator_name": "Creatinine",
-      "value": "1.8",
-      "unit": "mg/dL",
-      "reference_range": "0.7 - 1.2",
-      "organ_id": "kidneys",
-      "severity": "abnormal_high",
-      "patient_advice": "Uống đủ nước, giảm đồ mặn..."
-    }
-  ]
-}
-```
-
-**organ_id** có thể là: `kidneys`, `liver`, `heart`, `lungs`, `blood`, `other`
-**severity** có thể là: `normal`, `abnormal_low`, `abnormal_high`, `critical`
-
-## 🚀 Bắt đầu
-
-### Backend
+Backend:
 
 ```bash
 cd backend
 npm install
-# Cấu hình .env tại root hoặc backend/.env
 npm start
-# Server chạy trên http://localhost:9000
 ```
 
-### Mobile
+Frontend:
 
 ```bash
-# Xem FLUTTER_SETUP.md để hướng dẫn chi tiết
-flutter pub get
-flutter run
+cd frontend
+npm install
+cp .env.example .env.local
+npm run dev
 ```
 
-### Test
+## Current Status
 
-```bash
-bash test-backend.sh http://localhost:9000
-```
-
-## 📋 Checklist Hoàn Chỉnh (Member 1 + Member 3)
-
-### Member 1: Backend & Cloud
-
-- ✅ Node.js server với 3 API endpoint
-- ✅ Robust env loading (check root → backend)
-- ✅ SSE streaming cho analyze endpoint
-- ✅ Error handling + health endpoint
-- ⏳ Deploy lên Alibaba Function Compute (optional cho demo)
-- ⏳ Setup Alibaba Cloud (OSS, STS, IAM)
-
-### Member 3: Flutter
-
-- ✅ Analysis screen + control panel
-- ✅ Backend API client (STS, sign-url, stream)
-- ✅ Summary/results/history panels
-- ✅ Mock file upload service
-- ⏳ Real file picker (thêm file_picker package)
-- ⏳ Real OSS upload (thêm ali_oss package)
-- ⏳ Polish trải nghiệm đọc kết quả và lọc theo mức độ
-
-## 🔗 Liên Kết Ngoài
-
-- [Alibaba OSS Docs](https://help.aliyun.com/zh/oss)
-- [DashScope API](https://dashscope.console.aliyun.com/)
-- [Flutter Docs](https://flutter.dev/docs)
-- [Qwen Model Cards](https://huggingface.co/Qwen)
-
-## 📞 Troubleshooting
-
-- Backend không start? Kiểm tra `.env` có đủ secret không (xem `.env.example`)
-- Mobile app crash? Kiểm tra Flutter version `>=3.3.0`
-- OSS upload fail? Xác nhận bucket là private và IAM policy cho phép
-
----
-
-**Last updated**: 2026-04-13
-**Member 1**: Cloud Architect (Backend + STS setup)
-**Member 3**: Flutter UI (analysis panels)
+- Backend API and SSE flow are complete.
+- Web frontend is the primary UI.

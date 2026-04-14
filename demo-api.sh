@@ -15,12 +15,12 @@ echo ""
 echo ""
 
 # Demo 2: Fetch STS Token
-echo "2️⃣ Fetch STS Token (for mobile to upload OSS directly)"
+echo "2️⃣ Fetch STS Token (for frontend to upload OSS directly)"
 echo "GET $BACKEND_URL/api/sts-token"
 STS=$(curl -s "$BACKEND_URL/api/sts-token")
 echo "$STS" | jq .
 echo ""
-echo "✓ Mobile can now use these credentials to upload file to OSS"
+echo "✓ Frontend can now use these credentials to upload file to OSS"
 echo ""
 echo ""
 
@@ -52,5 +52,5 @@ echo ""
 echo "Next steps:"
 echo "1. Set up Alibaba Cloud credentials in .env"
 echo "2. Deploy to Alibaba Function Compute (optional)"
-echo "3. Build Flutter app with file picker + real OSS upload"
-echo "4. Polish summary/results/history panels"
+echo "3. Run the Next.js frontend and verify OSS upload"
+echo "4. Polish summary/results/chat/history panels"
