@@ -126,6 +126,7 @@ export default function SmartLabsApp() {
     const [patientName, setPatientName] = useState('');
     const [patientNameDraft, setPatientNameDraft] = useState('');
     const [showPatientNamePrompt, setShowPatientNamePrompt] = useState(true);
+    const [selectedOrganId, setSelectedOrganId] = useState<string>('all');
 
     const chatEndRef = useRef<HTMLDivElement | null>(null);
     const backendUrl = resolveBackendBaseUrl();
@@ -136,6 +137,27 @@ export default function SmartLabsApp() {
     );
 
     const currentAnalysis = analysis ?? selectedHistory?.analysis ?? null;
+    const currentResults = currentAnalysis?.results ?? [];
+
+    const organCounts = useMemo(() => {
+        const counts = new Map<string, number>();
+        for (const item of currentResults) {
+            const key = String(item.organ_id || 'other').trim().toLowerCase() || 'other';
+            counts.set(key, (counts.get(key) || 0) + 1);
+        }
+        return counts;
+    }, [currentResults]);
+
+    const visibleOrganIds = useMemo(() => {
+        return Array.from(organCounts.keys()).sort((a, b) => organLabel(a).localeCompare(organLabel(b)));
+    }, [organCounts]);
+
+    const visibleResults = useMemo(() => {
+        if (selectedOrganId === 'all') {
+            return currentResults;
+        }
+        return currentResults.filter((result) => String(result.organ_id || '').toLowerCase() === selectedOrganId);
+    }, [currentResults, selectedOrganId]);
 
     useEffect(() => { void loadHistory(); }, []);
 
@@ -156,6 +178,22 @@ export default function SmartLabsApp() {
             setAnalysis(history[0].analysis);
         }
     }, [history, selectedHistoryId]);
+
+    useEffect(() => {
+        if (!currentAnalysis || currentResults.length === 0) {
+            setSelectedOrganId('all');
+            return;
+        }
+
+        const abnormal = currentResults.find((item) => item.severity !== 'normal');
+        if (abnormal?.organ_id) {
+            setSelectedOrganId(String(abnormal.organ_id).toLowerCase());
+            return;
+        }
+
+        const first = currentResults[0];
+        setSelectedOrganId(first?.organ_id ? String(first.organ_id).toLowerCase() : 'all');
+    }, [currentAnalysis, currentResults]);
 
     async function loadHistory() {
         setHistoryLoading(true);
@@ -522,7 +560,7 @@ export default function SmartLabsApp() {
                                 Upload a PDF or image of lab results. The system extracts, analyzes,
                                 and streams clinical insights in real time via Qwen Vision Language Model.
                             </p>
-                            <div className="heroActions">
+                            {/* <div className="heroActions">
                                 <label htmlFor="lab-file-input" className="btn btn-primary btn-label">
                                     <IconUpload /> Choose file
                                 </label>
@@ -532,10 +570,10 @@ export default function SmartLabsApp() {
                                 <button className="btn btn-ghost" type="button" onClick={() => setActiveTab('history')}>
                                     <IconClock /> History
                                 </button>
-                            </div>
+                            </div> */}
                         </div>
 
-                        <div className="heroMetrics" aria-label="System info">
+                        {/* <div className="heroMetrics" aria-label="System info">
                             <div className="heroMetricCard">
                                 <span className="metricLabel">Backend endpoint</span>
                                 <span className="metricValue">{backendUrl}</span>
@@ -544,7 +582,7 @@ export default function SmartLabsApp() {
                                 <span className="metricLabel">Current status</span>
                                 <span className="metricValue">{status}</span>
                             </div>
-                        </div>
+                        </div> */}
                     </div>
 
                     <div className="statsRow" role="list" aria-label="Summary metrics">
@@ -605,24 +643,29 @@ export default function SmartLabsApp() {
                                         onChange={onPickFile}
                                         aria-label="Select lab report file"
                                     />
-                                    <div className="uploadZoneContent">
-                                        <div className="uploadIcon" aria-hidden="true">
-                                            {selectedFile ? <IconFile /> : <IconUpload />}
+                                    <div className="compactUploadBar">
+                                        <div className="compactUploadLeft">
+                                            <div className="uploadIcon" aria-hidden="true">
+                                                {selectedFile ? <IconFile /> : <IconUpload />}
+                                            </div>
+                                            <div className="compactUploadText">
+                                                <div className="uploadTitle">
+                                                    {selectedFile ? selectedFile.name : 'Choose lab file'}
+                                                </div>
+                                                <div className="uploadHint">
+                                                    {selectedFile
+                                                        ? `${formatFileSize(selectedFile.size)} · tap to change`
+                                                        : 'PDF, PNG, JPG, JPEG, WEBP · Max 20 MB'}
+                                                </div>
+                                            </div>
                                         </div>
-                                        <div className="uploadTitle">
-                                            {selectedFile ? 'File selected — click to change' : 'Drag & drop or click to select'}
-                                        </div>
-                                        <div className="uploadHint">PDF, PNG, JPG, JPEG, WEBP · Max 20 MB</div>
+                                        <label htmlFor="lab-file-input" className="btn btn-secondary btn-label compactPickBtn">
+                                            Change
+                                        </label>
                                     </div>
-                                    {selectedFile && (
-                                        <div className="uploadFileMeta">
-                                            <span className="uploadFileName">{selectedFile.name}</span>
-                                            <span className="uploadFileSize">{formatFileSize(selectedFile.size)}</span>
-                                        </div>
-                                    )}
                                 </div>
 
-                                <div className="heroActions" style={{ marginTop: '14px' }}>
+                                <div className="heroActions" style={{ marginTop: '10px' }}>
                                     <button className="btn btn-primary" type="button"
                                         onClick={onRunAnalysis} disabled={analysisBusy || !selectedFile}
                                         aria-busy={analysisBusy}>
@@ -703,31 +746,69 @@ export default function SmartLabsApp() {
                                             </div>
                                         </div>
 
-                                        {currentAnalysis.results.length > 0 && (
-                                            <div className="resultGrid">
-                                                {currentAnalysis.results.map((result) => (
-                                                    <div key={`${result.indicator_name}-${result.organ_id}`} className="resultCard">
-                                                        <div className="resultTopRow">
-                                                            <div>
-                                                                <div className="resultName">{result.indicator_name}</div>
-                                                                <div className="resultMeta">
-                                                                    {organLabel(result.organ_id)} · {result.reference_range || 'N/A'}
+                                        {currentResults.length > 0 && (
+                                            <>
+                                                <div className="sectionCard" style={{ marginTop: 0 }}>
+                                                    <div className="sectionTitle">Filter by organ</div>
+                                                    <div className="chipWrap" style={{ marginTop: 0 }}>
+                                                        <button
+                                                            type="button"
+                                                            onClick={() => setSelectedOrganId('all')}
+                                                            className={selectedOrganId === 'all' ? 'chip active' : 'chip'}>
+                                                            <span className="organFilterIcon" aria-hidden="true">🧭</span>
+                                                            All · {currentResults.length}
+                                                        </button>
+                                                        {visibleOrganIds.map((organId) => {
+                                                            const count = organCounts.get(organId) || 0;
+                                                            if (count === 0) {
+                                                                return null;
+                                                            }
+                                                            return (
+                                                                <button
+                                                                    key={organId}
+                                                                    type="button"
+                                                                    onClick={() => setSelectedOrganId(organId)}
+                                                                    className={selectedOrganId === organId ? 'chip active' : 'chip'}>
+                                                                    <span className="organFilterIcon" aria-hidden="true">{organAbbr(organId)}</span>
+                                                                    {organLabel(organId)} · {count}
+                                                                </button>
+                                                            );
+                                                        })}
+                                                    </div>
+                                                </div>
+
+                                                <div className="resultGrid">
+                                                    {visibleResults.map((result) => (
+                                                        <div key={`${result.indicator_name}-${result.organ_id}`} className="resultCard">
+                                                            <div className="resultTopRow">
+                                                                <div>
+                                                                    <div className="resultName">{result.indicator_name}</div>
+                                                                    <div className="resultMeta">
+                                                                        {organLabel(result.organ_id)} · {result.reference_range || 'N/A'}
+                                                                    </div>
+                                                                </div>
+                                                                <div className={getSeverityClass(result.severity)}>
+                                                                    {severityLabel(result.severity)}
                                                                 </div>
                                                             </div>
-                                                            <div className={getSeverityClass(result.severity)}>
-                                                                {severityLabel(result.severity)}
+                                                            <div className="resultValueRow">
+                                                                <strong>{result.value || '—'}</strong>
+                                                                <span>{result.unit}</span>
                                                             </div>
+                                                            {result.patient_advice && (
+                                                                <p className="resultAdvice">{result.patient_advice}</p>
+                                                            )}
                                                         </div>
-                                                        <div className="resultValueRow">
-                                                            <strong>{result.value || '—'}</strong>
-                                                            <span>{result.unit}</span>
-                                                        </div>
-                                                        {result.patient_advice && (
-                                                            <p className="resultAdvice">{result.patient_advice}</p>
-                                                        )}
+                                                    ))}
+                                                </div>
+
+                                                {visibleResults.length === 0 && (
+                                                    <div className="emptyState" role="status">
+                                                        <div className="emptyStateIcon" aria-hidden="true"><IconEmpty /></div>
+                                                        <p>No indicators found for this organ.</p>
                                                     </div>
-                                                ))}
-                                            </div>
+                                                )}
+                                            </>
                                         )}
 
                                         {currentAnalysis.summary?.organ_summary?.length ? (
@@ -958,9 +1039,6 @@ export default function SmartLabsApp() {
                                                     aria-pressed={isSelected}>
                                                     <div className="historyItemTopRow">
                                                         <div>
-                                                            <div className="historyPatient">
-                                                                {entry.analysis.patient_name?.trim() || 'Unknown patient'}
-                                                            </div>
                                                             <div className="historyDate">
                                                                 <IconClock /> {formatDateTime(entry.created_at)}
                                                             </div>
@@ -1010,12 +1088,6 @@ export default function SmartLabsApp() {
                                 {currentAnalysis ? (
                                     <div style={{ display: 'grid', gap: '12px' }}>
                                         <div className="analysisHeaderStrip">
-                                            <div className="analysisHeaderCell">
-                                                <div className="metricLabel">Patient</div>
-                                                <strong style={{ fontSize: '0.92rem', color: 'var(--text)' }}>
-                                                    {currentAnalysis.patient_name?.trim() || 'Unknown patient'}
-                                                </strong>
-                                            </div>
                                             <div className="analysisHeaderCell">
                                                 <div className="metricLabel">Status</div>
                                                 <strong style={{ fontSize: '0.92rem', color: 'var(--text)' }}>
@@ -1093,7 +1165,41 @@ function formatError(error: unknown) {
 }
 
 function organLabel(organId: string) {
-    return (ORGAN_LABELS[organId] ?? organId) || 'Other';
+    const normalized = String(organId || 'other').trim().toLowerCase();
+    if (ORGAN_LABELS[normalized]) {
+        return ORGAN_LABELS[normalized];
+    }
+    if (!normalized) {
+        return 'Other';
+    }
+    return normalized
+        .replace(/[_-]+/g, ' ')
+        .replace(/\b\w/g, (char) => char.toUpperCase());
+}
+
+function organAbbr(organId: string) {
+    const map: Record<string, string> = {
+        kidneys: '🫘',
+        liver: '🟤',
+        heart: '❤️',
+        lungs: '🫁',
+        blood: '🩸',
+        pancreas: '🧪',
+        thyroid: '🦋',
+        bone: '🦴',
+        immune: '🛡️',
+
+        electrolytes: '⚡',
+        endocrine: '🔬',
+        metabolism: '🍬',
+        urine: '🚽',
+        coagulation: '🩹',
+        lipid: '🧈',
+        infection: '🦠',
+
+        other: '🧪'
+    };
+    return map[organId] ?? '🧪';
 }
 
 function severityLabel(severity: string) {
