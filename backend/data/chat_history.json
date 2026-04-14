@@ -1,0 +1,347 @@
+{
+  "analysis_seed_1776160015278": {
+    "conversations": {
+      "f97be647-dfd3-4c62-9faf-4b57ddacf2c3": {
+        "conversation_id": "f97be647-dfd3-4c62-9faf-4b57ddacf2c3",
+        "language": "vi",
+        "detail_level": "simple",
+        "created_at": "2026-04-14T09:46:55.295Z",
+        "updated_at": "2026-04-14T09:46:55.295Z",
+        "turns": [
+          {
+            "role": "user",
+            "message": "Tom tat nguy co tong quan cho toi",
+            "created_at": "2026-04-14T09:46:55.295Z"
+          },
+          {
+            "role": "assistant",
+            "message": "Day la phan hoi mock de test local. He thong da doc context tu analysis, xac dinh nguy co va de xuat cac buoc tiep theo ngan gon.",
+            "payload": {
+              "answer_text": "Day la phan hoi mock de test local. He thong da doc context tu analysis, xac dinh nguy co va de xuat cac buoc tiep theo ngan gon.",
+              "risk_level": "high",
+              "cited_indicators": [
+                "Creatinine",
+                "AST (SGOT)",
+                "Hemoglobin"
+              ],
+              "cited_organs": [
+                "kidneys",
+                "liver",
+                "blood"
+              ],
+              "recommended_actions": [
+                "Theo doi trieu chung hang ngay",
+                "Uu tien tai kham neu co dau hieu bat thuong",
+                "Duy tri che do an it muoi, du nuoc"
+              ],
+              "follow_up_questions": [
+                "Chi so nao dang nguy co cao nhat?",
+                "Toi nen xet nghiem lai khi nao?",
+                "Can uu tien thay doi gi trong 7 ngay toi?"
+              ],
+              "seven_day_plan": [
+                "Ngay 1-2: Uong du nuoc va theo doi trieu chung.",
+                "Ngay 3-4: Ghi lai che do an va huyet ap neu co.",
+                "Ngay 5-7: Danh gia lai trieu chung va lap lich tai kham neu can."
+              ],
+              "disclaimer": "Thong tin nay chi de tham khao, khong thay the chan doan va chi dinh dieu tri tu bac si.",
+              "escalation": false
+            },
+            "created_at": "2026-04-14T09:46:55.295Z"
+          }
+        ]
+      },
+      "59a46102-6c9b-4070-a7ad-5595fe5cb8aa": {
+        "conversation_id": "59a46102-6c9b-4070-a7ad-5595fe5cb8aa",
+        "language": "en",
+        "detail_level": "simple",
+        "created_at": "2026-04-14T09:46:55.301Z",
+        "updated_at": "2026-04-14T09:46:55.301Z",
+        "turns": [
+          {
+            "role": "user",
+            "message": "Please answer in English with key risks only.",
+            "created_at": "2026-04-14T09:46:55.301Z"
+          },
+          {
+            "role": "assistant",
+            "message": "This is a local mock response. The system grounded to analysis context, assessed risk, and proposed next actions.",
+            "payload": {
+              "answer_text": "This is a local mock response. The system grounded to analysis context, assessed risk, and proposed next actions.",
+              "risk_level": "high",
+              "cited_indicators": [
+                "Creatinine",
+                "AST (SGOT)",
+                "Hemoglobin"
+              ],
+              "cited_organs": [
+                "kidneys",
+                "liver",
+                "blood"
+              ],
+              "recommended_actions": [
+                "Track symptoms daily",
+                "Schedule follow-up if symptoms worsen",
+                "Maintain low-sodium hydration-friendly habits"
+              ],
+              "follow_up_questions": [
+                "Which indicator has the highest risk?",
+                "When should I retest?",
+                "What are top priorities for the next 7 days?"
+              ],
+              "seven_day_plan": [
+                "Day 1-2: Hydrate and monitor symptoms.",
+                "Day 3-4: Log diet and blood pressure if relevant.",
+                "Day 5-7: Reassess symptoms and book follow-up if needed."
+              ],
+              "disclaimer": "This information is for reference only and does not replace diagnosis or treatment from a licensed clinician.",
+              "escalation": false
+            },
+            "created_at": "2026-04-14T09:46:55.301Z"
+          }
+        ]
+      },
+      "ce6197e0-5576-4e2c-a51d-2e94d3c29be1": {
+        "conversation_id": "ce6197e0-5576-4e2c-a51d-2e94d3c29be1",
+        "language": "en",
+        "detail_level": "clinical",
+        "created_at": "2026-04-14T09:46:55.307Z",
+        "updated_at": "2026-04-14T09:46:55.307Z",
+        "turns": [
+          {
+            "role": "user",
+            "message": "Give a detailed clinical explanation for each abnormal marker.",
+            "created_at": "2026-04-14T09:46:55.307Z"
+          },
+          {
+            "role": "assistant",
+            "message": "This is a local mock response. The system grounded to analysis context, assessed risk, and proposed next actions.",
+            "payload": {
+              "answer_text": "This is a local mock response. The system grounded to analysis context, assessed risk, and proposed next actions.",
+              "risk_level": "high",
+              "cited_indicators": [
+                "Creatinine",
+                "AST (SGOT)",
+                "Hemoglobin"
+              ],
+              "cited_organs": [
+                "kidneys",
+                "liver",
+                "blood"
+              ],
+              "recommended_actions": [
+                "Track symptoms daily",
+                "Schedule follow-up if symptoms worsen",
+                "Maintain low-sodium hydration-friendly habits"
+              ],
+              "follow_up_questions": [
+                "Which indicator has the highest risk?",
+                "When should I retest?",
+                "What are top priorities for the next 7 days?"
+              ],
+              "seven_day_plan": [
+                "Day 1-2: Hydrate and monitor symptoms.",
+                "Day 3-4: Log diet and blood pressure if relevant.",
+                "Day 5-7: Reassess symptoms and book follow-up if needed."
+              ],
+              "disclaimer": "This information is for reference only and does not replace diagnosis or treatment from a licensed clinician.",
+              "escalation": false
+            },
+            "created_at": "2026-04-14T09:46:55.307Z"
+          }
+        ]
+      },
+      "d4505482-76b1-44a7-bff4-c3b8e3f027af": {
+        "conversation_id": "d4505482-76b1-44a7-bff4-c3b8e3f027af",
+        "language": "en",
+        "detail_level": "simple",
+        "created_at": "2026-04-14T09:46:55.312Z",
+        "updated_at": "2026-04-14T09:46:55.316Z",
+        "turns": [
+          {
+            "role": "user",
+            "message": "Remember this: I prefer concise replies.",
+            "created_at": "2026-04-14T09:46:55.312Z"
+          },
+          {
+            "role": "assistant",
+            "message": "This is a local mock response. The system grounded to analysis context, assessed risk, and proposed next actions.",
+            "payload": {
+              "answer_text": "This is a local mock response. The system grounded to analysis context, assessed risk, and proposed next actions.",
+              "risk_level": "high",
+              "cited_indicators": [
+                "Creatinine",
+                "AST (SGOT)",
+                "Hemoglobin"
+              ],
+              "cited_organs": [
+                "kidneys",
+                "liver",
+                "blood"
+              ],
+              "recommended_actions": [
+                "Track symptoms daily",
+                "Schedule follow-up if symptoms worsen",
+                "Maintain low-sodium hydration-friendly habits"
+              ],
+              "follow_up_questions": [
+                "Which indicator has the highest risk?",
+                "When should I retest?",
+                "What are top priorities for the next 7 days?"
+              ],
+              "seven_day_plan": [
+                "Day 1-2: Hydrate and monitor symptoms.",
+                "Day 3-4: Log diet and blood pressure if relevant.",
+                "Day 5-7: Reassess symptoms and book follow-up if needed."
+              ],
+              "disclaimer": "This information is for reference only and does not replace diagnosis or treatment from a licensed clinician.",
+              "escalation": false
+            },
+            "created_at": "2026-04-14T09:46:55.312Z"
+          },
+          {
+            "role": "user",
+            "message": "Now continue with the same thread and summarize in one paragraph.",
+            "created_at": "2026-04-14T09:46:55.316Z"
+          },
+          {
+            "role": "assistant",
+            "message": "This is a local mock response. The system grounded to analysis context, assessed risk, and proposed next actions.",
+            "payload": {
+              "answer_text": "This is a local mock response. The system grounded to analysis context, assessed risk, and proposed next actions.",
+              "risk_level": "high",
+              "cited_indicators": [
+                "Creatinine",
+                "AST (SGOT)",
+                "Hemoglobin"
+              ],
+              "cited_organs": [
+                "kidneys",
+                "liver",
+                "blood"
+              ],
+              "recommended_actions": [
+                "Track symptoms daily",
+                "Schedule follow-up if symptoms worsen",
+                "Maintain low-sodium hydration-friendly habits"
+              ],
+              "follow_up_questions": [
+                "Which indicator has the highest risk?",
+                "When should I retest?",
+                "What are top priorities for the next 7 days?"
+              ],
+              "seven_day_plan": [
+                "Day 1-2: Hydrate and monitor symptoms.",
+                "Day 3-4: Log diet and blood pressure if relevant.",
+                "Day 5-7: Reassess symptoms and book follow-up if needed."
+              ],
+              "disclaimer": "This information is for reference only and does not replace diagnosis or treatment from a licensed clinician.",
+              "escalation": false
+            },
+            "created_at": "2026-04-14T09:46:55.316Z"
+          }
+        ]
+      },
+      "9f5abbb9-580b-4b96-8f94-329127f051fc": {
+        "conversation_id": "9f5abbb9-580b-4b96-8f94-329127f051fc",
+        "language": "vi",
+        "detail_level": "simple",
+        "created_at": "2026-04-14T09:46:55.321Z",
+        "updated_at": "2026-04-14T09:46:55.321Z",
+        "turns": [
+          {
+            "role": "user",
+            "message": "Toi dang dau nguc va kho tho, toi nen lam gi ngay bay gio?",
+            "created_at": "2026-04-14T09:46:55.321Z"
+          },
+          {
+            "role": "assistant",
+            "message": "Day la phan hoi mock de test local. He thong da doc context tu analysis, xac dinh nguy co va de xuat cac buoc tiep theo ngan gon.",
+            "payload": {
+              "answer_text": "Day la phan hoi mock de test local. He thong da doc context tu analysis, xac dinh nguy co va de xuat cac buoc tiep theo ngan gon.",
+              "risk_level": "urgent",
+              "cited_indicators": [
+                "Creatinine",
+                "AST (SGOT)",
+                "Hemoglobin"
+              ],
+              "cited_organs": [
+                "kidneys",
+                "liver",
+                "blood"
+              ],
+              "recommended_actions": [
+                "Theo doi trieu chung hang ngay",
+                "Uu tien tai kham neu co dau hieu bat thuong",
+                "Duy tri che do an it muoi, du nuoc"
+              ],
+              "follow_up_questions": [
+                "Chi so nao dang nguy co cao nhat?",
+                "Toi nen xet nghiem lai khi nao?",
+                "Can uu tien thay doi gi trong 7 ngay toi?"
+              ],
+              "seven_day_plan": [
+                "Ngay 1-2: Uong du nuoc va theo doi trieu chung.",
+                "Ngay 3-4: Ghi lai che do an va huyet ap neu co.",
+                "Ngay 5-7: Danh gia lai trieu chung va lap lich tai kham neu can."
+              ],
+              "disclaimer": "Thong tin nay chi de tham khao, khong thay the chan doan va chi dinh dieu tri tu bac si.",
+              "escalation": true
+            },
+            "created_at": "2026-04-14T09:46:55.321Z"
+          }
+        ]
+      },
+      "a58d8b0c-e705-42a0-a78d-056b2b258c22": {
+        "conversation_id": "a58d8b0c-e705-42a0-a78d-056b2b258c22",
+        "language": "vi",
+        "detail_level": "simple",
+        "created_at": "2026-04-14T09:46:55.326Z",
+        "updated_at": "2026-04-14T09:46:55.326Z",
+        "turns": [
+          {
+            "role": "user",
+            "message": "Chi ra cac chi so dang duoc trich dan trong tra loi.",
+            "created_at": "2026-04-14T09:46:55.326Z"
+          },
+          {
+            "role": "assistant",
+            "message": "Day la phan hoi mock de test local. He thong da doc context tu analysis, xac dinh nguy co va de xuat cac buoc tiep theo ngan gon.",
+            "payload": {
+              "answer_text": "Day la phan hoi mock de test local. He thong da doc context tu analysis, xac dinh nguy co va de xuat cac buoc tiep theo ngan gon.",
+              "risk_level": "high",
+              "cited_indicators": [
+                "Creatinine",
+                "AST (SGOT)",
+                "Hemoglobin"
+              ],
+              "cited_organs": [
+                "kidneys",
+                "liver",
+                "blood"
+              ],
+              "recommended_actions": [
+                "Theo doi trieu chung hang ngay",
+                "Uu tien tai kham neu co dau hieu bat thuong",
+                "Duy tri che do an it muoi, du nuoc"
+              ],
+              "follow_up_questions": [
+                "Chi so nao dang nguy co cao nhat?",
+                "Toi nen xet nghiem lai khi nao?",
+                "Can uu tien thay doi gi trong 7 ngay toi?"
+              ],
+              "seven_day_plan": [
+                "Ngay 1-2: Uong du nuoc va theo doi trieu chung.",
+                "Ngay 3-4: Ghi lai che do an va huyet ap neu co.",
+                "Ngay 5-7: Danh gia lai trieu chung va lap lich tai kham neu can."
+              ],
+              "disclaimer": "Thong tin nay chi de tham khao, khong thay the chan doan va chi dinh dieu tri tu bac si.",
+              "escalation": false
+            },
+            "created_at": "2026-04-14T09:46:55.326Z"
+          }
+        ]
+      }
+    }
+  }
+}

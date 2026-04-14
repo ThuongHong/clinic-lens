@@ -8,7 +8,9 @@
     "analysis:test": "node analysis_runner.js",
     "analysis:dry-run": "node analysis_runner.js --dry-run",
     "analysis:summary": "python analysis_pdf_pipeline.py",
-    "analysis:advice": "python analysis_advice_from_summary.py"
+    "analysis:advice": "python analysis_advice_from_summary.py",
+    "chat:smoke": "node chat_smoke_test.js",
+    "chat:test": "node chat_feature_tests.js"
   },
   "dependencies": {
     "@alicloud/pop-core": "^1.7.13",
