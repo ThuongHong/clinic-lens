@@ -61,6 +61,7 @@ interface PatientNamePromptProps {
 
 interface ReferenceRangeBarProps {
     value: string;
+    unit: string;
     referenceRange: string;
     severity: string;
 }
@@ -451,26 +452,24 @@ function OverviewTab({
                                         {visibleResults.map((result) => (
                                             <div key={`${result.indicator_name}-${result.organ_id}`} className={getResultCardClass(result.severity)}>
                                                 <div className="resultTopRow">
-                                                    <div>
-                                                        <div className="resultNameRow">
-                                                            <div className="resultName">{result.indicator_name}</div>
-                                                            <button
-                                                                type="button"
-                                                                className="indicatorInfoButton"
-                                                                onClick={() => setActiveInfoResult(result)}
-                                                                aria-label={`Open indicator details for ${result.indicator_name}`}
-                                                                title="Open indicator details"
-                                                            >
-                                                                i
-                                                            </button>
-                                                        </div>
-                                                        <div className="resultMeta">
-                                                            {organLabel(result.organ_id)} · {result.reference_range || 'N/A'}
-                                                        </div>
+                                                    <div className="resultNameRow">
+                                                        <div className="resultName">{result.indicator_name}</div>
+                                                        <button
+                                                            type="button"
+                                                            className="indicatorInfoButton"
+                                                            onClick={() => setActiveInfoResult(result)}
+                                                            aria-label={`Open indicator details for ${result.indicator_name}`}
+                                                            title="Open indicator details"
+                                                        >
+                                                            i
+                                                        </button>
                                                     </div>
-                                                    <div className={getSeverityClass(result.severity)} aria-label={`Severity ${severityLabel(result.severity)}`}>
-                                                        <span className="severityIcon" aria-hidden="true">{severityIcon(result.severity)}</span>
-                                                        {severityLabel(result.severity)}
+                                                    <div className="resultTopMeta">
+                                                        <span className="resultMetaTag">{organLabel(result.organ_id)}</span>
+                                                        <div className={getSeverityClass(result.severity)} aria-label={`Status ${displayStatusLabel(result.severity)}`}>
+                                                            <span className="severityIcon" aria-hidden="true">{displayStatusIcon(result.severity)}</span>
+                                                            {displayStatusLabel(result.severity)}
+                                                        </div>
                                                     </div>
                                                 </div>
                                                 <div className="resultValueRow">
@@ -479,6 +478,7 @@ function OverviewTab({
                                                 </div>
                                                 <ReferenceRangeBar
                                                     value={result.value}
+                                                    unit={result.unit}
                                                     referenceRange={result.reference_range}
                                                     severity={result.severity}
                                                 />
@@ -1493,15 +1493,15 @@ export default function SmartLabsApp() {
                                             {currentAnalysis.results.slice(0, 6).map((result) => (
                                                 <div key={`hist-${result.indicator_name}-${result.organ_id}`} className={getResultCardClass(result.severity)}>
                                                     <div className="resultTopRow">
-                                                        <div>
+                                                        <div className="resultNameRow">
                                                             <div className="resultName">{result.indicator_name}</div>
-                                                            <div className="resultMeta">
-                                                                {organLabel(result.organ_id)} · {result.reference_range || 'N/A'}
-                                                            </div>
                                                         </div>
-                                                        <div className={getSeverityClass(result.severity)}>
-                                                            <span className="severityIcon" aria-hidden="true">{severityIcon(result.severity)}</span>
-                                                            {severityLabel(result.severity)}
+                                                        <div className="resultTopMeta">
+                                                            <span className="resultMetaTag">{organLabel(result.organ_id)}</span>
+                                                            <div className={getSeverityClass(result.severity)}>
+                                                                <span className="severityIcon" aria-hidden="true">{displayStatusIcon(result.severity)}</span>
+                                                                {displayStatusLabel(result.severity)}
+                                                            </div>
                                                         </div>
                                                     </div>
                                                     <div className="resultValueRow">
@@ -1510,6 +1510,7 @@ export default function SmartLabsApp() {
                                                     </div>
                                                     <ReferenceRangeBar
                                                         value={result.value}
+                                                        unit={result.unit}
                                                         referenceRange={result.reference_range}
                                                         severity={result.severity}
                                                     />
@@ -1595,15 +1596,12 @@ function organAbbr(organId: string) {
     return map[organId] ?? '🧪';
 }
 
-function severityLabel(severity: string) {
-    return STATUS_LABELS[severity] ?? severity;
+function displayStatusLabel(severity: string) {
+    return String(severity || '').toLowerCase() === 'normal' ? 'Normal' : 'Abnormal';
 }
 
-function severityIcon(severity: string) {
-    if (severity === 'critical') return '⛔';
-    if (severity === 'abnormal_high' || severity === 'abnormal_low') return '⚠️';
-    if (severity === 'normal') return '✓';
-    return '•';
+function displayStatusIcon(severity: string) {
+    return String(severity || '').toLowerCase() === 'normal' ? '✓' : '!';
 }
 
 function getSeverityClass(severity: string) { return `severity-badge severity-${severity}`; }
@@ -1668,7 +1666,7 @@ function validateUploadFile(file: File) {
     return null;
 }
 
-function ReferenceRangeBar({ value, referenceRange, severity }: ReferenceRangeBarProps) {
+function ReferenceRangeBar({ value, unit, referenceRange, severity }: ReferenceRangeBarProps) {
     const visual = useMemo(() => buildReferenceRangeVisual(referenceRange, value), [referenceRange, value]);
 
     if (!visual) {
@@ -1683,6 +1681,12 @@ function ReferenceRangeBar({ value, referenceRange, severity }: ReferenceRangeBa
         : severity === 'critical'
             ? 'resultRangeMarker marker-critical'
             : 'resultRangeMarker marker-abnormal';
+    const markerEdgeClass = markerLeft < 16
+        ? 'align-left'
+        : markerLeft > 84
+            ? 'align-right'
+            : 'align-center';
+    const currentLabel = [String(value || '').trim(), String(unit || '').trim()].filter(Boolean).join(' ') || 'N/A';
 
     return (
         <div className="resultRangeBlock" aria-label="Reference range visualization">
@@ -1695,7 +1699,9 @@ function ReferenceRangeBar({ value, referenceRange, severity }: ReferenceRangeBa
                     className="resultRangeNormalBand"
                     style={{ left: `${normalLeft}%`, width: `${Math.max(normalRight - normalLeft, 3)}%` }}
                 />
-                <div className={markerClass} style={{ left: `${markerLeft}%` }} />
+                <div className={`resultRangeMarkerAnchor ${markerEdgeClass}`} style={{ left: `${markerLeft}%` }}>
+                    <div className={markerClass} />
+                </div>
             </div>
             <div className="resultRangeLegend">
                 <span>Low</span>

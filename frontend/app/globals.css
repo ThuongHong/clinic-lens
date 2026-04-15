@@ -980,7 +980,7 @@ body::after {
 .resultTopRow {
     display: flex;
     justify-content: space-between;
-    align-items: flex-start;
+    align-items: center;
     gap: 10px;
 }
 
@@ -995,6 +995,31 @@ body::after {
     display: flex;
     align-items: center;
     gap: 8px;
+    min-height: 24px;
+    min-width: 0;
+}
+
+.resultTopMeta {
+    display: inline-flex;
+    align-items: center;
+    justify-content: flex-end;
+    gap: 8px;
+    flex-shrink: 0;
+}
+
+.resultMetaTag {
+    display: inline-flex;
+    align-items: center;
+    min-height: 20px;
+    padding: 0 8px;
+    border-radius: 999px;
+    border: 1px solid rgba(13, 148, 136, 0.28);
+    background: rgba(13, 148, 136, 0.1);
+    color: var(--accent-ink);
+    font-size: 0.68rem;
+    font-weight: 700;
+    letter-spacing: 0.02em;
+    white-space: nowrap;
 }
 
 .indicatorInfoButton {
@@ -1054,7 +1079,7 @@ body::after {
 
 .resultRangeBlock {
     display: grid;
-    gap: 6px;
+    gap: 7px;
     margin-top: 4px;
 }
 
@@ -1063,20 +1088,20 @@ body::after {
     justify-content: space-between;
     align-items: center;
     gap: 8px;
-    font-size: 0.71rem;
+    font-size: 0.72rem;
     color: var(--text-soft);
     font-family: 'Geist Mono', monospace;
 }
 
 .resultRangeTrack {
     position: relative;
-    height: 10px;
+    height: 12px;
     border-radius: 999px;
     background:
         linear-gradient(90deg, rgba(217, 119, 6, 0.16) 0%, rgba(13, 148, 136, 0.1) 50%, rgba(217, 119, 6, 0.16) 100%),
         rgba(255, 255, 255, 0.75);
     border: 1px solid rgba(28, 23, 18, 0.12);
-    overflow: hidden;
+    overflow: visible;
 }
 
 .resultRangeNormalBand {
@@ -1088,26 +1113,77 @@ body::after {
     box-shadow: inset 0 0 0 1px rgba(5, 150, 105, 0.3);
 }
 
-.resultRangeMarker {
+.resultRangeMarkerAnchor {
     position: absolute;
     top: 50%;
-    width: 2px;
-    height: 16px;
-    border-radius: 999px;
+    z-index: 3;
     transform: translate(-50%, -50%);
+    pointer-events: none;
+}
+
+.resultRangeValueBubble {
+    position: absolute;
+    left: 50%;
+    bottom: calc(100% + 7px);
+    transform: translateX(-50%);
+    border-radius: 999px;
+    border: 1px solid rgba(28, 23, 18, 0.18);
+    background: rgba(255, 253, 247, 0.98);
+    color: var(--text);
+    font-size: 0.66rem;
+    font-weight: 700;
+    line-height: 1;
+    letter-spacing: 0.01em;
+    white-space: nowrap;
+    padding: 4px 8px;
+    box-shadow: 0 3px 8px rgba(28, 23, 18, 0.12);
+}
+
+.resultRangeMarkerAnchor.align-left .resultRangeValueBubble {
+    left: 0;
+    transform: translateX(0);
+}
+
+.resultRangeMarkerAnchor.align-right .resultRangeValueBubble {
+    left: auto;
+    right: 0;
+    transform: translateX(0);
+}
+
+.resultRangeMarker {
+    position: relative;
+    width: 4px;
+    height: 22px;
+    border-radius: 999px;
     background: var(--text);
-    box-shadow: 0 0 0 2px rgba(255, 255, 255, 0.9);
+    box-shadow: 0 0 0 2px rgba(255, 255, 255, 0.95);
+}
+
+.resultRangeMarker::before {
+    content: '';
+    position: absolute;
+    left: 50%;
+    top: -4px;
+    width: 10px;
+    height: 10px;
+    border-radius: 999px;
+    transform: translateX(-50%);
+    background: currentColor;
+    box-shadow: 0 0 0 2px rgba(255, 253, 247, 0.95);
 }
 
 .resultRangeMarker.marker-normal {
+    color: var(--success);
     background: var(--success);
 }
 
 .resultRangeMarker.marker-abnormal {
+    color: var(--warning);
     background: var(--warning);
 }
 
 .resultRangeMarker.marker-critical {
+    color: var(--danger);
     background: var(--danger);
 }
 
@@ -1119,6 +1195,12 @@ body::after {
     letter-spacing: 0.04em;
     text-transform: uppercase;
     color: rgba(28, 23, 18, 0.56);
+}
+
+.severity-badge {
+    font-size: 0.74rem;
+    letter-spacing: 0.01em;
+    text-transform: none;
 }
 
 .resultAdvice {
