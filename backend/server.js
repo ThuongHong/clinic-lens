@@ -58,6 +58,7 @@ const DASHSCOPE_SG_URL = 'https://dashscope-intl.aliyuncs.com/compatible-mode/v1
 const DASHSCOPE_EXTRACT_MODEL = process.env.DASHSCOPE_EXTRACT_MODEL || process.env.DASHSCOPE_MODEL || 'qwen-vl-plus';
 const DASHSCOPE_SUMMARY_MODEL = process.env.DASHSCOPE_SUMMARY_MODEL || process.env.DASHSCOPE_ADVICE_MODEL || process.env.DASHSCOPE_MODEL || 'qwen-max';
 const DASHSCOPE_CHAT_MODEL = process.env.DASHSCOPE_CHAT_MODEL || process.env.DASHSCOPE_MODEL || 'qwen-plus';
+const DASHSCOPE_INDICATOR_MODEL = process.env.DASHSCOPE_INDICATOR_MODEL || 'qwen-turbo';
 const DASHSCOPE_RESPONSE_FORMAT_MODE = String(process.env.DASHSCOPE_RESPONSE_FORMAT || '').trim().toLowerCase();
 const DASHSCOPE_RESPONSE_SCHEMA_JSON = process.env.DASHSCOPE_RESPONSE_SCHEMA_JSON;
 const OSS_REGION = process.env.OSS_REGION;
@@ -69,6 +70,8 @@ const CHAT_HISTORY_FILE = path.join(HISTORY_DIR, 'chat_history.json');
 const CHAT_METRICS_FILE = path.join(HISTORY_DIR, 'chat_metrics.json');
 const HISTORY_LIMIT = 30;
 const CHAT_TURN_LIMIT = 200;
+const INDICATOR_EXPLANATION_CACHE_LIMIT = 400;
+const indicatorExplanationCache = new Map();
 const QWEN_SYSTEM_PROMPT = loadAnalysisSystemPrompt();
 
 // 1. Cấu hình STS Token (Alibaba Cloud)
@@ -501,6 +504,142 @@ function buildDefaultDisclaimer() {
   return 'This information is for reference only and does not replace diagnosis or treatment from a licensed clinician.';
 }
 
+function looksNonEnglishText(value) {
+  const source = String(value || '').trim();
+  if (!source) {
+    return false;
+  }
+
+  if (/[\u0600-\u06FF\u4E00-\u9FFF\u3040-\u30FF\u0400-\u04FF]/.test(source)) {
+    return true;
+  }
+
+  const lowered = source.toLowerCase();
+  const hints = ['toi ', 'khong', 'nguy co', 'xet nghiem', 'bonjour', 'resultat', 'analyse'];
+  return hints.some((hint) => lowered.includes(hint));
+}
+
+function forceEnglishText(value, fallback) {
+  const normalized = String(value || '').trim();
+  if (!normalized) {
+    return fallback;
+  }
+
+  if (looksNonEnglishText(normalized)) {
+    return fallback;
+  }
+
+  return normalized;
+}
+
+function forceEnglishList(value, fallback = []) {
+  if (!Array.isArray(value)) {
+    return [...fallback];
+  }
+
+  const cleaned = value
+    .map((item) => String(item || '').trim())
+    .filter(Boolean)
+    .filter((item) => !looksNonEnglishText(item));
+
+  if (cleaned.length === 0) {
+    return [...fallback];
+  }
+
+  return cleaned;
+}
+
+function trimIndicatorExplanationCache() {
+  while (indicatorExplanationCache.size > INDICATOR_EXPLANATION_CACHE_LIMIT) {
+    const oldestKey = indicatorExplanationCache.keys().next().value;
+    if (!oldestKey) {
+      return;
+    }
+    indicatorExplanationCache.delete(oldestKey);
+  }
+}
+
+function buildIndicatorExplanationCacheKey({ indicatorName, organId, severity }) {
+  return [
+    String(indicatorName || '').trim().toLowerCase(),
+    String(organId || '').trim().toLowerCase(),
+    String(severity || '').trim().toLowerCase()
+  ].join('|');
+}
+
+function buildIndicatorExplanationFallback({ indicatorName, severity }) {
+  const safeName = String(indicatorName || 'This indicator').trim() || 'This indicator';
+  const safeSeverity = String(severity || '').trim().toLowerCase();
+
+  const concernLine = safeSeverity === 'critical'
+    ? 'This result may represent a high-priority abnormality and should be reviewed urgently with a clinician.'
+    : safeSeverity === 'abnormal_high'
+      ? 'This result is above the reference range and should be reviewed with your clinician, especially if symptoms are present.'
+      : safeSeverity === 'abnormal_low'
+        ? 'This result is below the reference range and may require follow-up testing and clinical interpretation.'
+        : 'Concern is higher when this value is outside reference range repeatedly or paired with symptoms.';
+
+  return {
+    what_is_it: `${safeName} is a laboratory marker that should be interpreted with your full report and clinical context.`,
+    when_to_be_concerned: [
+      concernLine,
+      'Seek urgent care if severe symptoms are present, regardless of a single lab value.'
+    ],
+    what_to_do_next: [
+      'Review this result with your healthcare provider.',
+      'Compare with previous tests to evaluate trend direction.',
+      'Follow clinician guidance on repeat testing and escalation.'
+    ],
+    disclaimer: buildDefaultDisclaimer()
+  };
+}
+
+function sanitizeIndicatorExplanationPayload(raw, fallback) {
+  const fallbackValue = fallback || buildIndicatorExplanationFallback({});
+  return {
+    what_is_it: forceEnglishText(raw?.what_is_it, fallbackValue.what_is_it),
+    when_to_be_concerned: forceEnglishList(raw?.when_to_be_concerned, fallbackValue.when_to_be_concerned).slice(0, 4),
+    what_to_do_next: forceEnglishList(raw?.what_to_do_next, fallbackValue.what_to_do_next).slice(0, 4),
+    disclaimer: forceEnglishText(raw?.disclaimer, fallbackValue.disclaimer)
+  };
+}
+
+function buildIndicatorExplanationMessages({ indicatorName, organId, value, unit, referenceRange, severity }) {
+  return [
+    {
+      role: 'system',
+      content: [
+        'You are a medical lab result explainer for patients.',
+        'Always respond in English.',
+        'Do not provide diagnosis and do not prescribe drugs.',
+        'Return JSON only with schema:',
+        '{',
+        '  "what_is_it": "string",',
+        '  "when_to_be_concerned": ["string"],',
+        '  "what_to_do_next": ["string"],',
+        '  "disclaimer": "string"',
+        '}'
+      ].join(' ')
+    },
+    {
+      role: 'user',
+      content: JSON.stringify({
+        indicator_name: indicatorName,
+        organ_id: organId,
+        value,
+        unit,
+        reference_range: referenceRange,
+        severity,
+        instructions: {
+          max_sentences_per_field: 2,
+          plain_english: true,
+          include_red_flags: true
+        }
+      })
+    }
+  ];
+}
+
 function sanitizeChatResult(raw, { allowedIndicators, allowedOrgans, emergencySignal, analysisRiskLevel }) {
   const fallbackRisk = emergencySignal ? 'urgent' : analysisRiskLevel;
   const normalizedRisk = (() => {
@@ -525,28 +664,23 @@ function sanitizeChatResult(raw, { allowedIndicators, allowedOrgans, emergencySi
       .slice(0, 8)
     : [];
 
-  const recommendedActions = Array.isArray(raw?.recommended_actions)
-    ? raw.recommended_actions
-      .map((item) => String(item || '').trim())
-      .filter(Boolean)
-      .slice(0, 8)
-    : [];
+  const recommendedActions = forceEnglishList(raw?.recommended_actions, [
+    'Monitor your symptoms daily and note any worsening changes.',
+    'Follow up with your healthcare provider for personalized guidance.'
+  ]).slice(0, 8);
 
-  const followUpQuestions = Array.isArray(raw?.follow_up_questions)
-    ? raw.follow_up_questions
-      .map((item) => String(item || '').trim())
-      .filter(Boolean)
-      .slice(0, 5)
-    : [];
+  const followUpQuestions = forceEnglishList(raw?.follow_up_questions, [
+    'Which result should I prioritize first?',
+    'When should I repeat this test?'
+  ]).slice(0, 5);
 
-  const sevenDayPlan = Array.isArray(raw?.seven_day_plan)
-    ? raw.seven_day_plan
-      .map((item) => String(item || '').trim())
-      .filter(Boolean)
-      .slice(0, 7)
-    : [];
+  const sevenDayPlan = forceEnglishList(raw?.seven_day_plan, [
+    'Day 1-2: Monitor symptoms and hydration status.',
+    'Day 3-4: Track diet and daily activity patterns.',
+    'Day 5-7: Review progress and prepare follow-up questions for your clinician.'
+  ]).slice(0, 7);
 
-  const answerText = String(raw?.answer_text || '').trim();
+  const answerText = forceEnglishText(raw?.answer_text, '');
   const fallbackText = 'I received your question. Please review your lab results and contact a clinician if symptoms worsen.';
 
   const escalation = Boolean(raw?.escalation) || normalizedRisk === 'urgent';
@@ -559,7 +693,7 @@ function sanitizeChatResult(raw, { allowedIndicators, allowedOrgans, emergencySi
     recommended_actions: recommendedActions,
     follow_up_questions: followUpQuestions,
     seven_day_plan: sevenDayPlan,
-    disclaimer: String(raw?.disclaimer || '').trim() || buildDefaultDisclaimer(),
+    disclaimer: forceEnglishText(raw?.disclaimer, buildDefaultDisclaimer()),
     escalation
   };
 }
@@ -1743,6 +1877,89 @@ app.post('/api/chat', async (req, res) => {
       message: 'Unable to process chat right now. Please try again shortly.'
     });
     res.end();
+  }
+});
+
+app.post('/api/indicator-explanation', async (req, res) => {
+  const indicatorName = String(req.body?.indicator_name || '').trim();
+  const organId = String(req.body?.organ_id || 'other').trim().toLowerCase();
+  const value = String(req.body?.value || '').trim();
+  const unit = String(req.body?.unit || '').trim();
+  const referenceRange = String(req.body?.reference_range || '').trim();
+  const severity = String(req.body?.severity || 'unknown').trim().toLowerCase();
+
+  if (!indicatorName) {
+    return res.status(400).json({ error: 'Missing indicator_name' });
+  }
+
+  const fallback = buildIndicatorExplanationFallback({ indicatorName, severity });
+  const cacheKey = buildIndicatorExplanationCacheKey({ indicatorName, organId, severity });
+  const cached = indicatorExplanationCache.get(cacheKey);
+  if (cached) {
+    return res.json({
+      indicator_name: indicatorName,
+      organ_id: organId,
+      severity,
+      explanation: cached,
+      model: 'cache',
+      cached: true
+    });
+  }
+
+  if (!process.env.DASHSCOPE_API_KEY || CHAT_LOCAL_MOCK) {
+    const sanitizedFallback = sanitizeIndicatorExplanationPayload({}, fallback);
+    indicatorExplanationCache.set(cacheKey, sanitizedFallback);
+    trimIndicatorExplanationCache();
+    return res.json({
+      indicator_name: indicatorName,
+      organ_id: organId,
+      severity,
+      explanation: sanitizedFallback,
+      model: CHAT_LOCAL_MOCK ? 'local-mock' : 'fallback',
+      cached: false
+    });
+  }
+
+  try {
+    const qwenResponse = await callDashScopeChatCompletion({
+      model: DASHSCOPE_INDICATOR_MODEL,
+      messages: buildIndicatorExplanationMessages({
+        indicatorName,
+        organId,
+        value,
+        unit,
+        referenceRange,
+        severity
+      }),
+      stream: false,
+      timeout: 30000
+    });
+
+    const rawContent = qwenResponse.data?.choices?.[0]?.message?.content || '';
+    const parsed = parseJsonFromModelOutput(rawContent);
+    const explanation = sanitizeIndicatorExplanationPayload(parsed, fallback);
+    indicatorExplanationCache.set(cacheKey, explanation);
+    trimIndicatorExplanationCache();
+
+    return res.json({
+      indicator_name: indicatorName,
+      organ_id: organId,
+      severity,
+      explanation,
+      model: DASHSCOPE_INDICATOR_MODEL,
+      cached: false
+    });
+  } catch (error) {
+    console.error('Indicator explanation error:', error.response?.data || error.message);
+    const sanitizedFallback = sanitizeIndicatorExplanationPayload({}, fallback);
+    return res.json({
+      indicator_name: indicatorName,
+      organ_id: organId,
+      severity,
+      explanation: sanitizedFallback,
+      model: 'fallback',
+      cached: false
+    });
   }
 });
 

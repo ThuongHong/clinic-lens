@@ -4,6 +4,34 @@ const path = require('path');
 
 const HISTORY_FILE = path.resolve(__dirname, 'data', 'analysis_history.json');
 
+function containsNonEnglishText(value) {
+  const text = String(value || '').trim();
+  if (!text) {
+    return false;
+  }
+
+  if (/[\u0600-\u06FF\u4E00-\u9FFF\u3040-\u30FF\u0400-\u04FF]/.test(text)) {
+    return true;
+  }
+
+  const lowered = text.toLowerCase();
+  const hints = ['toi ', 'khong', 'nguy co', 'xet nghiem', 'bonjour', 'resultat', 'analyse'];
+  return hints.some((hint) => lowered.includes(hint));
+}
+
+function assistantTextIsEnglishOnly(assistant) {
+  const payload = assistant || {};
+  const fields = [
+    payload.answer_text,
+    ...(Array.isArray(payload.recommended_actions) ? payload.recommended_actions : []),
+    ...(Array.isArray(payload.follow_up_questions) ? payload.follow_up_questions : []),
+    ...(Array.isArray(payload.seven_day_plan) ? payload.seven_day_plan : []),
+    payload.disclaimer
+  ];
+
+  return fields.every((item) => !containsNonEnglishText(item));
+}
+
 function ensureSampleHistory() {
   const seedEntry = {
     id: `analysis_seed_${Date.now()}`,
@@ -212,6 +240,7 @@ async function run() {
   const case1 = getResultEvent(case1Events);
   report.push(ok(Boolean(case1), 'Case 1 has result event'));
   report.push(ok(case1?.data?.assistant?.risk_level != null, 'Case 1 returns risk_level'));
+  report.push(ok(assistantTextIsEnglishOnly(case1?.data?.assistant), 'Case 1 assistant response stays English-only'));
 
   const case2Events = await streamChat(baseUrl, {
     history_id: seeded.id,
@@ -221,6 +250,7 @@ async function run() {
   });
   const case2 = getResultEvent(case2Events);
   report.push(ok(case2?.data?.language === 'en', 'Case 2 respects English language flag', JSON.stringify(case2?.data || {})));
+  report.push(ok(assistantTextIsEnglishOnly(case2?.data?.assistant), 'Case 2 assistant response stays English-only'));
 
   const case3Events = await streamChat(baseUrl, {
     history_id: seeded.id,
@@ -230,6 +260,7 @@ async function run() {
   });
   const case3 = getResultEvent(case3Events);
   report.push(ok(case3?.data?.detail_level === 'clinical', 'Case 3 respects detail_level=clinical'));
+  report.push(ok(assistantTextIsEnglishOnly(case3?.data?.assistant), 'Case 3 assistant response stays English-only'));
 
   const memoryFirst = await streamChat(baseUrl, {
     history_id: seeded.id,
@@ -250,6 +281,7 @@ async function run() {
   });
   const memorySecondResult = getResultEvent(memorySecond);
   report.push(ok((memorySecondResult?.data?.message_count || 0) >= 4, 'Case 4 preserves conversation memory', JSON.stringify(memorySecondResult?.data || {})));
+  report.push(ok(assistantTextIsEnglishOnly(memorySecondResult?.data?.assistant), 'Case 4 assistant response stays English-only'));
 
   const emergencyEvents = await streamChat(baseUrl, {
     history_id: seeded.id,
@@ -261,6 +293,7 @@ async function run() {
   const emergencyAssistant = emergencyResult?.data?.assistant || {};
   const emergencyPass = emergencyAssistant.escalation === true || emergencyAssistant.risk_level === 'urgent';
   report.push(ok(emergencyPass, 'Case 5 flags emergency escalation', JSON.stringify(emergencyAssistant)));
+  report.push(ok(assistantTextIsEnglishOnly(emergencyAssistant), 'Case 5 assistant response stays English-only'));
 
   const citeEvents = await streamChat(baseUrl, {
     history_id: seeded.id,
@@ -276,6 +309,7 @@ async function run() {
     : [];
   const allCitationsGrounded = cited.every((item) => allowedIndicators.has(item));
   report.push(ok(allCitationsGrounded, 'Case 6 citations stay grounded in known indicators', JSON.stringify(cited)));
+  report.push(ok(assistantTextIsEnglishOnly(citeResult?.data?.assistant), 'Case 6 assistant response stays English-only'));
 
   console.log('\n[chat-feature-tests] RESULTS');
   let passCount = 0;

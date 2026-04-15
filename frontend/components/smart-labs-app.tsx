@@ -1,9 +1,10 @@
 'use client';
 
 import { useEffect, useMemo, useRef, useState } from 'react';
-import type { ChangeEvent, KeyboardEvent } from 'react';
+import type { ChangeEvent, KeyboardEvent as ReactKeyboardEvent } from 'react';
 
 import {
+    fetchIndicatorExplanation,
     fetchStsToken,
     parseAnalysis,
     parseChatResult,
@@ -15,6 +16,7 @@ import { uploadFileToOss } from '@/lib/oss';
 import type {
     AnalysisHistoryEntry,
     ChatAssistantPayload,
+    IndicatorExplanation,
     LabAnalysis,
     SseEvent
 } from '@/lib/types';
@@ -55,6 +57,12 @@ interface PatientNamePromptProps {
     patientNameDraft: string;
     setPatientNameDraft: (value: string) => void;
     onSave: () => void;
+}
+
+interface ReferenceRangeBarProps {
+    value: string;
+    referenceRange: string;
+    severity: string;
 }
 
 const ORGAN_LABELS: Record<string, string> = {
@@ -162,6 +170,95 @@ function OverviewTab({
     overviewTestDate,
     overviewSource
 }: OverviewTabProps) {
+    const [activeInfoResult, setActiveInfoResult] = useState<LabAnalysis['results'][number] | null>(null);
+    const [indicatorExplainCache, setIndicatorExplainCache] = useState<Record<string, IndicatorExplanation>>({});
+    const [indicatorExplainLoading, setIndicatorExplainLoading] = useState(false);
+    const [indicatorExplainError, setIndicatorExplainError] = useState<string | null>(null);
+    const [indicatorExplainRequestVersion, setIndicatorExplainRequestVersion] = useState(0);
+
+    const activeInfoResultKey = useMemo(() => {
+        if (!activeInfoResult) {
+            return '';
+        }
+
+        return createIndicatorExplainKey(activeInfoResult);
+    }, [activeInfoResult]);
+
+    const activeModelExplanation = activeInfoResultKey
+        ? indicatorExplainCache[activeInfoResultKey]
+        : undefined;
+
+    const indicatorExplainPending = Boolean(activeInfoResult && !activeModelExplanation && !indicatorExplainError);
+
+    useEffect(() => {
+        if (!activeInfoResult || !activeInfoResultKey) {
+            setIndicatorExplainLoading(false);
+            setIndicatorExplainError(null);
+            return;
+        }
+
+        if (indicatorExplainCache[activeInfoResultKey]) {
+            setIndicatorExplainLoading(false);
+            setIndicatorExplainError(null);
+            return;
+        }
+
+        let disposed = false;
+
+        const run = async () => {
+            setIndicatorExplainLoading(true);
+            setIndicatorExplainError(null);
+            try {
+                const response = await fetchIndicatorExplanation({
+                    indicator_name: activeInfoResult.indicator_name,
+                    organ_id: activeInfoResult.organ_id,
+                    value: activeInfoResult.value,
+                    unit: activeInfoResult.unit,
+                    reference_range: activeInfoResult.reference_range,
+                    severity: activeInfoResult.severity
+                });
+
+                if (disposed) {
+                    return;
+                }
+
+                setIndicatorExplainCache((prev) => ({
+                    ...prev,
+                    [activeInfoResultKey]: response.explanation
+                }));
+            } catch (error) {
+                if (!disposed) {
+                    setIndicatorExplainError(formatError(error));
+                }
+            } finally {
+                if (!disposed) {
+                    setIndicatorExplainLoading(false);
+                }
+            }
+        };
+
+        void run();
+
+        return () => {
+            disposed = true;
+        };
+    }, [activeInfoResult, activeInfoResultKey, indicatorExplainCache, indicatorExplainRequestVersion]);
+
+    useEffect(() => {
+        if (!activeInfoResult) {
+            return;
+        }
+
+        const onEscape = (event: KeyboardEvent) => {
+            if (event.key === 'Escape') {
+                setActiveInfoResult(null);
+            }
+        };
+
+        window.addEventListener('keydown', onEscape);
+        return () => window.removeEventListener('keydown', onEscape);
+    }, [activeInfoResult]);
+
     return (
         <section id="panel-overview" className={currentAnalysis ? 'workspaceGrid workspaceGridOverviewReady' : 'workspaceGrid workspaceGridOverviewIdle'} role="tabpanel" aria-labelledby="tab-overview" tabIndex={0}>
             {!currentAnalysis && (
@@ -352,10 +449,21 @@ function OverviewTab({
 
                                     <div className="resultGrid">
                                         {visibleResults.map((result) => (
-                                            <div key={`${result.indicator_name}-${result.organ_id}`} className="resultCard">
+                                            <div key={`${result.indicator_name}-${result.organ_id}`} className={getResultCardClass(result.severity)}>
                                                 <div className="resultTopRow">
                                                     <div>
-                                                        <div className="resultName">{result.indicator_name}</div>
+                                                        <div className="resultNameRow">
+                                                            <div className="resultName">{result.indicator_name}</div>
+                                                            <button
+                                                                type="button"
+                                                                className="indicatorInfoButton"
+                                                                onClick={() => setActiveInfoResult(result)}
+                                                                aria-label={`Open indicator details for ${result.indicator_name}`}
+                                                                title="Open indicator details"
+                                                            >
+                                                                i
+                                                            </button>
+                                                        </div>
                                                         <div className="resultMeta">
                                                             {organLabel(result.organ_id)} · {result.reference_range || 'N/A'}
                                                         </div>
@@ -369,9 +477,11 @@ function OverviewTab({
                                                     <strong>{result.value || '—'}</strong>
                                                     <span>{result.unit}</span>
                                                 </div>
-                                                {result.patient_advice && (
-                                                    <p className="resultAdvice">{result.patient_advice}</p>
-                                                )}
+                                                <ReferenceRangeBar
+                                                    value={result.value}
+                                                    referenceRange={result.reference_range}
+                                                    severity={result.severity}
+                                                />
                                             </div>
                                         ))}
                                     </div>
@@ -411,6 +521,90 @@ function OverviewTab({
                         </div>
                     </div>
                 </article>
+            )}
+
+            {activeInfoResult && (
+                <div className="indicatorInfoOverlay" role="presentation" onClick={() => setActiveInfoResult(null)}>
+                    <div
+                        className="indicatorInfoModal"
+                        role="dialog"
+                        aria-modal="true"
+                        aria-labelledby="indicator-info-title"
+                        onClick={(event) => event.stopPropagation()}
+                    >
+                        <div className="indicatorInfoHeader">
+                            <div>
+                                <h3 id="indicator-info-title">{activeInfoResult.indicator_name}</h3>
+                                <p>Indicator guidance for patient-friendly interpretation.</p>
+                            </div>
+                            <button
+                                type="button"
+                                className="indicatorInfoClose"
+                                onClick={() => setActiveInfoResult(null)}
+                                aria-label="Close indicator details"
+                            >
+                                Close
+                            </button>
+                        </div>
+
+                        <div className="indicatorInfoMeta">
+                            <span>Current: {activeInfoResult.value || 'N/A'} {activeInfoResult.unit || ''}</span>
+                            <span>Reference: {activeInfoResult.reference_range || 'N/A'}</span>
+                        </div>
+
+                        {activeModelExplanation && (
+                            <>
+                                <div className="indicatorInfoSection">
+                                    <h4>What this indicator is</h4>
+                                    <p>{activeModelExplanation.what_is_it}</p>
+                                </div>
+
+                                <div className="indicatorInfoSection">
+                                    <h4>When to be concerned</h4>
+                                    <ul>
+                                        {activeModelExplanation.when_to_be_concerned.map((item, index) => (
+                                            <li key={`${item}-${index}`}>{item}</li>
+                                        ))}
+                                    </ul>
+                                </div>
+
+                                <div className="indicatorInfoSection">
+                                    <h4>What to do next</h4>
+                                    <ul>
+                                        {activeModelExplanation.what_to_do_next.map((item, index) => (
+                                            <li key={`${item}-${index}`}>{item}</li>
+                                        ))}
+                                    </ul>
+                                </div>
+                            </>
+                        )}
+
+                        {indicatorExplainPending && (
+                            <div className="indicatorInfoSection indicatorInfoSectionReport">
+                                <h4>Loading model explanation</h4>
+                                <p>Generating explanation from Qwen for this indicator...</p>
+                            </div>
+                        )}
+
+                        {indicatorExplainError && !indicatorExplainLoading && !activeModelExplanation && (
+                            <div className="indicatorInfoSection indicatorInfoSectionReport">
+                                <h4>Model unavailable</h4>
+                                <p>{indicatorExplainError}</p>
+                                <button
+                                    type="button"
+                                    className="btn btn-secondary"
+                                    style={{ width: 'fit-content', height: '34px', padding: '0 12px', fontSize: '0.78rem' }}
+                                    onClick={() => {
+                                        setIndicatorExplainError(null);
+                                        setIndicatorExplainRequestVersion((prev) => prev + 1);
+                                    }}
+                                >
+                                    Retry
+                                </button>
+                            </div>
+                        )}
+                    </div>
+                </div>
             )}
         </section>
     );
@@ -941,7 +1135,7 @@ export default function SmartLabsApp() {
         history: 'History'
     };
 
-    function onTabKeyDown(event: KeyboardEvent<HTMLButtonElement>, tab: TabKey) {
+    function onTabKeyDown(event: ReactKeyboardEvent<HTMLButtonElement>, tab: TabKey) {
         const tabs: TabKey[] = ['overview', 'chat', 'history'];
         const currentIndex = tabs.indexOf(tab);
         if (currentIndex < 0) {
@@ -1297,7 +1491,7 @@ export default function SmartLabsApp() {
 
                                         <div className="resultGrid">
                                             {currentAnalysis.results.slice(0, 6).map((result) => (
-                                                <div key={`hist-${result.indicator_name}-${result.organ_id}`} className="resultCard">
+                                                <div key={`hist-${result.indicator_name}-${result.organ_id}`} className={getResultCardClass(result.severity)}>
                                                     <div className="resultTopRow">
                                                         <div>
                                                             <div className="resultName">{result.indicator_name}</div>
@@ -1314,6 +1508,11 @@ export default function SmartLabsApp() {
                                                         <strong>{result.value || '—'}</strong>
                                                         <span>{result.unit}</span>
                                                     </div>
+                                                    <ReferenceRangeBar
+                                                        value={result.value}
+                                                        referenceRange={result.reference_range}
+                                                        severity={result.severity}
+                                                    />
                                                 </div>
                                             ))}
                                         </div>
@@ -1409,6 +1608,10 @@ function severityIcon(severity: string) {
 
 function getSeverityClass(severity: string) { return `severity-badge severity-${severity}`; }
 
+function getResultCardClass(severity: string) {
+    return `resultCard resultCardSeverity-${severity}`;
+}
+
 function getBadgeClass(status: string) {
     const s = status.toLowerCase();
     if (s === 'error') return 'badge danger';
@@ -1445,6 +1648,14 @@ function formatFileSize(size: number) {
     return `${value.toFixed(value >= 10 ? 0 : 1)} ${units[index]}`;
 }
 
+function createIndicatorExplainKey(result: LabAnalysis['results'][number]) {
+    return [
+        String(result.indicator_name || '').trim().toLowerCase(),
+        String(result.organ_id || '').trim().toLowerCase(),
+        String(result.severity || '').trim().toLowerCase()
+    ].join('|');
+}
+
 function validateUploadFile(file: File) {
     if (!ALLOWED_UPLOAD_TYPES.has(file.type)) {
         return 'Unsupported file type. Please upload PDF, PNG, JPG, JPEG, or WEBP.';
@@ -1452,6 +1663,144 @@ function validateUploadFile(file: File) {
 
     if (file.size > MAX_UPLOAD_SIZE_BYTES) {
         return 'File is too large. Maximum supported size is 20 MB.';
+    }
+
+    return null;
+}
+
+function ReferenceRangeBar({ value, referenceRange, severity }: ReferenceRangeBarProps) {
+    const visual = useMemo(() => buildReferenceRangeVisual(referenceRange, value), [referenceRange, value]);
+
+    if (!visual) {
+        return null;
+    }
+
+    const normalLeft = toPercent(visual.normalMin, visual.domainMin, visual.domainMax);
+    const normalRight = toPercent(visual.normalMax, visual.domainMin, visual.domainMax);
+    const markerLeft = toPercent(visual.current, visual.domainMin, visual.domainMax);
+    const markerClass = visual.currentInNormal
+        ? 'resultRangeMarker marker-normal'
+        : severity === 'critical'
+            ? 'resultRangeMarker marker-critical'
+            : 'resultRangeMarker marker-abnormal';
+
+    return (
+        <div className="resultRangeBlock" aria-label="Reference range visualization">
+            <div className="resultRangeHeader">
+                <span>Reference range</span>
+                <span>{referenceRange || 'N/A'}</span>
+            </div>
+            <div className="resultRangeTrack" role="img" aria-label={`Normal range between ${referenceRange}. Current value is ${value || 'N/A'}.`}>
+                <div
+                    className="resultRangeNormalBand"
+                    style={{ left: `${normalLeft}%`, width: `${Math.max(normalRight - normalLeft, 3)}%` }}
+                />
+                <div className={markerClass} style={{ left: `${markerLeft}%` }} />
+            </div>
+            <div className="resultRangeLegend">
+                <span>Low</span>
+                <span>Normal</span>
+                <span>High</span>
+            </div>
+        </div>
+    );
+}
+
+function toPercent(value: number, min: number, max: number) {
+    if (max <= min) {
+        return 50;
+    }
+    const ratio = (value - min) / (max - min);
+    return Math.max(0, Math.min(100, ratio * 100));
+}
+
+function parseNumericValue(input: string) {
+    const normalized = String(input || '')
+        .replace(/,/g, '')
+        .match(/-?\d+(?:\.\d+)?/);
+
+    if (!normalized) {
+        return null;
+    }
+
+    const parsed = Number.parseFloat(normalized[0]);
+    return Number.isFinite(parsed) ? parsed : null;
+}
+
+function buildReferenceRangeVisual(referenceRange: string, value: string) {
+    const current = parseNumericValue(value);
+    if (current === null) {
+        return null;
+    }
+
+    const text = String(referenceRange || '').replace(/,/g, '').trim();
+    if (!text) {
+        return null;
+    }
+
+    const betweenMatch = text.match(/(-?\d+(?:\.\d+)?)\s*(?:-|–|to|~)\s*(-?\d+(?:\.\d+)?)/i);
+    if (betweenMatch) {
+        const low = Number.parseFloat(betweenMatch[1]);
+        const high = Number.parseFloat(betweenMatch[2]);
+        if (!Number.isFinite(low) || !Number.isFinite(high)) {
+            return null;
+        }
+
+        const min = Math.min(low, high);
+        const max = Math.max(low, high);
+        const span = Math.max(max - min, Math.max(Math.abs(max), 1) * 0.25);
+        const pad = span * 0.35;
+
+        return {
+            domainMin: min - pad,
+            domainMax: max + pad,
+            normalMin: min,
+            normalMax: max,
+            current,
+            currentInNormal: current >= min && current <= max
+        };
+    }
+
+    const maxOnlyMatch = text.match(/(?:<=|≤|<)\s*(-?\d+(?:\.\d+)?)/i);
+    if (maxOnlyMatch) {
+        const max = Number.parseFloat(maxOnlyMatch[1]);
+        if (!Number.isFinite(max)) {
+            return null;
+        }
+
+        const span = Math.max(Math.abs(max) * 0.8, 1);
+        const domainMin = Math.min(0, max - span);
+        const domainMax = max + span * 0.4;
+
+        return {
+            domainMin,
+            domainMax,
+            normalMin: domainMin,
+            normalMax: max,
+            current,
+            currentInNormal: current <= max
+        };
+    }
+
+    const minOnlyMatch = text.match(/(?:>=|≥|>)\s*(-?\d+(?:\.\d+)?)/i);
+    if (minOnlyMatch) {
+        const min = Number.parseFloat(minOnlyMatch[1]);
+        if (!Number.isFinite(min)) {
+            return null;
+        }
+
+        const span = Math.max(Math.abs(min) * 0.8, 1);
+        const domainMin = min - span * 0.4;
+        const domainMax = min + span;
+
+        return {
+            domainMin,
+            domainMax,
+            normalMin: min,
+            normalMax: domainMax,
+            current,
+            currentInNormal: current >= min
+        };
     }
 
     return null;

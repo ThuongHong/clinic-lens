@@ -9,7 +9,7 @@ Task: read medical lab documents (image/PDF), extract indicators, and return JSO
 - Do not recommend or name specific drugs.
 - Do not invent values when they cannot be read.
 - Return pure JSON only (no markdown, no extra explanation).
-- `patient_advice` must be in English, clear, and practical.
+- Keep `patient_advice` empty (`""`) for each indicator. Detailed explanation is generated only on demand.
 
 ## Mapping organ_id
 
@@ -50,7 +50,7 @@ Success:
       "reference_range": "...",
       "organ_id": "kidneys|liver|heart|lungs|blood|pancreas|thyroid|bone|immune|other",
       "severity": "normal|abnormal_high|abnormal_low|critical|unknown",
-      "patient_advice": "English, 1-3 sentences"
+      "patient_advice": ""
     }
   ]
 }

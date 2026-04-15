@@ -4,6 +4,21 @@ const path = require('path');
 
 const HISTORY_FILE = path.resolve(__dirname, 'data', 'analysis_history.json');
 
+function containsNonEnglishText(value) {
+  const text = String(value || '').trim();
+  if (!text) {
+    return false;
+  }
+
+  if (/[\u0600-\u06FF\u4E00-\u9FFF\u3040-\u30FF\u0400-\u04FF]/.test(text)) {
+    return true;
+  }
+
+  const lowered = text.toLowerCase();
+  const hints = ['toi ', 'khong', 'nguy co', 'xet nghiem', 'bonjour', 'resultat', 'analyse'];
+  return hints.some((hint) => lowered.includes(hint));
+}
+
 function ensureSampleHistory() {
   const seedEntry = {
     id: `analysis_seed_${Date.now()}`,
@@ -174,6 +189,19 @@ async function runChatSmokeTest() {
   const resultEvent = events.find((item) => item.event === 'result');
   if (!resultEvent) {
     throw new Error('No result event received from /api/chat');
+  }
+
+  const assistant = resultEvent?.data?.assistant || {};
+  const englishOnly = [
+    assistant.answer_text,
+    ...(Array.isArray(assistant.recommended_actions) ? assistant.recommended_actions : []),
+    ...(Array.isArray(assistant.follow_up_questions) ? assistant.follow_up_questions : []),
+    ...(Array.isArray(assistant.seven_day_plan) ? assistant.seven_day_plan : []),
+    assistant.disclaimer
+  ].every((item) => !containsNonEnglishText(item));
+
+  if (!englishOnly) {
+    throw new Error('Chat result contains non-English assistant text.');
   }
 
   console.log('\n[chat-smoke-test] SUCCESS: received result event from /api/chat');

@@ -115,3 +115,19 @@ export interface ChatResultEvent {
     message_count?: number;
     assistant: ChatAssistantPayload;
 }
+
+export interface IndicatorExplanation {
+    what_is_it: string;
+    when_to_be_concerned: string[];
+    what_to_do_next: string[];
+    disclaimer: string;
+}
+
+export interface IndicatorExplanationResponse {
+    indicator_name: string;
+    organ_id: string;
+    severity: string;
+    explanation: IndicatorExplanation;
+    model?: string;
+    cached?: boolean;
+}

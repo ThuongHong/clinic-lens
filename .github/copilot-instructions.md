@@ -15,6 +15,9 @@
 - Backend run: `cd backend && npm install && PORT=9000 npm start`
 - Backend smoke test: `./test-backend.sh http://localhost:9000`
 - Backend analysis check: `cd backend && npm run analysis:test`
+- Backend chat smoke check: `cd backend && npm run chat:smoke`
+- Backend chat feature check: `cd backend && npm run chat:test`
+- API demo flow: `./demo-api.sh`
 - Frontend run/setup: see [frontend/README.md](frontend/README.md)
 
 ## API Contracts
@@ -33,6 +36,7 @@
 - Env loading order is root [.env](.env) first, then [backend/.env](backend/.env); keep this behavior intact.
 - Never commit `.env` or credentials.
 - Required backend vars: `ALI_ACCESS_KEY`, `ALI_SECRET_KEY`, `ALI_ROLE_ARN`, `OSS_REGION`, `OSS_BUCKET_NAME`, `DASHSCOPE_API_KEY`.
+- Optional backend model selectors: `DASHSCOPE_EXTRACT_MODEL`, `DASHSCOPE_SUMMARY_MODEL`, `DASHSCOPE_CHAT_MODEL`.
 - Keep `OSS_REGION` in OSS format (for example `oss-cn-hangzhou`).
 
 ## Team Workflow

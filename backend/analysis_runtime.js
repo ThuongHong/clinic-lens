@@ -12,7 +12,7 @@ Task: read medical lab documents (image/PDF), extract indicators, and return JSO
 - Do not recommend or name specific drugs.
 - Do not invent values when they cannot be read.
 - Return pure JSON only (no markdown, no extra explanation).
-- patient_advice must be in English, clear, and practical.
+- Keep patient_advice empty by default (""), because detailed explanation is generated on-demand.
 
 ## Output Contract
 Success:
@@ -28,7 +28,7 @@ Success:
       "reference_range": "...",
       "organ_id": "kidneys|liver|heart|lungs|blood|pancreas|thyroid|bone|immune|other",
       "severity": "normal|abnormal_high|abnormal_low|critical|unknown",
-      "patient_advice": "English, 1-3 sentences"
+      "patient_advice": ""
     }
   ]
 }
@@ -83,6 +83,19 @@ const SEVERITY_ALIASES = new Map([
   ['alert', 'critical'],
   ['severe', 'critical']
 ]);
+
+const NON_ENGLISH_HINTS = [
+  'toi ',
+  'khong',
+  'nguy co',
+  'xet nghiem',
+  'bacs',
+  'bac si',
+  'nen lam gi',
+  'bonjour',
+  'resultat',
+  'analyse'
+];
 
 function loadAnalysisSystemPrompt() {
   try {
@@ -195,6 +208,33 @@ function sanitizeText(value, fallback = '') {
   return value == null ? fallback : String(value).trim();
 }
 
+function looksNonEnglishText(value) {
+  const source = String(value || '').trim();
+  if (!source) {
+    return false;
+  }
+
+  if (/[\u0600-\u06FF\u4E00-\u9FFF\u3040-\u30FF\u0400-\u04FF]/.test(source)) {
+    return true;
+  }
+
+  const lowered = source.toLowerCase();
+  return NON_ENGLISH_HINTS.some((hint) => lowered.includes(hint));
+}
+
+function sanitizeEnglishText(value, fallback = '') {
+  const normalized = sanitizeText(value, fallback);
+  if (!normalized) {
+    return fallback;
+  }
+
+  if (looksNonEnglishText(normalized)) {
+    return sanitizeText(fallback);
+  }
+
+  return normalized;
+}
+
 function normalizeResult(rawResult) {
   return {
     indicator_name: sanitizeText(rawResult?.indicator_name),
@@ -203,7 +243,7 @@ function normalizeResult(rawResult) {
     reference_range: sanitizeText(rawResult?.reference_range),
     organ_id: normalizeOrganId(rawResult?.organ_id),
     severity: normalizeSeverity(rawResult?.severity),
-    patient_advice: sanitizeText(rawResult?.patient_advice)
+    patient_advice: sanitizeEnglishText(rawResult?.patient_advice, '')
   };
 }
 
@@ -216,7 +256,10 @@ function normalizeAnalysisPayload(payload) {
     return {
       status,
       error_code: sanitizeText(payload?.error_code || 'PARTIAL_DATA', 'PARTIAL_DATA'),
-      error_message: sanitizeText(payload?.error_message || 'Unable to read complete lab data from the document.', 'Unable to read complete lab data from the document.'),
+      error_message: sanitizeEnglishText(
+        payload?.error_message,
+        'Unable to read complete lab data from the document.'
+      ),
       results: []
     };
   }
@@ -337,7 +380,10 @@ function buildAdviceMessages(summaryPayload) {
 
 function normalizeAdvicePayload(payload, analysis, summary) {
   if (!payload || payload.status === 'error') {
-    const message = sanitizeText(payload?.error_message || 'Unable to generate overall recommendations.', 'Unable to generate overall recommendations.');
+    const message = sanitizeEnglishText(
+      payload?.error_message,
+      'Unable to generate overall recommendations.'
+    );
     return {
       status: 'error',
       error_message: message
@@ -352,13 +398,15 @@ function normalizeAdvicePayload(payload, analysis, summary) {
         risk: ['normal', 'watch', 'alert'].includes(String(item.risk || '').trim().toLowerCase())
           ? String(item.risk).trim().toLowerCase()
           : 'watch',
-        summary: sanitizeText(item.summary),
-        advice: sanitizeText(item.advice)
+        summary: sanitizeEnglishText(item.summary, 'Review this organ risk with your clinician.'),
+        advice: sanitizeEnglishText(item.advice, 'Follow clinician guidance and monitor symptoms.')
       }))
     : [];
 
   const generalRecommendations = Array.isArray(payload.general_recommendations)
-    ? payload.general_recommendations.map((item) => sanitizeText(item)).filter(Boolean)
+    ? payload.general_recommendations
+      .map((item) => sanitizeEnglishText(item))
+      .filter(Boolean)
     : [];
 
   const fallbackPriority = summary.abnormal_results > 2 ? 'high' : summary.abnormal_results > 0 ? 'medium' : 'low';
@@ -367,7 +415,7 @@ function normalizeAdvicePayload(payload, analysis, summary) {
     status: 'success',
     patient_name: sanitizeText(payload.patient_name || analysis.patient_name || '', '') || null,
     analysis_date: sanitizeText(payload.analysis_date || analysis.analysis_date || '', '') || null,
-    overall_assessment: sanitizeText(
+    overall_assessment: sanitizeEnglishText(
       payload.overall_assessment || `Detected ${summary.abnormal_results} indicators requiring follow-up out of ${summary.total_results} extracted indicators.`,
       `Detected ${summary.abnormal_results} indicators requiring follow-up out of ${summary.total_results} extracted indicators.`
     ),
@@ -376,7 +424,10 @@ function normalizeAdvicePayload(payload, analysis, summary) {
       : fallbackPriority,
     organ_advice: organAdvice,
     general_recommendations: generalRecommendations,
-    disclaimer: sanitizeText(payload.disclaimer || 'This information is for reference only and does not replace medical consultation.', 'This information is for reference only and does not replace medical consultation.')
+    disclaimer: sanitizeEnglishText(
+      payload.disclaimer,
+      'This information is for reference only and does not replace medical consultation.'
+    )
   };
 }
 

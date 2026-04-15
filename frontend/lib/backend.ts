@@ -3,7 +3,8 @@ import type {
     LabAnalysis,
     SseEvent,
     StsTokenResponse,
-    ChatResultEvent
+    ChatResultEvent,
+    IndicatorExplanationResponse
 } from '@/lib/types';
 
 const DEFAULT_BACKEND_URL = 'http://localhost:9000';
@@ -55,6 +56,23 @@ export async function fetchStsToken() {
 export async function fetchAnalysisHistory(limit = 12) {
     const payload = await requestJson<{ items: AnalysisHistoryEntry[] }>('/api/analyses?limit=' + limit);
     return Array.isArray(payload.items) ? payload.items : [];
+}
+
+export async function fetchIndicatorExplanation(body: {
+    indicator_name: string;
+    organ_id: string;
+    value?: string;
+    unit?: string;
+    reference_range?: string;
+    severity?: string;
+}) {
+    return requestJson<IndicatorExplanationResponse>('/api/indicator-explanation', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json'
+        },
+        body: JSON.stringify(body)
+    });
 }
 
 export async function* streamAnalysis(body: Record<string, string>): AsyncGenerator<SseEvent> {
