@@ -101,6 +101,7 @@ export function parseAnalysis(raw: Record<string, unknown>): LabAnalysis {
         results: results.map((item) => {
             const value = String(item.value || '');
             const referenceRange = String(item.reference_range || '');
+            const referenceRangeOriginal = item.reference_range_original ? String(item.reference_range_original) : '';
             const referenceRangeStructured = parseReferenceRangeStructured(item.reference_range_structured);
             const reportedSeverity = String(item.severity || 'unknown');
 
@@ -113,13 +114,14 @@ export function parseAnalysis(raw: Record<string, unknown>): LabAnalysis {
                 unit: String(item.unit || ''),
                 unit_original: item.unit_original ? String(item.unit_original) : undefined,
                 reference_range: referenceRange,
-                reference_range_original: item.reference_range_original ? String(item.reference_range_original) : undefined,
+                reference_range_original: referenceRangeOriginal || undefined,
                 reference_range_structured: referenceRangeStructured,
                 organ_id: String(item.organ_id || ''),
                 severity: deriveSeverityFromValueAndRange({
                     reportedSeverity,
                     value,
                     referenceRange,
+                    referenceRangeOriginal,
                     referenceRangeStructured
                 }),
                 patient_advice: String(item.patient_advice || '')
@@ -219,6 +221,28 @@ function normalizeSeverity(raw: string): LabAnalysis['results'][number]['severit
         return value;
     }
     return 'unknown';
+}
+
+function isMeaningfulReferenceText(raw: string) {
+    const value = String(raw || '').trim();
+    if (!value) {
+        return false;
+    }
+
+    const normalized = value.toLowerCase();
+    const placeholders = new Set([
+        '-',
+        '--',
+        'n/a',
+        'na',
+        'none',
+        'null',
+        'unknown',
+        'not available',
+        'not provided'
+    ]);
+
+    return !placeholders.has(normalized);
 }
 
 function normalizeComparisonOperator(raw: string): '<' | '<=' | '>' | '>=' | '=' | null {
@@ -362,11 +386,16 @@ function deriveSeverityFromValueAndRange(params: {
     reportedSeverity: string;
     value: string;
     referenceRange: string;
+    referenceRangeOriginal?: string;
     referenceRangeStructured?: LabAnalysis['results'][number]['reference_range_structured'];
 }): LabAnalysis['results'][number]['severity'] {
     const normalizedReported = normalizeSeverity(params.reportedSeverity);
     if (normalizedReported === 'critical') {
         return 'critical';
+    }
+
+    if (!isMeaningfulReferenceText(params.referenceRangeOriginal || '')) {
+        return 'unknown';
     }
 
     const valueNumber = parseMaybeNumber(params.value);

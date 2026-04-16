@@ -887,6 +887,7 @@ function buildQwenMessages(fileUrl) {
     'Return valid JSON only, following the required schema.',
     'If the document is not a medical lab report or is too blurry, return an error JSON based on the contract.',
     'If data is missing, use empty strings instead of guessing.',
+    'If a test has no visible reference-range cell/column, set reference_range to unknown with empty range strings and set severity to unknown.',
     'All output text fields must be in English.',
     `Document to analyze: ${fileUrl}`
   ].join(' ');

@@ -11,6 +11,7 @@ Task: read medical lab documents (image/PDF), perform cross-lingual extraction, 
 - Do not provide an official medical diagnosis.
 - Do not recommend or name specific drugs.
 - Do not invent values when they cannot be read.
+- Do not infer or synthesize reference ranges when they are missing in the source document.
 - Return pure JSON only (no markdown, no extra explanation).
 - All output structural values, keys, and patient_advice must be in standard English.
 
@@ -30,7 +31,7 @@ Success:
       "severity": "normal|abnormal_high|abnormal_low|critical|unknown",
       "patient_advice": "English, 1-3 sentences",
       "reference_range": {
-        "type": "numeric|threshold|qualitative",
+        "type": "numeric|threshold|qualitative|unknown",
         "numeric_min": 30.0,
         "numeric_max": 100.0,
         "raw_string_original": "...",
@@ -289,6 +290,42 @@ function parseOptionalBoolean(value, fallback = false) {
   return fallback;
 }
 
+function isMeaningfulReferenceText(value) {
+  const source = String(value || '').trim();
+  if (!source) {
+    return false;
+  }
+
+  const normalized = source.toLowerCase();
+  const placeholders = new Set([
+    '-',
+    '--',
+    'n/a',
+    'na',
+    'none',
+    'null',
+    'unknown',
+    'not available',
+    'not provided'
+  ]);
+
+  return !placeholders.has(normalized);
+}
+
+function buildUnknownReferenceRange() {
+  return {
+    reference_range: '',
+    reference_range_original: '',
+    reference_range_structured: {
+      type: 'unknown',
+      normalized_text_en: '',
+      numeric: null,
+      threshold: null,
+      qualitative: null
+    }
+  };
+}
+
 function normalizeComparisonOperator(operator) {
   const raw = String(operator || '').trim();
   if (!raw) {
@@ -541,6 +578,10 @@ function normalizeReferenceRangeFromObject(rawReferenceRange) {
   const type = ['numeric', 'threshold', 'qualitative'].includes(typeSource) ? typeSource : 'unknown';
 
   const rawStringOriginal = sanitizeText(rawReferenceRange?.raw_string_original);
+  if (!isMeaningfulReferenceText(rawStringOriginal)) {
+    return buildUnknownReferenceRange();
+  }
+
   const rawStringEn = sanitizeEnglishText(rawReferenceRange?.raw_string_en, '');
   const optimalTextEn = sanitizeEnglishText(rawReferenceRange?.optimal_text_en, rawStringEn);
   const patientCategoryTextEn = sanitizeEnglishText(rawReferenceRange?.patient_category_text_en, '');
@@ -548,7 +589,7 @@ function normalizeReferenceRangeFromObject(rawReferenceRange) {
   const numericMin = parseOptionalNumber(rawReferenceRange?.numeric_min);
   const numericMax = parseOptionalNumber(rawReferenceRange?.numeric_max);
 
-  const fallbackText = optimalTextEn || rawStringEn || sanitizeText(rawStringOriginal);
+  const fallbackText = optimalTextEn || rawStringEn || rawStringOriginal;
   const thresholdParsed = parseThresholdFromText(optimalTextEn || rawStringEn || rawStringOriginal);
 
   const numeric = type === 'numeric'
@@ -616,26 +657,34 @@ function normalizeResult(rawResult) {
     referenceRangeOriginal = normalizedFromObject.reference_range_original;
     referenceRangeStructured = normalizedFromObject.reference_range_structured;
   } else {
-    referenceRangeOriginal = sanitizeText(
-      rawResult?.reference_range_original || rawResult?.reference_range || ''
-    );
-    referenceRange = sanitizeEnglishText(
-      rawResult?.reference_range,
-      sanitizeText(rawResult?.reference_range || referenceRangeOriginal)
-    );
-    referenceRangeStructured = normalizeStructuredReferenceRange(
-      rawResult?.reference_range_structured,
-      referenceRange,
-      referenceRangeOriginal
-    );
+    referenceRangeOriginal = sanitizeText(rawResult?.reference_range_original || '');
+    if (!isMeaningfulReferenceText(referenceRangeOriginal)) {
+      const unknownRange = buildUnknownReferenceRange();
+      referenceRange = unknownRange.reference_range;
+      referenceRangeOriginal = unknownRange.reference_range_original;
+      referenceRangeStructured = unknownRange.reference_range_structured;
+    } else {
+      referenceRange = sanitizeEnglishText(
+        rawResult?.reference_range,
+        sanitizeText(rawResult?.reference_range || referenceRangeOriginal)
+      );
+      referenceRangeStructured = normalizeStructuredReferenceRange(
+        rawResult?.reference_range_structured,
+        referenceRange,
+        referenceRangeOriginal
+      );
+    }
   }
 
-  const normalizedSeverity = deriveSeverityFromValueAndRange({
-    reportedSeverity: rawResult?.severity,
-    value,
-    referenceRange,
-    referenceRangeStructured
-  });
+  const hasReliableRange = isMeaningfulReferenceText(referenceRangeOriginal);
+  const normalizedSeverity = hasReliableRange
+    ? deriveSeverityFromValueAndRange({
+      reportedSeverity: rawResult?.severity,
+      value,
+      referenceRange,
+      referenceRangeStructured
+    })
+    : 'unknown';
 
   return {
     indicator_name: indicatorNameEn,
