@@ -1,0 +1,767 @@
+{
+  "analysis_seed_1776160015278": {
+    "conversations": {
+      "f97be647-dfd3-4c62-9faf-4b57ddacf2c3": {
+        "conversation_id": "f97be647-dfd3-4c62-9faf-4b57ddacf2c3",
+        "language": "vi",
+        "detail_level": "simple",
+        "created_at": "2026-04-14T09:46:55.295Z",
+        "updated_at": "2026-04-14T09:46:55.295Z",
+        "turns": [
+          {
+            "role": "user",
+            "message": "Tom tat nguy co tong quan cho toi",
+            "created_at": "2026-04-14T09:46:55.295Z"
+          },
+          {
+            "role": "assistant",
+            "message": "Day la phan hoi mock de test local. He thong da doc context tu analysis, xac dinh nguy co va de xuat cac buoc tiep theo ngan gon.",
+            "payload": {
+              "answer_text": "Day la phan hoi mock de test local. He thong da doc context tu analysis, xac dinh nguy co va de xuat cac buoc tiep theo ngan gon.",
+              "risk_level": "high",
+              "cited_indicators": [
+                "Creatinine",
+                "AST (SGOT)",
+                "Hemoglobin"
+              ],
+              "cited_organs": [
+                "kidneys",
+                "liver",
+                "blood"
+              ],
+              "recommended_actions": [
+                "Theo doi trieu chung hang ngay",
+                "Uu tien tai kham neu co dau hieu bat thuong",
+                "Duy tri che do an it muoi, du nuoc"
+              ],
+              "follow_up_questions": [
+                "Chi so nao dang nguy co cao nhat?",
+                "Toi nen xet nghiem lai khi nao?",
+                "Can uu tien thay doi gi trong 7 ngay toi?"
+              ],
+              "seven_day_plan": [
+                "Ngay 1-2: Uong du nuoc va theo doi trieu chung.",
+                "Ngay 3-4: Ghi lai che do an va huyet ap neu co.",
+                "Ngay 5-7: Danh gia lai trieu chung va lap lich tai kham neu can."
+              ],
+              "disclaimer": "Thong tin nay chi de tham khao, khong thay the chan doan va chi dinh dieu tri tu bac si.",
+              "escalation": false
+            },
+            "created_at": "2026-04-14T09:46:55.295Z"
+          }
+        ]
+      },
+      "59a46102-6c9b-4070-a7ad-5595fe5cb8aa": {
+        "conversation_id": "59a46102-6c9b-4070-a7ad-5595fe5cb8aa",
+        "language": "en",
+        "detail_level": "simple",
+        "created_at": "2026-04-14T09:46:55.301Z",
+        "updated_at": "2026-04-14T09:46:55.301Z",
+        "turns": [
+          {
+            "role": "user",
+            "message": "Please answer in English with key risks only.",
+            "created_at": "2026-04-14T09:46:55.301Z"
+          },
+          {
+            "role": "assistant",
+            "message": "This is a local mock response. The system grounded to analysis context, assessed risk, and proposed next actions.",
+            "payload": {
+              "answer_text": "This is a local mock response. The system grounded to analysis context, assessed risk, and proposed next actions.",
+              "risk_level": "high",
+              "cited_indicators": [
+                "Creatinine",
+                "AST (SGOT)",
+                "Hemoglobin"
+              ],
+              "cited_organs": [
+                "kidneys",
+                "liver",
+                "blood"
+              ],
+              "recommended_actions": [
+                "Track symptoms daily",
+                "Schedule follow-up if symptoms worsen",
+                "Maintain low-sodium hydration-friendly habits"
+              ],
+              "follow_up_questions": [
+                "Which indicator has the highest risk?",
+                "When should I retest?",
+                "What are top priorities for the next 7 days?"
+              ],
+              "seven_day_plan": [
+                "Day 1-2: Hydrate and monitor symptoms.",
+                "Day 3-4: Log diet and blood pressure if relevant.",
+                "Day 5-7: Reassess symptoms and book follow-up if needed."
+              ],
+              "disclaimer": "This information is for reference only and does not replace diagnosis or treatment from a licensed clinician.",
+              "escalation": false
+            },
+            "created_at": "2026-04-14T09:46:55.301Z"
+          }
+        ]
+      },
+      "ce6197e0-5576-4e2c-a51d-2e94d3c29be1": {
+        "conversation_id": "ce6197e0-5576-4e2c-a51d-2e94d3c29be1",
+        "language": "en",
+        "detail_level": "clinical",
+        "created_at": "2026-04-14T09:46:55.307Z",
+        "updated_at": "2026-04-14T09:46:55.307Z",
+        "turns": [
+          {
+            "role": "user",
+            "message": "Give a detailed clinical explanation for each abnormal marker.",
+            "created_at": "2026-04-14T09:46:55.307Z"
+          },
+          {
+            "role": "assistant",
+            "message": "This is a local mock response. The system grounded to analysis context, assessed risk, and proposed next actions.",
+            "payload": {
+              "answer_text": "This is a local mock response. The system grounded to analysis context, assessed risk, and proposed next actions.",
+              "risk_level": "high",
+              "cited_indicators": [
+                "Creatinine",
+                "AST (SGOT)",
+                "Hemoglobin"
+              ],
+              "cited_organs": [
+                "kidneys",
+                "liver",
+                "blood"
+              ],
+              "recommended_actions": [
+                "Track symptoms daily",
+                "Schedule follow-up if symptoms worsen",
+                "Maintain low-sodium hydration-friendly habits"
+              ],
+              "follow_up_questions": [
+                "Which indicator has the highest risk?",
+                "When should I retest?",
+                "What are top priorities for the next 7 days?"
+              ],
+              "seven_day_plan": [
+                "Day 1-2: Hydrate and monitor symptoms.",
+                "Day 3-4: Log diet and blood pressure if relevant.",
+                "Day 5-7: Reassess symptoms and book follow-up if needed."
+              ],
+              "disclaimer": "This information is for reference only and does not replace diagnosis or treatment from a licensed clinician.",
+              "escalation": false
+            },
+            "created_at": "2026-04-14T09:46:55.307Z"
+          }
+        ]
+      },
+      "d4505482-76b1-44a7-bff4-c3b8e3f027af": {
+        "conversation_id": "d4505482-76b1-44a7-bff4-c3b8e3f027af",
+        "language": "en",
+        "detail_level": "simple",
+        "created_at": "2026-04-14T09:46:55.312Z",
+        "updated_at": "2026-04-14T09:46:55.316Z",
+        "turns": [
+          {
+            "role": "user",
+            "message": "Remember this: I prefer concise replies.",
+            "created_at": "2026-04-14T09:46:55.312Z"
+          },
+          {
+            "role": "assistant",
+            "message": "This is a local mock response. The system grounded to analysis context, assessed risk, and proposed next actions.",
+            "payload": {
+              "answer_text": "This is a local mock response. The system grounded to analysis context, assessed risk, and proposed next actions.",
+              "risk_level": "high",
+              "cited_indicators": [
+                "Creatinine",
+                "AST (SGOT)",
+                "Hemoglobin"
+              ],
+              "cited_organs": [
+                "kidneys",
+                "liver",
+                "blood"
+              ],
+              "recommended_actions": [
+                "Track symptoms daily",
+                "Schedule follow-up if symptoms worsen",
+                "Maintain low-sodium hydration-friendly habits"
+              ],
+              "follow_up_questions": [
+                "Which indicator has the highest risk?",
+                "When should I retest?",
+                "What are top priorities for the next 7 days?"
+              ],
+              "seven_day_plan": [
+                "Day 1-2: Hydrate and monitor symptoms.",
+                "Day 3-4: Log diet and blood pressure if relevant.",
+                "Day 5-7: Reassess symptoms and book follow-up if needed."
+              ],
+              "disclaimer": "This information is for reference only and does not replace diagnosis or treatment from a licensed clinician.",
+              "escalation": false
+            },
+            "created_at": "2026-04-14T09:46:55.312Z"
+          },
+          {
+            "role": "user",
+            "message": "Now continue with the same thread and summarize in one paragraph.",
+            "created_at": "2026-04-14T09:46:55.316Z"
+          },
+          {
+            "role": "assistant",
+            "message": "This is a local mock response. The system grounded to analysis context, assessed risk, and proposed next actions.",
+            "payload": {
+              "answer_text": "This is a local mock response. The system grounded to analysis context, assessed risk, and proposed next actions.",
+              "risk_level": "high",
+              "cited_indicators": [
+                "Creatinine",
+                "AST (SGOT)",
+                "Hemoglobin"
+              ],
+              "cited_organs": [
+                "kidneys",
+                "liver",
+                "blood"
+              ],
+              "recommended_actions": [
+                "Track symptoms daily",
+                "Schedule follow-up if symptoms worsen",
+                "Maintain low-sodium hydration-friendly habits"
+              ],
+              "follow_up_questions": [
+                "Which indicator has the highest risk?",
+                "When should I retest?",
+                "What are top priorities for the next 7 days?"
+              ],
+              "seven_day_plan": [
+                "Day 1-2: Hydrate and monitor symptoms.",
+                "Day 3-4: Log diet and blood pressure if relevant.",
+                "Day 5-7: Reassess symptoms and book follow-up if needed."
+              ],
+              "disclaimer": "This information is for reference only and does not replace diagnosis or treatment from a licensed clinician.",
+              "escalation": false
+            },
+            "created_at": "2026-04-14T09:46:55.316Z"
+          }
+        ]
+      },
+      "9f5abbb9-580b-4b96-8f94-329127f051fc": {
+        "conversation_id": "9f5abbb9-580b-4b96-8f94-329127f051fc",
+        "language": "vi",
+        "detail_level": "simple",
+        "created_at": "2026-04-14T09:46:55.321Z",
+        "updated_at": "2026-04-14T09:46:55.321Z",
+        "turns": [
+          {
+            "role": "user",
+            "message": "Toi dang dau nguc va kho tho, toi nen lam gi ngay bay gio?",
+            "created_at": "2026-04-14T09:46:55.321Z"
+          },
+          {
+            "role": "assistant",
+            "message": "Day la phan hoi mock de test local. He thong da doc context tu analysis, xac dinh nguy co va de xuat cac buoc tiep theo ngan gon.",
+            "payload": {
+              "answer_text": "Day la phan hoi mock de test local. He thong da doc context tu analysis, xac dinh nguy co va de xuat cac buoc tiep theo ngan gon.",
+              "risk_level": "urgent",
+              "cited_indicators": [
+                "Creatinine",
+                "AST (SGOT)",
+                "Hemoglobin"
+              ],
+              "cited_organs": [
+                "kidneys",
+                "liver",
+                "blood"
+              ],
+              "recommended_actions": [
+                "Theo doi trieu chung hang ngay",
+                "Uu tien tai kham neu co dau hieu bat thuong",
+                "Duy tri che do an it muoi, du nuoc"
+              ],
+              "follow_up_questions": [
+                "Chi so nao dang nguy co cao nhat?",
+                "Toi nen xet nghiem lai khi nao?",
+                "Can uu tien thay doi gi trong 7 ngay toi?"
+              ],
+              "seven_day_plan": [
+                "Ngay 1-2: Uong du nuoc va theo doi trieu chung.",
+                "Ngay 3-4: Ghi lai che do an va huyet ap neu co.",
+                "Ngay 5-7: Danh gia lai trieu chung va lap lich tai kham neu can."
+              ],
+              "disclaimer": "Thong tin nay chi de tham khao, khong thay the chan doan va chi dinh dieu tri tu bac si.",
+              "escalation": true
+            },
+            "created_at": "2026-04-14T09:46:55.321Z"
+          }
+        ]
+      },
+      "a58d8b0c-e705-42a0-a78d-056b2b258c22": {
+        "conversation_id": "a58d8b0c-e705-42a0-a78d-056b2b258c22",
+        "language": "vi",
+        "detail_level": "simple",
+        "created_at": "2026-04-14T09:46:55.326Z",
+        "updated_at": "2026-04-14T09:46:55.326Z",
+        "turns": [
+          {
+            "role": "user",
+            "message": "Chi ra cac chi so dang duoc trich dan trong tra loi.",
+            "created_at": "2026-04-14T09:46:55.326Z"
+          },
+          {
+            "role": "assistant",
+            "message": "Day la phan hoi mock de test local. He thong da doc context tu analysis, xac dinh nguy co va de xuat cac buoc tiep theo ngan gon.",
+            "payload": {
+              "answer_text": "Day la phan hoi mock de test local. He thong da doc context tu analysis, xac dinh nguy co va de xuat cac buoc tiep theo ngan gon.",
+              "risk_level": "high",
+              "cited_indicators": [
+                "Creatinine",
+                "AST (SGOT)",
+                "Hemoglobin"
+              ],
+              "cited_organs": [
+                "kidneys",
+                "liver",
+                "blood"
+              ],
+              "recommended_actions": [
+                "Theo doi trieu chung hang ngay",
+                "Uu tien tai kham neu co dau hieu bat thuong",
+                "Duy tri che do an it muoi, du nuoc"
+              ],
+              "follow_up_questions": [
+                "Chi so nao dang nguy co cao nhat?",
+                "Toi nen xet nghiem lai khi nao?",
+                "Can uu tien thay doi gi trong 7 ngay toi?"
+              ],
+              "seven_day_plan": [
+                "Ngay 1-2: Uong du nuoc va theo doi trieu chung.",
+                "Ngay 3-4: Ghi lai che do an va huyet ap neu co.",
+                "Ngay 5-7: Danh gia lai trieu chung va lap lich tai kham neu can."
+              ],
+              "disclaimer": "Thong tin nay chi de tham khao, khong thay the chan doan va chi dinh dieu tri tu bac si.",
+              "escalation": false
+            },
+            "created_at": "2026-04-14T09:46:55.326Z"
+          }
+        ]
+      }
+    }
+  },
+  "analysis_1776159008985_5a2955": {
+    "conversations": {
+      "fe936bc1-d76b-49fe-8485-152770cbb75e": {
+        "conversation_id": "fe936bc1-d76b-49fe-8485-152770cbb75e",
+        "language": "vi",
+        "detail_level": "simple",
+        "created_at": "2026-04-14T10:19:47.642Z",
+        "updated_at": "2026-04-14T10:20:26.958Z",
+        "turns": [
+          {
+            "role": "user",
+            "message": "hello fen",
+            "created_at": "2026-04-14T10:19:47.642Z"
+          },
+          {
+            "role": "assistant",
+            "message": "Xin chào anh/chị NGUYEN DU. Kết quả xét nghiệm ngày 24/02/2026 cho thấy một số chỉ số bất thường cần lưu ý, đặc biệt ở thận, tim và máu. Cụ thể: creatinine cao, eGFR thấp (cảnh báo chức năng thận suy giảm), HDL cholesterol thấp, LDL và Non-HDL cholesterol cao, cùng với PDW tăng và PCT giảm — tất cả đều cần theo dõi sát.",
+            "payload": {
+              "answer_text": "Xin chào anh/chị NGUYEN DU. Kết quả xét nghiệm ngày 24/02/2026 cho thấy một số chỉ số bất thường cần lưu ý, đặc biệt ở thận, tim và máu. Cụ thể: creatinine cao, eGFR thấp (cảnh báo chức năng thận suy giảm), HDL cholesterol thấp, LDL và Non-HDL cholesterol cao, cùng với PDW tăng và PCT giảm — tất cả đều cần theo dõi sát.",
+              "risk_level": "high",
+              "cited_indicators": [
+                "Creatinine",
+                "HDL Cholesterol",
+                "Non HDL Cholesterol"
+              ],
+              "cited_organs": [
+                "kidneys",
+                "heart",
+                "blood"
+              ],
+              "recommended_actions": [
+                "Uống đủ nước (1.5–2 lít/ngày)",
+                "Hạn chế muối, đạm động vật và thực phẩm giàu cholesterol",
+                "Tập vận động nhẹ như đi bộ 30 phút/ngày",
+                "Tái khám chuyên khoa thận và tim mạch trong vòng 2 tuần",
+                "Tránh tự dùng thuốc giảm đau hoặc thực phẩm chức năng ảnh hưởng thận"
+              ],
+              "follow_up_questions": [
+                "Anh/chị có đang bị phù chân, mệt mỏi kéo dài, tiểu ít hoặc sẫm màu không?",
+                "Có tiền sử tăng huyết áp, đái tháo đường hoặc bệnh thận không?",
+                "Đang dùng thuốc nào thường xuyên? (kể cả thuốc nam, thực phẩm chức năng)"
+              ],
+              "seven_day_plan": [
+                "Ngày 1: Ghi lại khẩu phần ăn và lượng nước uống",
+                "Ngày 2: Đo huyết áp tại nhà (nếu có máy)",
+                "Ngày 3: Tránh thực phẩm chế biến sẵn và nội tạng động vật",
+                "Ngày 4: Đi bộ nhẹ 20 phút buổi sáng",
+                "Ngày 5: Kiểm tra lại các triệu chứng như mệt, chóng mặt, tiểu buốt",
+                "Ngày 6: Chuẩn bị danh sách thuốc và câu hỏi cho bác sĩ",
+                "Ngày 7: Đặt lịch khám chuyên khoa thận/tim"
+              ],
+              "disclaimer": "Đây không phải chẩn đoán lâm sàng. Kết quả chỉ mang tính tham khảo và cần được đánh giá bởi bác sĩ chuyên khoa dựa trên khám lâm sàng, bệnh sử và các xét nghiệm bổ sung.",
+              "escalation": true
+            },
+            "created_at": "2026-04-14T10:19:47.642Z"
+          },
+          {
+            "role": "user",
+            "message": "Tôi cần lưu ý gì",
+            "created_at": "2026-04-14T10:20:26.958Z"
+          },
+          {
+            "role": "assistant",
+            "message": "Anh/chị cần lưu ý các vấn đề sau: chức năng thận đang suy giảm (creatinine cao, eGFR thấp), nguy cơ tim mạch tăng (HDL thấp, Non-HDL và tỷ lệ cholesterol/HDL cao), rối loạn đông máu nhẹ (PDW tăng, PCT giảm), cùng với phospho và acid uric máu cao — có thể ảnh hưởng đến xương và thận. Ngoài ra, phospho và creatinine cao kết hợp với eGFR giảm là dấu hiệu đáng lo về sức khỏe thận.",
+            "payload": {
+              "answer_text": "Anh/chị cần lưu ý các vấn đề sau: chức năng thận đang suy giảm (creatinine cao, eGFR thấp), nguy cơ tim mạch tăng (HDL thấp, Non-HDL và tỷ lệ cholesterol/HDL cao), rối loạn đông máu nhẹ (PDW tăng, PCT giảm), cùng với phospho và acid uric máu cao — có thể ảnh hưởng đến xương và thận. Ngoài ra, phospho và creatinine cao kết hợp với eGFR giảm là dấu hiệu đáng lo về sức khỏe thận.",
+              "risk_level": "high",
+              "cited_indicators": [
+                "Creatinine",
+                "HDL Cholesterol",
+                "Non HDL Cholesterol",
+                "Cholesterol/HDL Ratio",
+                "Phosphorus",
+                "Uric Acid"
+              ],
+              "cited_organs": [
+                "kidneys",
+                "heart",
+                "bone",
+                "blood"
+              ],
+              "recommended_actions": [
+                "Uống đủ 1.5–2 lít nước/ngày (trừ khi bác sĩ khuyên hạn chế)",
+                "Tránh thực phẩm nhiều muối, đạm động vật, nội tạng, hải sản, rượu bia",
+                "Không tự dùng thuốc giảm đau như paracetamol liều cao hoặc NSAIDs (ibuprofen, diclofenac)",
+                "Tái khám chuyên khoa thận và tim mạch trong vòng 10 ngày",
+                "Theo dõi sát các triệu chứng: mệt bất thường, phù mắt/cổ chân, tiểu ít/sẫm màu, chóng mặt khi đứng dậy"
+              ],
+              "follow_up_questions": [
+                "Anh/chị có bị tiểu đêm, khát nhiều hoặc sụt cân gần đây không?",
+                "Có đang điều trị tăng huyết áp, đái tháo đường hoặc bệnh gút không?",
+                "Có dùng thuốc lợi tiểu, thuốc điều trị mỡ máu hoặc thuốc bổ chứa canxi/vitamin D không?"
+              ],
+              "seven_day_plan": [
+                "Ngày 1: Ghi lại toàn bộ bữa ăn và lượng nước uống trong ngày",
+                "Ngày 2: Đo huyết áp buổi sáng (nếu có máy), nghỉ ngơi 5 phút trước khi đo",
+                "Ngày 3: Loại bỏ hoàn toàn nước ngọt, nước ép trái cây đóng chai và thực phẩm chiên rán",
+                "Ngày 4: Đi bộ ngoài trời 25 phút vào lúc 7–8 giờ sáng",
+                "Ngày 5: Kiểm tra xem có phù nhẹ ở mắt cá chân hay mí mắt không",
+                "Ngày 6: Chuẩn bị danh sách đầy đủ thuốc đang dùng và các câu hỏi cho bác sĩ",
+                "Ngày 7: Đặt lịch khám chuyên khoa thận (nội tiết – thận tiết niệu) và/hoặc tim mạch"
+              ],
+              "disclaimer": "Đây không phải chẩn đoán lâm sàng. Kết quả chỉ mang tính tham khảo và cần được đánh giá bởi bác sĩ chuyên khoa dựa trên khám lâm sàng, bệnh sử và các xét nghiệm bổ sung.",
+              "escalation": true
+            },
+            "created_at": "2026-04-14T10:20:26.958Z"
+          }
+        ]
+      },
+      "36a92fc5-6ba8-483c-863e-e807de42fc7a": {
+        "conversation_id": "36a92fc5-6ba8-483c-863e-e807de42fc7a",
+        "language": "vi",
+        "detail_level": "simple",
+        "created_at": "2026-04-14T10:27:06.455Z",
+        "updated_at": "2026-04-14T10:27:06.455Z",
+        "turns": [
+          {
+            "role": "user",
+            "message": "Tôi cần lưu ý gì",
+            "created_at": "2026-04-14T10:27:06.455Z"
+          },
+          {
+            "role": "assistant",
+            "message": "Bạn cần lưu ý các chỉ số bất thường liên quan đến thận (creatinine cao, eGFR thấp, acid uric cao), tim mạch (HDL thấp, cholesterol/HDL cao, non-HDL cao), xương (phospho cao) và máu (PDW cao, PCT thấp). Đây là những dấu hiệu cảnh báo sớm về suy giảm chức năng thận, nguy cơ tim mạch và rối loạn chuyển hóa. Bạn nên tái khám bác sĩ chuyên khoa để đánh giá sâu hơn.",
+            "payload": {
+              "answer_text": "Bạn cần lưu ý các chỉ số bất thường liên quan đến thận (creatinine cao, eGFR thấp, acid uric cao), tim mạch (HDL thấp, cholesterol/HDL cao, non-HDL cao), xương (phospho cao) và máu (PDW cao, PCT thấp). Đây là những dấu hiệu cảnh báo sớm về suy giảm chức năng thận, nguy cơ tim mạch và rối loạn chuyển hóa. Bạn nên tái khám bác sĩ chuyên khoa để đánh giá sâu hơn.",
+              "risk_level": "high",
+              "cited_indicators": [
+                "Creatinine",
+                "Uric Acid",
+                "HDL Cholesterol",
+                "Cholesterol/HDL Ratio",
+                "Non HDL Cholesterol",
+                "Phosphorus"
+              ],
+              "cited_organs": [
+                "kidneys",
+                "heart",
+                "bone",
+                "blood"
+              ],
+              "recommended_actions": [
+                "Tái khám chuyên khoa thận và tim mạch trong vòng 2 tuần",
+                "Uống đủ 1.5–2 lít nước mỗi ngày",
+                "Hạn chế thực phẩm giàu đạm động vật, nội tạng, hải sản, rượu bia và đồ uống có đường",
+                "Tăng cường rau xanh, chất béo lành mạnh (cá, hạt, dầu oliu) và vận động nhẹ như đi bộ 30 phút/ngày"
+              ],
+              "follow_up_questions": [
+                "Bạn có đang bị phù chân, mệt mỏi kéo dài, tiểu ít hoặc sẫm màu không?",
+                "Bạn có tiền sử tăng huyết áp, đái tháo đường hoặc bệnh thận không?",
+                "Gần đây bạn có dùng thuốc nào như kháng sinh, giảm đau NSAIDs hoặc thực phẩm chức năng không?"
+              ],
+              "seven_day_plan": [
+                "Ngày 1: Ghi chép lại chế độ ăn và lượng nước uống",
+                "Ngày 2: Đi bộ 20 phút buổi sáng",
+                "Ngày 3: Loại bỏ 1 món nhiều muối (mắm, nước tương, đồ hộp) khỏi bữa ăn",
+                "Ngày 4: Kiểm tra huyết áp tại nhà (nếu có máy)",
+                "Ngày 5: Tránh uống bia/rượu và nước ngọt có gas",
+                "Ngày 6: Ăn thêm 1 phần rau xanh vào cả 3 bữa",
+                "Ngày 7: Đặt lịch khám với bác sĩ nội tổng quát hoặc chuyên khoa thận/tim"
+              ],
+              "disclaimer": "Đây không phải chẩn đoán lâm sàng mà chỉ là phân tích sơ bộ dựa trên kết quả xét nghiệm. Việc chẩn đoán và điều trị cần được thực hiện bởi bác sĩ sau khi thăm khám trực tiếp và đánh giá đầy đủ lâm sàng, tiền sử và các xét nghiệm bổ sung.",
+              "escalation": true
+            },
+            "created_at": "2026-04-14T10:27:06.455Z"
+          }
+        ]
+      }
+    }
+  },
+  "analysis_1776170151858_5aaf39": {
+    "conversations": {
+      "d6e63865-3ced-440b-afb8-998e251f199b": {
+        "conversation_id": "d6e63865-3ced-440b-afb8-998e251f199b",
+        "language": "en",
+        "detail_level": "simple",
+        "created_at": "2026-04-14T14:59:19.009Z",
+        "updated_at": "2026-04-14T14:59:19.009Z",
+        "turns": [
+          {
+            "role": "user",
+            "message": "Tôi tên gì",
+            "created_at": "2026-04-14T14:59:19.009Z"
+          },
+          {
+            "role": "assistant",
+            "message": "Your name is not provided in the lab report or analysis context.",
+            "payload": {
+              "answer_text": "Your name is not provided in the lab report or analysis context.",
+              "risk_level": "high",
+              "cited_indicators": [
+                "CA 19-9",
+                "Free T4",
+                "Testosterone",
+                "SHBG",
+                "Chỉ số Testosterone tự do",
+                "25-OH Vitamin D",
+                "pH"
+              ],
+              "cited_organs": [
+                "other",
+                "thyroid",
+                "blood",
+                "bone",
+                "lungs"
+              ],
+              "recommended_actions": [
+                "Schedule urgent follow-up with a primary care provider or specialist (e.g., endocrinologist, gastroenterologist) to interpret these results together.",
+                "Do not delay evaluation — several markers show clinically meaningful abnormalities requiring timely assessment.",
+                "Avoid self-interpreting or acting on results without clinical correlation (e.g., symptoms, physical exam, imaging)."
+              ],
+              "follow_up_questions": [
+                "Have you noticed symptoms like unexplained weight loss, fatigue, heat intolerance, low libido, or changes in bowel habits?",
+                "Are you currently taking any thyroid medication, testosterone supplements, or vitamin D?",
+                "Have you had recent imaging (e.g., abdominal ultrasound) or other hormone tests (e.g., TSH, LH, FSH)?"
+              ],
+              "seven_day_plan": [
+                "Day 1: Contact your doctor to share this report and request an appointment within 3–5 days.",
+                "Day 2: Write down any symptoms you’ve experienced recently (e.g., palpitations, night sweats, mood changes, digestive issues).",
+                "Day 3: Avoid starting new supplements (especially vitamin D or testosterone) without medical advice.",
+                "Day 4: Check if prior lab reports are available for comparison (e.g., past CA 19-9 or Free T4 levels).",
+                "Day 5: Prepare questions for your provider using the follow-up list above.",
+                "Day 6: Stay hydrated, eat balanced meals, and get restful sleep.",
+                "Day 7: Attend or confirm your specialist appointment; bring this report and your symptom notes."
+              ],
+              "disclaimer": "This analysis is for informational support only and does not replace professional medical evaluation, diagnosis, or treatment. Abnormal lab values require clinical correlation — they are not standalone diagnoses.",
+              "escalation": true
+            },
+            "created_at": "2026-04-14T14:59:19.009Z"
+          }
+        ]
+      }
+    }
+  },
+  "analysis_1776179735358_f35cb9": {
+    "conversations": {
+      "39db68ec-2c0d-427e-933e-5c3ca5ad3cf7": {
+        "conversation_id": "39db68ec-2c0d-427e-933e-5c3ca5ad3cf7",
+        "language": "en",
+        "detail_level": "simple",
+        "created_at": "2026-04-14T15:16:23.977Z",
+        "updated_at": "2026-04-14T15:16:43.978Z",
+        "turns": [
+          {
+            "role": "user",
+            "message": "Tình hình của tôi như thế nào",
+            "created_at": "2026-04-14T15:16:23.977Z"
+          },
+          {
+            "role": "assistant",
+            "message": "Your lab results show several abnormalities that need attention. CA 19-9 is slightly high (42 U/mL), which may signal pancreatic or digestive tract concerns. Free T4 is elevated, suggesting possible hyperthyroidism. Testosterone is low, while SHBG and the free testosterone index are high — this pattern can affect hormone balance and symptoms like fatigue or low energy. Vitamin D is low (25 ng/mL), indicating deficiency. Urine pH is mildly acidic but not critically so. Overall, these findings point to multiple systems needing evaluation — thyroid, hormone balance, bone health, and possibly gastrointestinal health.",
+            "payload": {
+              "answer_text": "Your lab results show several abnormalities that need attention. CA 19-9 is slightly high (42 U/mL), which may signal pancreatic or digestive tract concerns. Free T4 is elevated, suggesting possible hyperthyroidism. Testosterone is low, while SHBG and the free testosterone index are high — this pattern can affect hormone balance and symptoms like fatigue or low energy. Vitamin D is low (25 ng/mL), indicating deficiency. Urine pH is mildly acidic but not critically so. Overall, these findings point to multiple systems needing evaluation — thyroid, hormone balance, bone health, and possibly gastrointestinal health.",
+              "risk_level": "high",
+              "cited_indicators": [
+                "CA 19-9",
+                "Free T4",
+                "Testosterone",
+                "SHBG",
+                "Chỉ số Testosterone tự do",
+                "25-OH Vitamin D",
+                "pH"
+              ],
+              "cited_organs": [
+                "other",
+                "thyroid",
+                "blood",
+                "bone",
+                "lungs"
+              ],
+              "recommended_actions": [
+                "See an endocrinologist for thyroid and testosterone imbalances",
+                "Consult a gastroenterologist about elevated CA 19-9",
+                "Start vitamin D supplementation under medical guidance",
+                "Repeat key tests (CA 19-9, Free T4, testosterone panel) in 4–6 weeks",
+                "Keep a symptom diary (e.g., energy, mood, digestion, sleep)"
+              ],
+              "follow_up_questions": [
+                "Have you noticed recent weight changes, palpitations, or digestive issues like bloating or stool changes?",
+                "Are you experiencing fatigue, low libido, hair loss, or mood swings?",
+                "Do you take any supplements or medications regularly?"
+              ],
+              "seven_day_plan": [
+                "Day 1: Record current symptoms and schedule specialist appointments",
+                "Day 2: Begin daily vitamin D supplement (e.g., 1000–2000 IU) after confirming with provider",
+                "Day 3: Review diet — add fatty fish, eggs, fortified foods, and leafy greens",
+                "Day 4: Drink ≥2 L water; reduce caffeine/sugar if experiencing palpitations or anxiety",
+                "Day 5: Walk 30 min; note energy levels before/after",
+                "Day 6: Prepare questions for your endocrinologist/gastroenterologist",
+                "Day 7: Recheck urine pH with test strips (optional) and log result"
+              ],
+              "disclaimer": "These results suggest patterns requiring clinical follow-up, but they do not confirm any diagnosis. Lab values must be interpreted alongside your full medical history, symptoms, and physical exam by a licensed healthcare provider.",
+              "escalation": true
+            },
+            "created_at": "2026-04-14T15:16:23.977Z"
+          },
+          {
+            "role": "user",
+            "message": "What's my name?",
+            "created_at": "2026-04-14T15:16:43.978Z"
+          },
+          {
+            "role": "assistant",
+            "message": "Your name is Hong.",
+            "payload": {
+              "answer_text": "Your name is Hong.",
+              "risk_level": "high",
+              "cited_indicators": [
+                "CA 19-9",
+                "Free T4",
+                "Testosterone",
+                "SHBG",
+                "Chỉ số Testosterone tự do",
+                "25-OH Vitamin D",
+                "pH"
+              ],
+              "cited_organs": [
+                "other",
+                "thyroid",
+                "blood",
+                "bone",
+                "lungs"
+              ],
+              "recommended_actions": [
+                "See an endocrinologist for thyroid and testosterone imbalances",
+                "Consult a gastroenterologist about elevated CA 19-9",
+                "Start vitamin D supplementation under medical guidance",
+                "Repeat key tests (CA 19-9, Free T4, testosterone panel) in 4–6 weeks",
+                "Keep a symptom diary (e.g., energy, mood, digestion, sleep)"
+              ],
+              "follow_up_questions": [
+                "Have you noticed recent weight changes, palpitations, or digestive issues like bloating or stool changes?",
+                "Are you experiencing fatigue, low libido, hair loss, or mood swings?",
+                "Do you take any supplements or medications regularly?"
+              ],
+              "seven_day_plan": [
+                "Day 1: Record current symptoms and schedule specialist appointments",
+                "Day 2: Begin daily vitamin D supplement (e.g., 1000–2000 IU) after confirming with provider",
+                "Day 3: Review diet — add fatty fish, eggs, fortified foods, and leafy greens",
+                "Day 4: Drink ≥2 L water; reduce caffeine/sugar if experiencing palpitations or anxiety",
+                "Day 5: Walk 30 min; note energy levels before/after",
+                "Day 6: Prepare questions for your endocrinologist/gastroenterologist",
+                "Day 7: Recheck urine pH with test strips (optional) and log result"
+              ],
+              "disclaimer": "These results suggest patterns requiring clinical follow-up, but they do not confirm any diagnosis. Lab values must be interpreted alongside your full medical history, symptoms, and physical exam by a licensed healthcare provider.",
+              "escalation": true
+            },
+            "created_at": "2026-04-14T15:16:43.978Z"
+          }
+        ]
+      }
+    }
+  },
+  "analysis_1776186397011_a44590": {
+    "conversations": {
+      "a5bde446-3b19-47c0-bdc5-83e11f6a661e": {
+        "conversation_id": "a5bde446-3b19-47c0-bdc5-83e11f6a661e",
+        "language": "en",
+        "detail_level": "simple",
+        "created_at": "2026-04-14T17:08:02.309Z",
+        "updated_at": "2026-04-14T17:08:02.309Z",
+        "turns": [
+          {
+            "role": "user",
+            "message": "What should I do care now",
+            "created_at": "2026-04-14T17:08:02.309Z"
+          },
+          {
+            "role": "assistant",
+            "message": "You have several abnormal lab results that need prompt attention: slightly high CA 19-9 (possible pancreatic or GI concern), elevated Free T4 (suggesting hyperthyroidism), low total testosterone, high SHBG, high free testosterone index, low vitamin D, and low urine pH. These point to possible thyroid, hormonal, bone, and metabolic issues — none are emergencies, but they require coordinated follow-up with your doctor.",
+            "payload": {
+              "answer_text": "You have several abnormal lab results that need prompt attention: slightly high CA 19-9 (possible pancreatic or GI concern), elevated Free T4 (suggesting hyperthyroidism), low total testosterone, high SHBG, high free testosterone index, low vitamin D, and low urine pH. These point to possible thyroid, hormonal, bone, and metabolic issues — none are emergencies, but they require coordinated follow-up with your doctor.",
+              "risk_level": "high",
+              "cited_indicators": [
+                "CA 19-9",
+                "Free T4",
+                "Testosterone",
+                "SHBG",
+                "Chỉ số Testosterone tự do",
+                "25-OH Vitamin D",
+                "pH"
+              ],
+              "cited_organs": [
+                "other",
+                "thyroid",
+                "blood",
+                "bone",
+                "lungs"
+              ],
+              "recommended_actions": [
+                "Schedule an appointment with your primary care provider within 7 days to review all abnormal results.",
+                "Ask for referral to an endocrinologist for thyroid and testosterone evaluation.",
+                "Discuss vitamin D supplementation (e.g., 1000–2000 IU/day) after provider approval.",
+                "Avoid self-treating — do not start thyroid meds, testosterone, or strong acid-base supplements without guidance.",
+                "Stay well-hydrated and note any symptoms (e.g., fatigue, weight changes, palpitations, muscle cramps, frequent urination)."
+              ],
+              "follow_up_questions": [
+                "Have you noticed recent weight loss, tremors, rapid heartbeat, or heat intolerance? (related to thyroid)",
+                "Are you experiencing low energy, reduced libido, mood changes, or decreased muscle strength? (related to testosterone)",
+                "Do you have bone pain, frequent fractures, or muscle weakness? (related to vitamin D and bone health)",
+                "Any nausea, vomiting, confusion, or shortness of breath? (related to acid-base balance)"
+              ],
+              "seven_day_plan": [
+                "Day 1: Record symptoms and list questions for your doctor.",
+                "Day 2: Call clinic to schedule appointment (aim for within 7 days).",
+                "Day 3: Start drinking more water; avoid excessive soda or processed meats (can worsen acidosis).",
+                "Day 4: Check if you have vitamin D supplement at home — hold off until doctor confirms dose.",
+                "Day 5: Review family history of thyroid disease, diabetes, or pancreatic conditions.",
+                "Day 6: Prepare list of all current medications/supplements to bring to visit.",
+                "Day 7: Attend appointment and request next steps (e.g., repeat labs, ultrasound, or specialist consult)."
+              ],
+              "disclaimer": "This summary is for informational use only and does not replace professional medical advice, diagnosis, or treatment. Always consult a licensed healthcare provider before making health decisions.",
+              "escalation": true
+            },
+            "created_at": "2026-04-14T17:08:02.309Z"
+          }
+        ]
+      }
+    }
+  }
+}
