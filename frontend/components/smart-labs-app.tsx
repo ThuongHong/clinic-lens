@@ -33,6 +33,7 @@ import {
 } from './smart-labs/utils';
 
 type TabKey = 'overview' | 'chat' | 'history';
+const MAX_CHAT_CONTEXT_RECORDS = 5;
 
 /* ─── Main App Component ─────────────────────────── */
 export default function SmartLabsApp() {
@@ -51,6 +52,7 @@ export default function SmartLabsApp() {
     const [chatConversationId, setChatConversationId] = useState<string | null>(null);
     const [chatBusy, setChatBusy] = useState(false);
     const [chatError, setChatError] = useState<string | null>(null);
+    const [chatContextHistoryIds, setChatContextHistoryIds] = useState<string[]>([]);
     const [patientName, setPatientName] = useState('');
     const [patientNameDraft, setPatientNameDraft] = useState('');
     const [showPatientNamePrompt, setShowPatientNamePrompt] = useState(false);
@@ -64,6 +66,23 @@ export default function SmartLabsApp() {
         () => history.find((entry) => entry.id === selectedHistoryId) ?? null,
         [history, selectedHistoryId]
     );
+
+    const selectedChatContextEntries = useMemo(() => {
+        const lookup = new Map(history.map((entry) => [entry.id, entry]));
+        const orderedIds = chatContextHistoryIds
+            .filter((id, index, all) => all.indexOf(id) === index)
+            .slice(0, MAX_CHAT_CONTEXT_RECORDS);
+
+        const entries = orderedIds
+            .map((id) => lookup.get(id))
+            .filter((entry): entry is AnalysisHistoryEntry => Boolean(entry));
+
+        if (entries.length > 0) {
+            return entries;
+        }
+
+        return history.length > 0 ? [history[0]] : [];
+    }, [history, chatContextHistoryIds]);
 
     const currentAnalysis = analysis ?? (isDraftNewUpload ? null : selectedHistory?.analysis ?? null);
     const currentResults = currentAnalysis?.results ?? [];
@@ -193,6 +212,28 @@ export default function SmartLabsApp() {
     }, [history, selectedHistoryId, isDraftNewUpload]);
 
     useEffect(() => {
+        const availableIds = new Set(history.map((entry) => entry.id));
+        setChatContextHistoryIds((prev) => {
+            return prev
+                .filter((id, index, all) => all.indexOf(id) === index && availableIds.has(id))
+                .slice(0, MAX_CHAT_CONTEXT_RECORDS);
+        });
+    }, [history]);
+
+    useEffect(() => {
+        if (activeTab !== 'chat' || history.length === 0 || chatContextHistoryIds.length > 0) {
+            return;
+        }
+
+        const newest = history[0];
+        setChatContextHistoryIds([newest.id]);
+        if (!selectedHistoryId) {
+            setSelectedHistoryId(newest.id);
+            setAnalysis(newest.analysis);
+        }
+    }, [activeTab, history, chatContextHistoryIds.length, selectedHistoryId]);
+
+    useEffect(() => {
         if (!currentAnalysis || currentResults.length === 0) {
             setSelectedOrganId('all');
             return;
@@ -233,6 +274,7 @@ export default function SmartLabsApp() {
             setIsDraftNewUpload(true);
             setAnalysis(null);
             setSelectedHistoryId(null);
+            setChatContextHistoryIds([]);
             setChatMessages([]);
             setChatConversationId(null);
             setChatError(null);
@@ -273,6 +315,7 @@ export default function SmartLabsApp() {
         setChatMessages([]);
         setChatConversationId(null);
         setChatError(null);
+        setChatContextHistoryIds([]);
         setAnalysis(null);
         setAnalysisLogs([]);
         setStatus('Requesting STS token...');
@@ -330,7 +373,10 @@ export default function SmartLabsApp() {
                             source_file_name: selectedFile.name,
                             analysis: parsed
                         });
-                        if (nextHistoryId) setSelectedHistoryId(nextHistoryId);
+                        if (nextHistoryId) {
+                            setSelectedHistoryId(nextHistoryId);
+                            setChatContextHistoryIds([nextHistoryId]);
+                        }
                         setStatus(
                             parsed.status === 'error'
                                 ? parsed.error_message || 'Analysis returned an error'
@@ -367,16 +413,86 @@ export default function SmartLabsApp() {
         setStatus('Patient profile ready.');
     }
 
-    async function onSendChat() {
-        const message = chatInput.trim();
-        if (!selectedHistoryId) { setChatError('Please select or run an analysis first.'); return; }
+    function buildAdditionalHistoryChatContext(entries: AnalysisHistoryEntry[]) {
+        if (entries.length === 0) {
+            return '';
+        }
+
+        const lines = entries.map((entry, index) => {
+            const total = entry.analysis.results.length;
+            const abnormalItems = entry.analysis.results.filter((item) => item.severity !== 'normal');
+            const criticalCount = entry.analysis.results.filter((item) => item.severity === 'critical').length;
+            const topAbnormal = abnormalItems
+                .slice(0, 4)
+                .map((item) => `${item.indicator_name}: ${item.value || 'N/A'} ${item.unit || ''}`.trim());
+
+            const summaryDate = entry.analysis.analysis_date || formatDateTime(entry.created_at);
+            const abnormalNote = topAbnormal.length > 0
+                ? ` Top abnormal indicators: ${topAbnormal.join('; ')}.`
+                : '';
+
+            return `${index + 1}. Record #${entry.id.slice(0, 8)} | Date: ${summaryDate} | Indicators: ${total}, Abnormal: ${abnormalItems.length}, Critical: ${criticalCount}.${abnormalNote}`;
+        });
+
+        return [
+            'Selected history context records (peer context):',
+            'The chat API needs one anchor record id for transport, but treat all provided records equally in reasoning.',
+            ...lines
+        ].join('\n');
+    }
+
+    function toggleChatContextHistory(entryId: string) {
+        if (!entryId) {
+            return;
+        }
+
+        setChatContextHistoryIds((prev) => {
+            const exists = prev.includes(entryId);
+            if (exists) {
+                const next = prev.filter((id) => id !== entryId);
+                if (next.length > 0) {
+                    return next;
+                }
+                return history.length > 0 ? [history[0].id] : [];
+            }
+
+            const withoutDuplicate = prev.filter((id) => id !== entryId);
+            return [...withoutDuplicate, entryId].slice(0, MAX_CHAT_CONTEXT_RECORDS);
+        });
+    }
+
+    function runPresetChatCommand(command: string) {
+        if (chatBusy) {
+            return;
+        }
+        void onSendChat(command);
+    }
+
+    async function onSendChat(messageOverride?: string) {
+        const message = (messageOverride ?? chatInput).trim();
+        const anchorEntry = selectedChatContextEntries[0] ?? history[0] ?? null;
+        if (!anchorEntry) { setChatError('Please select or run an analysis first.'); return; }
         if (!message) return;
+
+        const extraContextEntries = selectedChatContextEntries
+            .filter((entry) => entry.id !== anchorEntry.id)
+            .slice(0, Math.max(0, MAX_CHAT_CONTEXT_RECORDS - 1));
+        const extraContextBlock = buildAdditionalHistoryChatContext(extraContextEntries);
+        const requestMessage = extraContextBlock
+            ? `${message}\n\n${extraContextBlock}`
+            : message;
 
         setChatBusy(true);
         setChatError(null);
         setChatInput('');
 
-        const userMsg: ChatMessage = { id: createId('user'), role: 'user', text: message };
+        const userMsg: ChatMessage = {
+            id: createId('user'),
+            role: 'user',
+            text: extraContextEntries.length > 0
+                ? `${message}\n\n[Using ${extraContextEntries.length} additional history context record${extraContextEntries.length > 1 ? 's' : ''}]`
+                : message
+        };
         const assistantMsg: ChatMessage = {
             id: createId('assistant'), role: 'assistant',
             text: 'Composing response', pending: true
@@ -385,7 +501,7 @@ export default function SmartLabsApp() {
 
         try {
             for await (const event of streamChat({
-                history_id: selectedHistoryId, message,
+                history_id: anchorEntry.id, message: requestMessage,
                 conversation_id: chatConversationId ?? undefined,
                 language: 'en', detail_level: 'patient'
             })) {
@@ -452,6 +568,7 @@ export default function SmartLabsApp() {
     function selectHistory(entry: AnalysisHistoryEntry) {
         setIsDraftNewUpload(false);
         setSelectedHistoryId(entry.id);
+        setChatContextHistoryIds([entry.id]);
         setAnalysis(entry.analysis);
         setChatMessages([]);
         setChatConversationId(null);
@@ -611,10 +728,12 @@ export default function SmartLabsApp() {
                         chatInput={chatInput}
                         setChatInput={setChatInput}
                         onSendChat={onSendChat}
-                        selectedHistoryId={selectedHistoryId}
+                        onRunPresetCommand={runPresetChatCommand}
                         chatError={chatError}
                         chatEndRef={chatEndRef}
-                        selectedHistory={selectedHistory}
+                        history={history}
+                        chatContextHistoryIds={chatContextHistoryIds}
+                        onToggleChatContextHistory={toggleChatContextHistory}
                         currentAnalysis={currentAnalysis}
                         onGoOverview={() => setActiveTab('overview')}
                     />

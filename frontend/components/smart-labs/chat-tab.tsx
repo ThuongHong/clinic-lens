@@ -4,17 +4,27 @@ import type { AnalysisHistoryEntry, LabAnalysis } from '@/lib/types';
 
 import { IconChat, IconEmpty, IconSend } from './icons';
 import type { ChatMessage } from './types';
+import { formatDateTime, sourceNameFromPath } from './utils';
+
+const PRESET_CHAT_COMMANDS = [
+    { label: 'Summary', prompt: 'Summary result for me with key findings and what matters most.' },
+    { label: 'Urgent risks', prompt: 'Which indicators are most urgent and why?' },
+    { label: 'Compare trends', prompt: 'Compare selected results and explain notable changes.' },
+    { label: 'Action plan', prompt: 'Give me a simple 7-day action plan based on these results.' }
+] as const;
 
 interface ChatTabProps {
     chatBusy: boolean;
     chatMessages: ChatMessage[];
     chatInput: string;
     setChatInput: (value: string) => void;
-    onSendChat: () => Promise<void>;
-    selectedHistoryId: string | null;
+    onSendChat: (messageOverride?: string) => Promise<void>;
+    onRunPresetCommand: (command: string) => void;
     chatError: string | null;
     chatEndRef: MutableRefObject<HTMLDivElement | null>;
-    selectedHistory: AnalysisHistoryEntry | null;
+    history: AnalysisHistoryEntry[];
+    chatContextHistoryIds: string[];
+    onToggleChatContextHistory: (historyId: string) => void;
     currentAnalysis: LabAnalysis | null;
     onGoOverview: () => void;
 }
@@ -25,13 +35,17 @@ export function ChatTab({
     chatInput,
     setChatInput,
     onSendChat,
-    selectedHistoryId,
+    onRunPresetCommand,
     chatError,
     chatEndRef,
-    selectedHistory,
+    history,
+    chatContextHistoryIds,
+    onToggleChatContextHistory,
     currentAnalysis,
     onGoOverview
 }: ChatTabProps) {
+    const selectedContextCount = chatContextHistoryIds.length;
+
     return (
         <section id="panel-chat" className="workspaceGrid workspaceGridChat" role="tabpanel" aria-labelledby="tab-chat" tabIndex={0}>
             <article className="panel">
@@ -116,6 +130,19 @@ export function ChatTab({
                     </div>
 
                     <div className="chatComposerWrap">
+                        <div className="chatPresetWrap" role="group" aria-label="Preset commands">
+                            {PRESET_CHAT_COMMANDS.map((item) => (
+                                <button
+                                    key={item.label}
+                                    type="button"
+                                    className="chatPresetBtn"
+                                    onClick={() => onRunPresetCommand(item.prompt)}
+                                    disabled={chatBusy || selectedContextCount === 0}
+                                >
+                                    {item.label}
+                                </button>
+                            ))}
+                        </div>
                         <textarea
                             value={chatInput}
                             onChange={(e) => setChatInput(e.target.value)}
@@ -130,9 +157,9 @@ export function ChatTab({
                         />
                         <div className="chatComposerFooter">
                             <span className="chatComposerHint">
-                                {selectedHistoryId
-                                    ? `Using analysis #${selectedHistoryId.slice(0, 8)}`
-                                    : 'Select a history record before chatting.'}
+                                {selectedContextCount > 0
+                                    ? `Using ${selectedContextCount} selected context record${selectedContextCount > 1 ? 's' : ''}`
+                                    : 'Select one or more history records before chatting.'}
                                 {' · Ctrl+Enter to send'}
                             </span>
                             <button className="btn btn-primary" type="button"
@@ -157,29 +184,51 @@ export function ChatTab({
                     <div className="panelHeader">
                         <div className="panelTitleGroup">
                             <div className="panelTitle">Chat context</div>
-                            <div className="panelSubtitle">The analysis currently used as context.</div>
+                            <div className="panelSubtitle">Selected history records are treated equally for context.</div>
                         </div>
-                        <div className="badge">{selectedHistory ? 'Active' : 'None'}</div>
+                        <div className="badge">{selectedContextCount > 0 ? 'Active' : 'None'}</div>
                     </div>
 
                     {currentAnalysis ? (
                         <div className="contextCard">
-                            <div className="metricLabel">Patient</div>
-                            <div className="contextPatient">
-                                {currentAnalysis.patient_name?.trim() || 'Unknown patient'}
-                            </div>
-                            <div className="contextDate">
-                                {currentAnalysis.analysis_date || 'N/A'}
-                            </div>
-                            <div className="chipWrap" style={{ marginTop: '6px' }}>
-                                <span className="chip">{currentAnalysis.results.length} indicators</span>
-                                <span className="chip">
-                                    {currentAnalysis.results.filter((r) => r.severity !== 'normal').length} abnormal
-                                </span>
-                                <span className="chip">
-                                    {currentAnalysis.results.filter((r) => r.severity === 'critical').length} critical
-                                </span>
-                            </div>
+
+                            {history.length > 0 && (
+                                <>
+                                    <div className="miniSectionTitle" style={{ marginTop: '8px' }}>History context toggles</div>
+                                    <div className="contextToggleList">
+                                        {history.slice(0, 12).map((entry) => {
+                                            const isActive = chatContextHistoryIds.includes(entry.id);
+                                            const abnormalCount = entry.analysis.results.filter((item) => item.severity !== 'normal').length;
+                                            const sourceName = entry.source_file_name?.trim()
+                                                || (entry.object_key ? sourceNameFromPath(entry.object_key) : '')
+                                                || (entry.file_url ? sourceNameFromPath(entry.file_url) : '')
+                                                || 'Unknown source';
+                                            const uploadDateTime = formatDateTime(entry.created_at);
+
+                                            return (
+                                                <button
+                                                    key={entry.id}
+                                                    type="button"
+                                                    className={isActive ? 'contextToggleItem active' : 'contextToggleItem'}
+                                                    onClick={() => onToggleChatContextHistory(entry.id)}
+                                                    aria-pressed={isActive}
+                                                    title="Toggle chat context"
+                                                >
+                                                    <span className="contextToggleMain">
+                                                        {sourceName}
+                                                    </span>
+                                                    <span className="contextToggleMeta">
+                                                        {entry.analysis.results.length} indicators · {abnormalCount} abnormal
+                                                    </span>
+                                                    <span className="contextToggleSubMeta">
+                                                        Uploaded: {uploadDateTime}
+                                                    </span>
+                                                </button>
+                                            );
+                                        })}
+                                    </div>
+                                </>
+                            )}
                         </div>
                     ) : (
                         <div className="emptyState" role="status">
