@@ -164,12 +164,10 @@ function parseReferenceRangeStructured(raw: unknown): LabAnalysis['results'][num
         }
         : null;
 
-    const thresholdOperator = thresholdSource ? String(thresholdSource.operator || '') : '';
+    const thresholdOperator = thresholdSource ? normalizeComparisonOperator(String(thresholdSource.operator || '')) : null;
     const threshold = thresholdSource
         ? {
-            operator: ['<', '<=', '>', '>=', '='].includes(thresholdOperator)
-                ? thresholdOperator as '<' | '<=' | '>' | '>=' | '='
-                : null,
+            operator: thresholdOperator,
             value: parseMaybeNumber(thresholdSource.value)
         }
         : null;
@@ -223,14 +221,39 @@ function normalizeSeverity(raw: string): LabAnalysis['results'][number]['severit
     return 'unknown';
 }
 
+function normalizeComparisonOperator(raw: string): '<' | '<=' | '>' | '>=' | '=' | null {
+    const value = String(raw || '').trim();
+    if (!value) {
+        return null;
+    }
+
+    if (value === '≤') {
+        return '<=';
+    }
+    if (value === '≥') {
+        return '>=';
+    }
+
+    if (value === '<' || value === '<=' || value === '>' || value === '>=' || value === '=') {
+        return value;
+    }
+
+    return null;
+}
+
 function parseThresholdFromText(text: string) {
     const source = String(text || '').replace(/,/g, '').trim();
     if (!source) {
         return null;
     }
 
-    const match = source.match(/(<=|>=|<|>|=)\s*(-?\d+(?:\.\d+)?)/);
+    const match = source.match(/(<=|>=|<|>|=|≤|≥)\s*(-?\d+(?:\.\d+)?)/);
     if (!match) {
+        return null;
+    }
+
+    const operator = normalizeComparisonOperator(match[1]);
+    if (!operator) {
         return null;
     }
 
@@ -240,7 +263,7 @@ function parseThresholdFromText(text: string) {
     }
 
     return {
-        operator: match[1],
+        operator,
         value
     };
 }

@@ -289,6 +289,26 @@ function parseOptionalBoolean(value, fallback = false) {
   return fallback;
 }
 
+function normalizeComparisonOperator(operator) {
+  const raw = String(operator || '').trim();
+  if (!raw) {
+    return null;
+  }
+
+  if (raw === '≤') {
+    return '<=';
+  }
+  if (raw === '≥') {
+    return '>=';
+  }
+
+  if (['<', '<=', '>', '>=', '='].includes(raw)) {
+    return raw;
+  }
+
+  return null;
+}
+
 function normalizeStructuredReferenceRange(rawStructured, normalizedTextEn, sourceTextOriginal) {
   const base = {
     type: 'unknown',
@@ -324,9 +344,9 @@ function normalizeStructuredReferenceRange(rawStructured, normalizedTextEn, sour
     inclusive_max: parseOptionalBoolean(numericSource.inclusive_max, true)
   };
 
-  const thresholdOperator = String(thresholdSource.operator || '').trim();
+  const thresholdOperator = normalizeComparisonOperator(thresholdSource.operator);
   const threshold = {
-    operator: ['<', '<=', '>', '>=', '='].includes(thresholdOperator) ? thresholdOperator : null,
+    operator: thresholdOperator,
     value: parseOptionalNumber(thresholdSource.value)
   };
 
@@ -374,8 +394,13 @@ function parseThresholdFromText(text) {
     return null;
   }
 
-  const match = source.match(/(<=|>=|<|>|=)\s*(-?\d+(?:\.\d+)?)/);
+  const match = source.match(/(<=|>=|<|>|=|≤|≥)\s*(-?\d+(?:\.\d+)?)/);
   if (!match) {
+    return null;
+  }
+
+  const operator = normalizeComparisonOperator(match[1]);
+  if (!operator) {
     return null;
   }
 
@@ -385,7 +410,7 @@ function parseThresholdFromText(text) {
   }
 
   return {
-    operator: match[1],
+    operator,
     value
   };
 }
@@ -411,7 +436,7 @@ function inferSeverityFromStructuredRange(valueNumber, structuredRange) {
   }
 
   if (structuredRange.type === 'threshold' && structuredRange.threshold && typeof structuredRange.threshold === 'object') {
-    const operator = String(structuredRange.threshold.operator || '').trim();
+    const operator = normalizeComparisonOperator(structuredRange.threshold.operator);
     const thresholdValue = parseOptionalNumber(structuredRange.threshold.value);
     if (!operator || thresholdValue == null) {
       return null;
