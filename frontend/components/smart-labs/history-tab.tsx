@@ -3,7 +3,8 @@ import type { AnalysisHistoryEntry } from '@/lib/types';
 import { IconClock, IconEmpty, IconRefresh } from './icons';
 import {
     formatDateTime,
-    getBadgeClass
+    getBadgeClass,
+    sourceNameFromPath
 } from './utils';
 
 interface HistoryTabProps {
@@ -53,6 +54,10 @@ export function HistoryTab({
                                 const indicatorCount = entry.analysis.results.length;
                                 const abnormalCount = entry.analysis.results.filter((r) => r.severity !== 'normal').length;
                                 const criticalCount = entry.analysis.results.filter((r) => r.severity === 'critical').length;
+                                const sourceName = entry.source_file_name
+                                    || sourceNameFromPath(entry.object_key || entry.file_url || '');
+                                const displaySource = sourceName || 'Unknown source';
+                                const entryShortId = entry.id.slice(0, 8);
                                 return (
                                     <li key={entry.id} style={{ listStyle: 'none' }}>
                                         <button type="button"
@@ -61,15 +66,27 @@ export function HistoryTab({
                                             style={{ animationDelay: `${idx * 40}ms` }}
                                             aria-pressed={isSelected}>
                                             <div className="historyItemTopRow">
-                                                <div>
-                                                    <div className="historyDate">
-                                                        <IconClock /> {formatDateTime(entry.created_at)}
-                                                    </div>
-                                                </div>
+                                                <div className="historyPatient">Source: {displaySource}</div>
                                                 <div className={getBadgeClass(entry.analysis.status)}>
                                                     {entry.analysis.status}
                                                 </div>
                                             </div>
+
+                                            <div className="historyMetaList" aria-label="History entry metadata">
+                                                <div className="historyMetaRow">
+                                                    <span className="historyMetaLabel">Time</span>
+                                                    <span className="historyMetaValue historyMetaValueMono">
+                                                        <IconClock /> {formatDateTime(entry.created_at)}
+                                                    </span>
+                                                </div>
+                                                {/* <div className="historyMetaRow">
+                                                    <span className="historyMetaLabel">Source</span>
+                                                    <span className="historyMetaValue historyMetaValueTruncate" title={displaySource}>
+                                                        {displaySource}
+                                                    </span>
+                                                </div> */}
+                                            </div>
+
                                             <div className="chipWrap" style={{ marginTop: '0' }}>
                                                 <span className="chip">{indicatorCount} indicators</span>
                                                 {abnormalCount > 0 && (
