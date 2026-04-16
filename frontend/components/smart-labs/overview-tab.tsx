@@ -40,6 +40,7 @@ export interface OverviewTabProps {
     overviewTestDate: string;
     overviewSource: string;
     overviewUploadDateTime: string;
+    onStartNewUpload: () => void;
 }
 
 export function OverviewTab({
@@ -61,7 +62,8 @@ export function OverviewTab({
     uploadValidationError,
     overviewTestDate,
     overviewSource,
-    overviewUploadDateTime
+    overviewUploadDateTime,
+    onStartNewUpload
 }: OverviewTabProps) {
     const [activeInfoResult, setActiveInfoResult] = useState<LabAnalysis['results'][number] | null>(null);
     const [indicatorExplainCache, setIndicatorExplainCache] = useState<Record<string, IndicatorExplanation>>({});
@@ -264,18 +266,15 @@ export function OverviewTab({
                                 </div>
                             </div>
                             <div className="resultHeaderActions">
-                                <input
-                                    id="lab-file-input-compact"
-                                    type="file"
-                                    accept=".pdf,.png,.jpg,.jpeg,.webp"
-                                    onChange={onPickFile}
-                                    aria-label="Select another lab report file"
-                                    className="visuallyHiddenInput"
-                                />
-                                <label htmlFor="lab-file-input-compact" className="btn btn-secondary btn-label compactHeaderUploadBtn">
+                                <button
+                                    type="button"
+                                    className="btn btn-secondary btn-label compactHeaderUploadBtn"
+                                    onClick={onStartNewUpload}
+                                    aria-label="Return to the initial upload screen to choose a new file"
+                                >
                                     <IconFile />
-                                    {selectedFile ? 'Upload new file' : 'Upload file'}
-                                </label>
+                                    Start new upload
+                                </button>
                                 <button
                                     className="btn btn-primary compactRunBtn"
                                     type="button"

@@ -266,6 +266,22 @@ export default function SmartLabsApp() {
         }
     }
 
+    function startNewUpload() {
+        setIsDraftNewUpload(true);
+        setAnalysis(null);
+        setSelectedHistoryId(null);
+        setSelectedOrganId('all');
+        setSelectedFile(null);
+        setUploadValidationError(null);
+        setAnalysisLogs([]);
+        setChatMessages([]);
+        setChatConversationId(null);
+        setChatError(null);
+        setChatContextHistoryIds([]);
+        setStatus('Choose a file to start a new analysis.');
+        setActiveTab('overview');
+    }
+
     function onPickFile(event: ChangeEvent<HTMLInputElement>) {
         const file = event.target.files?.[0] ?? null;
         setUploadValidationError(null);
@@ -741,6 +757,7 @@ export default function SmartLabsApp() {
                         overviewTestDate={overviewTestDate}
                         overviewSource={overviewSource}
                         overviewUploadDateTime={overviewUploadDateTime}
+                        onStartNewUpload={startNewUpload}
                     />
                 )}
 
