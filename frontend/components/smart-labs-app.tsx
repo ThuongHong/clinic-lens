@@ -56,6 +56,7 @@ export default function SmartLabsApp() {
     const [showPatientNamePrompt, setShowPatientNamePrompt] = useState(false);
     const [selectedOrganId, setSelectedOrganId] = useState<string>('all');
     const [uploadValidationError, setUploadValidationError] = useState<string | null>(null);
+    const [isDraftNewUpload, setIsDraftNewUpload] = useState(false);
 
     const chatEndRef = useRef<HTMLDivElement | null>(null);
 
@@ -64,7 +65,7 @@ export default function SmartLabsApp() {
         [history, selectedHistoryId]
     );
 
-    const currentAnalysis = analysis ?? selectedHistory?.analysis ?? null;
+    const currentAnalysis = analysis ?? (isDraftNewUpload ? null : selectedHistory?.analysis ?? null);
     const currentResults = currentAnalysis?.results ?? [];
 
     const currentHistoryEntry = useMemo(() => {
@@ -182,11 +183,14 @@ export default function SmartLabsApp() {
     }, [chatMessages, activeTab]);
 
     useEffect(() => {
+        if (isDraftNewUpload) {
+            return;
+        }
         if (!selectedHistoryId && history.length > 0) {
             setSelectedHistoryId(history[0].id);
             setAnalysis(history[0].analysis);
         }
-    }, [history, selectedHistoryId]);
+    }, [history, selectedHistoryId, isDraftNewUpload]);
 
     useEffect(() => {
         if (!currentAnalysis || currentResults.length === 0) {
@@ -210,7 +214,7 @@ export default function SmartLabsApp() {
         try {
             const items = readSessionHistory();
             setHistory(items);
-            if (!selectedHistoryId && items.length > 0) {
+            if (!isDraftNewUpload && !selectedHistoryId && items.length > 0) {
                 setSelectedHistoryId(items[0].id);
                 setAnalysis(items[0].analysis);
             }
@@ -224,6 +228,15 @@ export default function SmartLabsApp() {
     function onPickFile(event: ChangeEvent<HTMLInputElement>) {
         const file = event.target.files?.[0] ?? null;
         setUploadValidationError(null);
+
+        if (currentAnalysis) {
+            setIsDraftNewUpload(true);
+            setAnalysis(null);
+            setSelectedHistoryId(null);
+            setChatMessages([]);
+            setChatConversationId(null);
+            setChatError(null);
+        }
 
         if (file) {
             const validationError = validateUploadFile(file);
@@ -305,6 +318,7 @@ export default function SmartLabsApp() {
                     const payload = parseEventPayload(event);
                     if (payload) {
                         const parsed = parseAnalysis(payload);
+                        setIsDraftNewUpload(false);
                         setAnalysis(parsed);
                         nextHistoryId = String(payload.history_id || parsed.history_id || createId('analysis'));
                         const createdAt = String(payload.created_at || parsed.created_at || new Date().toISOString());
@@ -436,6 +450,7 @@ export default function SmartLabsApp() {
     }
 
     function selectHistory(entry: AnalysisHistoryEntry) {
+        setIsDraftNewUpload(false);
         setSelectedHistoryId(entry.id);
         setAnalysis(entry.analysis);
         setChatMessages([]);
@@ -609,10 +624,8 @@ export default function SmartLabsApp() {
                     <HistoryTab
                         history={history}
                         selectedHistoryId={selectedHistoryId}
-                        selectedHistory={selectedHistory}
                         historyLoading={historyLoading}
                         historyError={historyError}
-                        currentAnalysis={currentAnalysis}
                         loadHistory={loadHistory}
                         onSelectHistory={selectHistory}
                         onGoOverview={() => setActiveTab('overview')}

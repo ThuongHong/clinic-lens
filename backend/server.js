@@ -842,28 +842,6 @@ function signObjectKey(objectKey, expiresInSeconds = 300) {
   return signedUrl.replace(/^http:\/\//i, 'https://');
 }
 
-async function deleteObjectKeyFromOss(objectKey) {
-  if (!ossClient) {
-    return;
-  }
-
-  const normalized = String(objectKey || '').trim().replace(/^\/+/, '');
-  if (!normalized) {
-    return;
-  }
-
-  try {
-    await ossClient.delete(normalized);
-    console.log(`Deleted OSS object after analysis: ${normalized}`);
-  } catch (error) {
-    const status = Number(error?.status || error?.code || 0);
-    if (status === 404 || String(error?.name || '').toLowerCase() === 'nosuchkey') {
-      return;
-    }
-    console.warn(`Failed to delete OSS object ${normalized}: ${error?.message || error}`);
-  }
-}
-
 async function signObjectKeyViaSts(objectKey, expiresInSeconds = 300) {
   if (!stsClient || !process.env.ALI_ROLE_ARN || !OSS_BUCKET_NAME || !OSS_REGION) {
     throw new Error('STS client is not configured');
@@ -1315,10 +1293,6 @@ app.post('/api/analyze', async (req, res) => {
   writeSseEvent(res, 'ready', { message: 'connected' });
 
   if (!process.env.DASHSCOPE_API_KEY) {
-    const earlyObjectKey = typeof object_key === 'string' ? object_key.trim().replace(/^\/+/, '') : '';
-    if (earlyObjectKey) {
-      await deleteObjectKeyFromOss(earlyObjectKey);
-    }
     writeSseEvent(res, 'error', {
       message: 'DashScope API key is missing. Set DASHSCOPE_API_KEY before running analysis.'
     });
@@ -1332,21 +1306,8 @@ app.post('/api/analyze', async (req, res) => {
     const originalFileUrl = typeof file_url === 'string' ? file_url.trim() : '';
     const localFilePath = typeof local_file_path === 'string' ? local_file_path.trim() : '';
     const requestedPatientName = typeof patient_name === 'string' ? patient_name.trim().slice(0, 120) : '';
-    let cleanupCompleted = false;
-
-    const cleanupUploadedObject = async () => {
-      if (cleanupCompleted) {
-        return;
-      }
-      cleanupCompleted = true;
-      if (!normalizedObjectKey) {
-        return;
-      }
-      await deleteObjectKeyFromOss(normalizedObjectKey);
-    };
 
     const endStream = async () => {
-      await cleanupUploadedObject();
       res.end();
     };
 
@@ -1546,10 +1507,6 @@ app.post('/api/analyze', async (req, res) => {
       await endStream();
     });
   } catch (error) {
-    const fallbackObjectKey = typeof object_key === 'string' ? object_key.trim().replace(/^\/+/, '') : '';
-    if (fallbackObjectKey) {
-      await deleteObjectKeyFromOss(fallbackObjectKey);
-    }
     if (clientDisconnected || abortController.signal.aborted) {
       return res.end();
     }

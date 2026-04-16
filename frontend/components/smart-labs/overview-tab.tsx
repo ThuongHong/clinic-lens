@@ -267,7 +267,7 @@ export function OverviewTab({
                                 />
                                 <label htmlFor="lab-file-input-compact" className="btn btn-secondary btn-label compactHeaderUploadBtn">
                                     <IconFile />
-                                    {selectedFile ? 'Change file' : 'Upload file'}
+                                    {selectedFile ? 'Upload new file' : 'Upload file'}
                                 </label>
                                 <button
                                     className="btn btn-primary compactRunBtn"
@@ -393,7 +393,7 @@ export function OverviewTab({
                                 </>
                             )}
 
-                            {currentAnalysis.summary?.organ_summary?.length ? (
+                            {/* {currentAnalysis.summary?.organ_summary?.length ? (
                                 <div className="sectionCard">
                                     <div className="sectionTitle">Organ summary</div>
                                     <div className="chipWrap">
@@ -404,7 +404,7 @@ export function OverviewTab({
                                         ))}
                                     </div>
                                 </div>
-                            ) : null}
+                            ) : null} */}
 
                             {currentAnalysis.advice?.general_recommendations?.length ? (
                                 <div className="sectionCard">
