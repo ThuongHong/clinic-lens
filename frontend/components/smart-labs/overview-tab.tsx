@@ -39,6 +39,7 @@ export interface OverviewTabProps {
     uploadValidationError: string | null;
     overviewTestDate: string;
     overviewSource: string;
+    overviewUploadDateTime: string;
 }
 
 export function OverviewTab({
@@ -59,7 +60,8 @@ export function OverviewTab({
     analysisLogs,
     uploadValidationError,
     overviewTestDate,
-    overviewSource
+    overviewSource,
+    overviewUploadDateTime
 }: OverviewTabProps) {
     const [activeInfoResult, setActiveInfoResult] = useState<LabAnalysis['results'][number] | null>(null);
     const [indicatorExplainCache, setIndicatorExplainCache] = useState<Record<string, IndicatorExplanation>>({});
@@ -287,20 +289,26 @@ export function OverviewTab({
                             <div className="analysisHeaderStrip">
                                 <div className="analysisHeaderCell">
                                     <div className="metricLabel">Patient</div>
-                                    <strong style={{ fontSize: '0.92rem', color: 'var(--text)' }}>
+                                    <strong className="analysisHeaderValue">
                                         {currentAnalysis.patient_name?.trim() || 'Unknown patient'}
                                     </strong>
                                 </div>
                                 <div className="analysisHeaderCell">
                                     <div className="metricLabel">Test date</div>
-                                    <strong style={{ fontSize: '0.92rem', color: 'var(--text)' }}>
+                                    <strong className="analysisHeaderValue">
                                         {overviewTestDate}
                                     </strong>
                                 </div>
                                 <div className="analysisHeaderCell">
                                     <div className="metricLabel">Source</div>
-                                    <strong style={{ fontSize: '0.92rem', color: 'var(--text)' }}>
+                                    <strong className="analysisHeaderValue" title={overviewSource}>
                                         {overviewSource}
+                                    </strong>
+                                </div>
+                                <div className="analysisHeaderCell">
+                                    <div className="metricLabel">Upload datetime</div>
+                                    <strong className="analysisHeaderValue" title={overviewUploadDateTime}>
+                                        {overviewUploadDateTime}
                                     </strong>
                                 </div>
                             </div>

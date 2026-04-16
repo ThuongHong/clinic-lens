@@ -113,6 +113,16 @@ export default function SmartLabsApp() {
         return 'Unknown source';
     }, [currentHistoryEntry, selectedFile]);
 
+    const overviewUploadDateTime = useMemo(() => {
+        if (currentHistoryEntry?.created_at) {
+            return formatDateTime(currentHistoryEntry.created_at);
+        }
+        if (currentAnalysis?.created_at) {
+            return formatDateTime(currentAnalysis.created_at);
+        }
+        return 'N/A';
+    }, [currentHistoryEntry, currentAnalysis]);
+
     const organCounts = useMemo(() => {
         const counts = new Map<string, number>();
         for (const item of currentResults) {
@@ -577,6 +587,7 @@ export default function SmartLabsApp() {
                         uploadValidationError={uploadValidationError}
                         overviewTestDate={overviewTestDate}
                         overviewSource={overviewSource}
+                        overviewUploadDateTime={overviewUploadDateTime}
                     />
                 )}
 
