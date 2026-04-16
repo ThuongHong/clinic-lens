@@ -1,0 +1,92 @@
+services:
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: qwen-labs-backend
+    restart: unless-stopped
+    expose:
+      - "9000"
+    environment:
+      NODE_ENV: production
+      PORT: 9000
+      ALI_ACCESS_KEY: ${ALI_ACCESS_KEY:?ALI_ACCESS_KEY is required}
+      ALI_SECRET_KEY: ${ALI_SECRET_KEY:?ALI_SECRET_KEY is required}
+      ALI_ROLE_ARN: ${ALI_ROLE_ARN:?ALI_ROLE_ARN is required}
+      OSS_REGION: ${OSS_REGION:?OSS_REGION is required}
+      OSS_BUCKET_NAME: ${OSS_BUCKET_NAME:?OSS_BUCKET_NAME is required}
+      DASHSCOPE_API_KEY: ${DASHSCOPE_API_KEY:?DASHSCOPE_API_KEY is required}
+      DASHSCOPE_MODEL: ${DASHSCOPE_MODEL:-qwen-plus}
+      DASHSCOPE_EXTRACT_MODEL: ${DASHSCOPE_EXTRACT_MODEL:-qwen-vl-plus}
+      DASHSCOPE_SUMMARY_MODEL: ${DASHSCOPE_SUMMARY_MODEL:-qwen-max}
+      DASHSCOPE_CHAT_MODEL: ${DASHSCOPE_CHAT_MODEL:-qwen-plus}
+      DASHSCOPE_INDICATOR_MODEL: ${DASHSCOPE_INDICATOR_MODEL:-qwen-turbo}
+      CHAT_LOCAL_MOCK: ${CHAT_LOCAL_MOCK:-0}
+    volumes:
+      - backend_data:/app/data
+    healthcheck:
+      test: ["CMD", "node", "-e", "require('http').get('http://127.0.0.1:9000/health', (res) => process.exit(res.statusCode === 200 ? 0 : 1)).on('error', () => process.exit(1));"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 20s
+    networks:
+      - smart-labs
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+      args:
+        NEXT_PUBLIC_BACKEND_BASE_URL: ${NEXT_PUBLIC_BACKEND_BASE_URL:?NEXT_PUBLIC_BACKEND_BASE_URL is required}
+    container_name: qwen-labs-frontend
+    restart: unless-stopped
+    expose:
+      - "3000"
+    environment:
+      NODE_ENV: production
+      PORT: 3000
+      NEXT_PUBLIC_BACKEND_BASE_URL: ${NEXT_PUBLIC_BACKEND_BASE_URL:?NEXT_PUBLIC_BACKEND_BASE_URL is required}
+      NEXT_TELEMETRY_DISABLED: 1
+    depends_on:
+      backend:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "node", "-e", "require('http').get('http://127.0.0.1:3000', (res) => process.exit(res.statusCode < 500 ? 0 : 1)).on('error', () => process.exit(1));"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 20s
+    networks:
+      - smart-labs
+
+  reverse-proxy:
+    image: nginx:1.27-alpine
+    container_name: qwen-labs-reverse-proxy
+    restart: unless-stopped
+    profiles:
+      - proxy
+    ports:
+      - "${PUBLIC_HTTP_PORT:-80}:80"
+    depends_on:
+      backend:
+        condition: service_healthy
+      frontend:
+        condition: service_healthy
+    volumes:
+      - ./infra/nginx/default.conf:/etc/nginx/conf.d/default.conf:ro
+    healthcheck:
+      test: ["CMD-SHELL", "wget -q -O- http://127.0.0.1/healthz >/dev/null 2>&1 || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
+    networks:
+      - smart-labs
+
+volumes:
+  backend_data:
+
+networks:
+  smart-labs:
+    driver: bridge
