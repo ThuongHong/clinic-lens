@@ -16,6 +16,7 @@ import type {
     LabAnalysis
 } from '@/lib/types';
 import { ChatTab } from './smart-labs/chat-tab';
+import { HomeTab } from './smart-labs/home-tab';
 import { HistoryTab } from './smart-labs/history-tab';
 import { OverviewTab } from './smart-labs/overview-tab';
 import { PatientNamePrompt } from './smart-labs/patient-name-prompt';
@@ -32,12 +33,12 @@ import {
     validateUploadFile
 } from './smart-labs/utils';
 
-type TabKey = 'overview' | 'chat' | 'history';
+type TabKey = 'home' | 'overview' | 'chat' | 'history';
 const MAX_CHAT_CONTEXT_RECORDS = 5;
 
 /* ─── Main App Component ─────────────────────────── */
 export default function SmartLabsApp() {
-    const [activeTab, setActiveTab] = useState<TabKey>('overview');
+    const [activeTab, setActiveTab] = useState<TabKey>('home');
     const [selectedFile, setSelectedFile] = useState<File | null>(null);
     const [status, setStatus] = useState('Ready');
     const [analysis, setAnalysis] = useState<LabAnalysis | null>(null);
@@ -668,13 +669,14 @@ export default function SmartLabsApp() {
     }
 
     const TAB_LABELS: Record<TabKey, string> = {
+        home: 'Home',
         overview: 'Overview',
         chat: 'AI Chat',
         history: 'History'
     };
 
     function onTabKeyDown(event: ReactKeyboardEvent<HTMLButtonElement>, tab: TabKey) {
-        const tabs: TabKey[] = ['overview', 'chat', 'history'];
+        const tabs: TabKey[] = ['home', 'overview', 'chat', 'history'];
         const currentIndex = tabs.indexOf(tab);
         if (currentIndex < 0) {
             return;
@@ -720,7 +722,7 @@ export default function SmartLabsApp() {
 
                 {/* ── Navigation ───────────────────── */}
                 <nav className="navPill" aria-label="Tab navigation" role="tablist">
-                    {(['overview', 'chat', 'history'] as TabKey[]).map((tab) => (
+                    {(['home', 'overview', 'chat', 'history'] as TabKey[]).map((tab) => (
                         <button
                             key={tab} type="button" role="tab"
                             aria-selected={tab === activeTab}
@@ -734,6 +736,18 @@ export default function SmartLabsApp() {
                         </button>
                     ))}
                 </nav>
+
+                {activeTab === 'home' && (
+                    <HomeTab
+                        patientName={patientName}
+                        hasAnalysis={Boolean(currentAnalysis)}
+                        totalIndicators={currentResults.length}
+                        abnormalIndicators={currentResults.filter((item) => item.severity !== 'normal').length}
+                        onGoOverview={() => setActiveTab('overview')}
+                        onGoHistory={() => setActiveTab('history')}
+                        onGoChat={() => setActiveTab('chat')}
+                    />
+                )}
 
                 {/* ── Overview Tab ─────────────────── */}
                 {activeTab === 'overview' && (
