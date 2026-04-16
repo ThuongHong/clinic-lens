@@ -1,8 +1,5 @@
 import React from 'react';
 import {
-    LayoutDashboard,
-    History,
-    MessageSquare,
     Sparkles,
     ChevronRight
 } from 'lucide-react';
@@ -26,12 +23,8 @@ export function HomeTab({
     hasAnalysis = false,
     totalIndicators = 0,
     abnormalIndicators = 0,
-    onGoOverview = () => { },
-    onGoHistory = () => { },
-    onGoChat = () => { }
+    onGoOverview = () => { }
 }: HomeTabProps) {
-    const firstName = patientName?.trim().split(' ')[0] || '';
-
     return (
         <section
             id="panel-home"
@@ -69,7 +62,7 @@ export function HomeTab({
                             </div>
                         </div>
 
-                        {/* <div className="divider" /> */}
+                        <div className="divider" />
 
                         {hasAnalysis ? (
                             <div className="statsRow">
