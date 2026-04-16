@@ -108,7 +108,7 @@ cd ../backend && npm install
 ```
 
 **2. Configure environment variables:**
-Create `.env` in root directory:
+Create `.env` in the repository root:
 
 ```env
 ALI_ACCESS_KEY=your_access_key
@@ -119,41 +119,34 @@ OSS_BUCKET_NAME=your_bucket
 DASHSCOPE_API_KEY=your_api_key
 ```
 
-**3. Run local stack:**
+**3. Run the backend:**
+
+Open a terminal in the project root and start the API server:
 
 ```bash
-./start.sh
+cd backend
+npm start
 ```
 
 Backend runs on `http://localhost:9000`
+
+**4. Run the frontend:**
+
+Open a second terminal and start the web app:
+
+```bash
+cd frontend
+npm run dev
+```
+
 Frontend runs on `http://localhost:3000`
 
-## Deployment
+If you want to use a different port for the frontend, pass it explicitly:
 
-### Backend (Render)
-
-1. Push repo to GitHub
-2. Open [Render Dashboard](https://dashboard.render.com)
-3. Click **"New +"** → **"Blueprints"**
-4. Connect repo and select **"render.yaml"**
-5. Fill in Alibaba Cloud secrets in environment variables
-6. Deploy
-
-Backend will be live at `https://{service-name}.onrender.com`
-
-### Frontend (Vercel)
-
-1. Import repo to [Vercel](https://vercel.com)
-2. Set **Root Directory** to `frontend`
-3. Add environment variable:
-
-   ```
-   NEXT_PUBLIC_BACKEND_BASE_URL=https://{your-render-backend-url}
-   ```
-
-4. Deploy
-
-Frontend will be live at `https://your-project.vercel.app`
+```bash
+cd frontend
+npm run dev -- --port 5174
+```
 
 ## API Endpoints
 
