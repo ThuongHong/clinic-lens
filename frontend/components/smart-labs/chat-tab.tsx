@@ -45,6 +45,7 @@ export function ChatTab({
     onGoOverview
 }: ChatTabProps) {
     const selectedContextCount = chatContextHistoryIds.length;
+    const hasContext = selectedContextCount > 0;
 
     return (
         <section id="panel-chat" className="workspaceGrid workspaceGridChat" role="tabpanel" aria-labelledby="tab-chat" tabIndex={0}>
@@ -79,15 +80,6 @@ export function ChatTab({
 
                                     {msg.assistant && !msg.pending && (
                                         <div className="assistantMetaStack">
-                                            <div className="chipWrap" style={{ marginTop: '10px' }}>
-                                                <span className="chip">
-                                                    Risk: {msg.assistant.risk_level.toUpperCase()}
-                                                </span>
-                                                {msg.assistant.escalation && (
-                                                    <span className="chip danger">See a doctor</span>
-                                                )}
-                                            </div>
-
                                             {msg.assistant.recommended_actions.length > 0 && (
                                                 <div style={{ marginTop: '8px' }}>
                                                     <div className="miniSectionTitle">Recommended actions</div>
@@ -117,61 +109,66 @@ export function ChatTab({
                                     )}
                                 </div>
                             ))
-                        ) : (
+                        ) : !hasContext ? (
                             <div className="emptyState emptyStateLg" role="status">
                                 <div className="emptyStateIcon" aria-hidden="true"><IconChat /></div>
-                                <p>No conversation yet. Select an analysis and ask your first question.</p>
+                                <p>No history context selected. AI chat is disabled until you select at least one history record.</p>
                                 <button type="button" className="btn btn-secondary emptyStateAction" onClick={onGoOverview}>
                                     Go to Overview
                                 </button>
+                            </div>
+                        ) : (
+                            <div className="emptyState emptyStateLg" role="status">
+                                <div className="emptyStateIcon" aria-hidden="true"><IconChat /></div>
+                                <p>No conversation yet. Ask your first question to start AI chat.</p>
                             </div>
                         )}
                         <div ref={chatEndRef} />
                     </div>
 
-                    <div className="chatComposerWrap">
-                        <div className="chatPresetWrap" role="group" aria-label="Preset commands">
-                            {PRESET_CHAT_COMMANDS.map((item) => (
-                                <button
-                                    key={item.label}
-                                    type="button"
-                                    className="chatPresetBtn"
-                                    onClick={() => onRunPresetCommand(item.prompt)}
-                                    disabled={chatBusy || selectedContextCount === 0}
-                                >
-                                    {item.label}
+                    {hasContext && (
+                        <div className="chatComposerWrap">
+                            <div className="chatPresetWrap" role="group" aria-label="Preset commands">
+                                {PRESET_CHAT_COMMANDS.map((item) => (
+                                    <button
+                                        key={item.label}
+                                        type="button"
+                                        className="chatPresetBtn"
+                                        onClick={() => onRunPresetCommand(item.prompt)}
+                                        disabled={chatBusy}
+                                    >
+                                        {item.label}
+                                    </button>
+                                ))}
+                            </div>
+                            <textarea
+                                value={chatInput}
+                                onChange={(e) => setChatInput(e.target.value)}
+                                placeholder="e.g. What should I pay most attention to in these results?"
+                                rows={3}
+                                onKeyDown={(e) => {
+                                    if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) {
+                                        void onSendChat();
+                                    }
+                                }}
+                                aria-label="Enter your question"
+                            />
+                            <div className="chatComposerFooter">
+                                <span className="chatComposerHint">
+                                    {`Using ${selectedContextCount} selected context record${selectedContextCount > 1 ? 's' : ''}`}
+                                    {' · Ctrl+Enter to send'}
+                                </span>
+                                <button className="btn btn-primary" type="button"
+                                    onClick={() => { void onSendChat(); }}
+                                    disabled={chatBusy || !chatInput.trim()}
+                                    aria-busy={chatBusy}
+                                    style={{ height: '36px', fontSize: '0.82rem' }}>
+                                    <IconSend />
+                                    {chatBusy ? 'Sending...' : 'Send'}
                                 </button>
-                            ))}
+                            </div>
                         </div>
-                        <textarea
-                            value={chatInput}
-                            onChange={(e) => setChatInput(e.target.value)}
-                            placeholder="e.g. What should I pay most attention to in these results?"
-                            rows={3}
-                            onKeyDown={(e) => {
-                                if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) {
-                                    void onSendChat();
-                                }
-                            }}
-                            aria-label="Enter your question"
-                        />
-                        <div className="chatComposerFooter">
-                            <span className="chatComposerHint">
-                                {selectedContextCount > 0
-                                    ? `Using ${selectedContextCount} selected context record${selectedContextCount > 1 ? 's' : ''}`
-                                    : 'Select one or more history records before chatting.'}
-                                {' · Ctrl+Enter to send'}
-                            </span>
-                            <button className="btn btn-primary" type="button"
-                                onClick={() => { void onSendChat(); }}
-                                disabled={chatBusy || !chatInput.trim()}
-                                aria-busy={chatBusy}
-                                style={{ height: '36px', fontSize: '0.82rem' }}>
-                                <IconSend />
-                                {chatBusy ? 'Sending...' : 'Send'}
-                            </button>
-                        </div>
-                    </div>
+                    )}
 
                     {chatError && (
                         <div className="errorBanner" role="alert">{chatError}</div>
@@ -186,7 +183,7 @@ export function ChatTab({
                             <div className="panelTitle">Chat context</div>
                             <div className="panelSubtitle">Selected history records are treated equally for context.</div>
                         </div>
-                        <div className="badge">{selectedContextCount > 0 ? 'Active' : 'None'}</div>
+                        {/* <div className="badge">{selectedContextCount > 0 ? 'Active' : 'None'}</div> */}
                     </div>
 
                     {currentAnalysis ? (
