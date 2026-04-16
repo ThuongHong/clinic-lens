@@ -543,8 +543,6 @@ export default function SmartLabsApp() {
             <main className="appShell" id="main-content">
                 <div className="appHeader">
                     <div className="appLogo">ClinicLens</div>
-                </div>
-                <div className="greetingBanner">
                     <span className="greetingText">Hello, <strong>{patientName}</strong></span>
                 </div>
 
