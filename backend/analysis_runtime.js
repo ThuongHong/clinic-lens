@@ -5,14 +5,14 @@ const ANALYSIS_PROMPT_PATH = path.resolve(__dirname, 'prompts', 'analysis_system
 
 const DEFAULT_SYSTEM_PROMPT = `
 You are MedScan AI, a medical lab report analysis assistant for the Smart Labs Analyzer app.
-Task: read medical lab documents (image/PDF), extract indicators, and return JSON that strictly follows the contract.
+Task: read medical lab documents (image/PDF), perform cross-lingual extraction, and return JSON that strictly follows the contract.
 
 ## Hard Rules
 - Do not provide an official medical diagnosis.
 - Do not recommend or name specific drugs.
 - Do not invent values when they cannot be read.
 - Return pure JSON only (no markdown, no extra explanation).
-- Keep patient_advice empty by default (""), because detailed explanation is generated on-demand.
+- All output structural values, keys, and patient_advice must be in standard English.
 
 ## Output Contract
 Success:
@@ -22,13 +22,22 @@ Success:
   "analysis_date": "<YYYY-MM-DD|null>",
   "results": [
     {
-      "indicator_name": "...",
-      "value": "...",
+      "indicator_name_en": "...",
+      "indicator_name_original": "...",
+      "value": 25.0,
       "unit": "...",
-      "reference_range": "...",
       "organ_id": "kidneys|liver|heart|lungs|blood|pancreas|thyroid|bone|immune|other",
       "severity": "normal|abnormal_high|abnormal_low|critical|unknown",
-      "patient_advice": ""
+      "patient_advice": "English, 1-3 sentences",
+      "reference_range": {
+        "type": "numeric|threshold|qualitative",
+        "numeric_min": 30.0,
+        "numeric_max": 100.0,
+        "raw_string_original": "...",
+        "raw_string_en": "...",
+        "optimal_text_en": "...",
+        "patient_category_text_en": "..."
+      },
     }
   ]
 }
@@ -235,12 +244,257 @@ function sanitizeEnglishText(value, fallback = '') {
   return normalized;
 }
 
-function normalizeResult(rawResult) {
+function sanitizeIndicatorNameEn(value) {
+  const normalized = sanitizeEnglishText(value, '').trim();
+  if (!normalized) {
+    return 'Unknown Indicator';
+  }
+
+  if (!/[A-Za-z]/.test(normalized)) {
+    return 'Unknown Indicator';
+  }
+
+  return normalized;
+}
+
+function parseOptionalNumber(value) {
+  if (typeof value === 'number' && Number.isFinite(value)) {
+    return value;
+  }
+
+  const raw = String(value || '').trim();
+  if (!raw) {
+    return null;
+  }
+
+  const compact = raw.replace(/\s+/g, '');
+  const hasDot = compact.includes('.');
+  const normalized = hasDot
+    ? compact.replace(/,/g, '')
+    : compact.replace(',', '.');
+
+  const match = normalized.match(/-?\d+(?:\.\d+)?/);
+  if (!match) {
+    return null;
+  }
+
+  const parsed = Number.parseFloat(match[0]);
+  return Number.isFinite(parsed) ? parsed : null;
+}
+
+function parseOptionalBoolean(value, fallback = false) {
+  if (typeof value === 'boolean') {
+    return value;
+  }
+  return fallback;
+}
+
+function normalizeStructuredReferenceRange(rawStructured, normalizedTextEn, sourceTextOriginal) {
+  const base = {
+    type: 'unknown',
+    normalized_text_en: sanitizeEnglishText(normalizedTextEn, sanitizeText(normalizedTextEn || sourceTextOriginal)),
+    numeric: null,
+    threshold: null,
+    qualitative: null
+  };
+
+  if (!rawStructured || typeof rawStructured !== 'object') {
+    return base;
+  }
+
+  const source = rawStructured;
+  const requestedType = String(source.type || '').trim().toLowerCase();
+  const type = ['numeric', 'threshold', 'qualitative', 'unknown'].includes(requestedType)
+    ? requestedType
+    : 'unknown';
+
+  const normalizedText = sanitizeEnglishText(
+    source.normalized_text_en,
+    base.normalized_text_en
+  );
+
+  const numericSource = source.numeric && typeof source.numeric === 'object' ? source.numeric : {};
+  const thresholdSource = source.threshold && typeof source.threshold === 'object' ? source.threshold : {};
+  const qualitativeSource = source.qualitative && typeof source.qualitative === 'object' ? source.qualitative : {};
+
+  const numeric = {
+    min: parseOptionalNumber(numericSource.min),
+    max: parseOptionalNumber(numericSource.max),
+    inclusive_min: parseOptionalBoolean(numericSource.inclusive_min, true),
+    inclusive_max: parseOptionalBoolean(numericSource.inclusive_max, true)
+  };
+
+  const thresholdOperator = String(thresholdSource.operator || '').trim();
+  const threshold = {
+    operator: ['<', '<=', '>', '>=', '='].includes(thresholdOperator) ? thresholdOperator : null,
+    value: parseOptionalNumber(thresholdSource.value)
+  };
+
+  const bands = Array.isArray(qualitativeSource.bands)
+    ? qualitativeSource.bands
+      .filter((item) => item && typeof item === 'object')
+      .map((item) => ({
+        label_en: sanitizeEnglishText(item.label_en, 'Unspecified band'),
+        label_original: sanitizeText(item.label_original),
+        rule_text: sanitizeText(item.rule_text)
+      }))
+      .slice(0, 8)
+    : [];
+
+  const qualitative = {
+    matched_label_en: sanitizeEnglishText(qualitativeSource.matched_label_en, ''),
+    matched_label_original: sanitizeText(qualitativeSource.matched_label_original),
+    bands
+  };
+
+  if (type === 'numeric' && numeric.min == null && numeric.max == null) {
+    return { ...base, normalized_text_en: normalizedText };
+  }
+
+  if (type === 'threshold' && (threshold.operator == null || threshold.value == null)) {
+    return { ...base, normalized_text_en: normalizedText };
+  }
+
+  if (type === 'qualitative' && !qualitative.matched_label_en && bands.length === 0) {
+    return { ...base, normalized_text_en: normalizedText };
+  }
+
   return {
-    indicator_name: sanitizeText(rawResult?.indicator_name),
-    value: sanitizeText(rawResult?.value),
-    unit: sanitizeText(rawResult?.unit),
-    reference_range: sanitizeText(rawResult?.reference_range),
+    type,
+    normalized_text_en: normalizedText,
+    numeric: type === 'numeric' ? numeric : null,
+    threshold: type === 'threshold' ? threshold : null,
+    qualitative: type === 'qualitative' ? qualitative : null
+  };
+}
+
+function parseThresholdFromText(text) {
+  const source = String(text || '').replace(/,/g, '').trim();
+  if (!source) {
+    return null;
+  }
+
+  const match = source.match(/(<=|>=|<|>|=)\s*(-?\d+(?:\.\d+)?)/);
+  if (!match) {
+    return null;
+  }
+
+  const value = Number.parseFloat(match[2]);
+  if (!Number.isFinite(value)) {
+    return null;
+  }
+
+  return {
+    operator: match[1],
+    value
+  };
+}
+
+function normalizeReferenceRangeFromObject(rawReferenceRange) {
+  const typeSource = String(rawReferenceRange?.type || '').trim().toLowerCase();
+  const type = ['numeric', 'threshold', 'qualitative'].includes(typeSource) ? typeSource : 'unknown';
+
+  const rawStringOriginal = sanitizeText(rawReferenceRange?.raw_string_original);
+  const rawStringEn = sanitizeEnglishText(rawReferenceRange?.raw_string_en, '');
+  const optimalTextEn = sanitizeEnglishText(rawReferenceRange?.optimal_text_en, rawStringEn);
+  const patientCategoryTextEn = sanitizeEnglishText(rawReferenceRange?.patient_category_text_en, '');
+
+  const numericMin = parseOptionalNumber(rawReferenceRange?.numeric_min);
+  const numericMax = parseOptionalNumber(rawReferenceRange?.numeric_max);
+
+  const fallbackText = optimalTextEn || rawStringEn || sanitizeText(rawStringOriginal);
+  const thresholdParsed = parseThresholdFromText(optimalTextEn || rawStringEn || rawStringOriginal);
+
+  const numeric = type === 'numeric'
+    ? {
+      min: numericMin,
+      max: numericMax,
+      inclusive_min: true,
+      inclusive_max: true
+    }
+    : null;
+
+  const threshold = type === 'threshold'
+    ? thresholdParsed || (() => {
+      if (numericMin != null && numericMax == null) {
+        return { operator: '>=', value: numericMin };
+      }
+      if (numericMax != null && numericMin == null) {
+        return { operator: '<=', value: numericMax };
+      }
+      return null;
+    })()
+    : null;
+
+  const qualitative = type === 'qualitative'
+    ? {
+      matched_label_en: patientCategoryTextEn,
+      matched_label_original: '',
+      bands: []
+    }
+    : null;
+
+  return {
+    reference_range: fallbackText,
+    reference_range_original: rawStringOriginal,
+    reference_range_structured: {
+      type: type === 'unknown' ? 'unknown' : type,
+      normalized_text_en: fallbackText,
+      numeric,
+      threshold,
+      qualitative
+    }
+  };
+}
+
+function normalizeResult(rawResult) {
+  const indicatorNameOriginal = sanitizeText(
+    rawResult?.indicator_name_original || rawResult?.indicator_name || ''
+  );
+  const indicatorNameEn = sanitizeIndicatorNameEn(
+    rawResult?.indicator_name_en || rawResult?.indicator_name
+  );
+
+  const value = sanitizeText(rawResult?.value);
+  const valueOriginal = sanitizeText(rawResult?.value_original || rawResult?.value || '');
+  const unit = sanitizeText(rawResult?.unit);
+  const unitOriginal = sanitizeText(rawResult?.unit_original || rawResult?.unit || '');
+
+  let referenceRangeOriginal = '';
+  let referenceRange = '';
+  let referenceRangeStructured = null;
+
+  if (rawResult?.reference_range && typeof rawResult.reference_range === 'object' && !Array.isArray(rawResult.reference_range)) {
+    const normalizedFromObject = normalizeReferenceRangeFromObject(rawResult.reference_range);
+    referenceRange = normalizedFromObject.reference_range;
+    referenceRangeOriginal = normalizedFromObject.reference_range_original;
+    referenceRangeStructured = normalizedFromObject.reference_range_structured;
+  } else {
+    referenceRangeOriginal = sanitizeText(
+      rawResult?.reference_range_original || rawResult?.reference_range || ''
+    );
+    referenceRange = sanitizeEnglishText(
+      rawResult?.reference_range,
+      sanitizeText(rawResult?.reference_range || referenceRangeOriginal)
+    );
+    referenceRangeStructured = normalizeStructuredReferenceRange(
+      rawResult?.reference_range_structured,
+      referenceRange,
+      referenceRangeOriginal
+    );
+  }
+
+  return {
+    indicator_name: indicatorNameEn,
+    indicator_name_en: indicatorNameEn,
+    indicator_name_original: indicatorNameOriginal,
+    value,
+    value_original: valueOriginal,
+    unit,
+    unit_original: unitOriginal,
+    reference_range: referenceRange,
+    reference_range_original: referenceRangeOriginal,
+    reference_range_structured: referenceRangeStructured,
     organ_id: normalizeOrganId(rawResult?.organ_id),
     severity: normalizeSeverity(rawResult?.severity),
     patient_advice: sanitizeEnglishText(rawResult?.patient_advice, '')

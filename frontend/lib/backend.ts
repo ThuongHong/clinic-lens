@@ -99,10 +99,16 @@ export function parseAnalysis(raw: Record<string, unknown>): LabAnalysis {
         analysis_date: String(raw.analysis_date || ''),
         patient_name: raw.patient_name ? String(raw.patient_name) : undefined,
         results: results.map((item) => ({
-            indicator_name: String(item.indicator_name || ''),
+            indicator_name: String(item.indicator_name || item.indicator_name_en || ''),
+            indicator_name_en: item.indicator_name_en ? String(item.indicator_name_en) : undefined,
+            indicator_name_original: item.indicator_name_original ? String(item.indicator_name_original) : undefined,
             value: String(item.value || ''),
+            value_original: item.value_original ? String(item.value_original) : undefined,
             unit: String(item.unit || ''),
+            unit_original: item.unit_original ? String(item.unit_original) : undefined,
             reference_range: String(item.reference_range || ''),
+            reference_range_original: item.reference_range_original ? String(item.reference_range_original) : undefined,
+            reference_range_structured: parseReferenceRangeStructured(item.reference_range_structured),
             organ_id: String(item.organ_id || ''),
             severity: String(item.severity || 'unknown') as LabAnalysis['results'][number]['severity'],
             patient_advice: String(item.patient_advice || '')
@@ -114,6 +120,87 @@ export function parseAnalysis(raw: Record<string, unknown>): LabAnalysis {
         history_id: raw.history_id ? String(raw.history_id) : undefined,
         created_at: raw.created_at ? String(raw.created_at) : undefined
     };
+}
+
+function parseReferenceRangeStructured(raw: unknown): LabAnalysis['results'][number]['reference_range_structured'] {
+    if (!raw || typeof raw !== 'object') {
+        return undefined;
+    }
+
+    const source = raw as Record<string, unknown>;
+    const typeRaw = String(source.type || '').toLowerCase();
+    const type = ['numeric', 'threshold', 'qualitative', 'unknown'].includes(typeRaw)
+        ? typeRaw as 'numeric' | 'threshold' | 'qualitative' | 'unknown'
+        : 'unknown';
+
+    const numericSource = source.numeric && typeof source.numeric === 'object'
+        ? source.numeric as Record<string, unknown>
+        : null;
+    const thresholdSource = source.threshold && typeof source.threshold === 'object'
+        ? source.threshold as Record<string, unknown>
+        : null;
+    const qualitativeSource = source.qualitative && typeof source.qualitative === 'object'
+        ? source.qualitative as Record<string, unknown>
+        : null;
+
+    const numeric = numericSource
+        ? {
+            min: parseMaybeNumber(numericSource.min),
+            max: parseMaybeNumber(numericSource.max),
+            inclusive_min: numericSource.inclusive_min === true,
+            inclusive_max: numericSource.inclusive_max === true
+        }
+        : null;
+
+    const thresholdOperator = thresholdSource ? String(thresholdSource.operator || '') : '';
+    const threshold = thresholdSource
+        ? {
+            operator: ['<', '<=', '>', '>=', '='].includes(thresholdOperator)
+                ? thresholdOperator as '<' | '<=' | '>' | '>=' | '='
+                : null,
+            value: parseMaybeNumber(thresholdSource.value)
+        }
+        : null;
+
+    const bands = qualitativeSource && Array.isArray(qualitativeSource.bands)
+        ? qualitativeSource.bands
+            .filter((item): item is Record<string, unknown> => Boolean(item) && typeof item === 'object')
+            .map((item) => ({
+                label_en: String(item.label_en || ''),
+                label_original: String(item.label_original || ''),
+                rule_text: String(item.rule_text || '')
+            }))
+        : [];
+
+    const qualitative = qualitativeSource
+        ? {
+            matched_label_en: String(qualitativeSource.matched_label_en || ''),
+            matched_label_original: String(qualitativeSource.matched_label_original || ''),
+            bands
+        }
+        : null;
+
+    return {
+        type,
+        normalized_text_en: String(source.normalized_text_en || ''),
+        numeric,
+        threshold,
+        qualitative
+    };
+}
+
+function parseMaybeNumber(raw: unknown) {
+    if (typeof raw === 'number' && Number.isFinite(raw)) {
+        return raw;
+    }
+
+    const normalized = String(raw || '').trim();
+    if (!normalized) {
+        return null;
+    }
+
+    const parsed = Number.parseFloat(normalized);
+    return Number.isFinite(parsed) ? parsed : null;
 }
 
 export function parseChatResult(raw: Record<string, unknown>): ChatResultEvent | null {

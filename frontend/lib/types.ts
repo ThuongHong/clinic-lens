@@ -1,10 +1,50 @@
 export type Severity = 'normal' | 'abnormal_high' | 'abnormal_low' | 'critical' | 'unknown';
 
+export type ReferenceRangeType = 'numeric' | 'threshold' | 'qualitative' | 'unknown';
+
+export interface NumericReferenceRange {
+    min: number | null;
+    max: number | null;
+    inclusive_min: boolean;
+    inclusive_max: boolean;
+}
+
+export interface ThresholdReferenceRange {
+    operator: '<' | '<=' | '>' | '>=' | '=' | null;
+    value: number | null;
+}
+
+export interface QualitativeReferenceBand {
+    label_en: string;
+    label_original: string;
+    rule_text: string;
+}
+
+export interface QualitativeReferenceRange {
+    matched_label_en: string;
+    matched_label_original: string;
+    bands: QualitativeReferenceBand[];
+}
+
+export interface ReferenceRangeStructured {
+    type: ReferenceRangeType;
+    normalized_text_en: string;
+    numeric: NumericReferenceRange | null;
+    threshold: ThresholdReferenceRange | null;
+    qualitative: QualitativeReferenceRange | null;
+}
+
 export interface LabResult {
     indicator_name: string;
+    indicator_name_en?: string;
+    indicator_name_original?: string;
     value: string;
+    value_original?: string;
     unit: string;
+    unit_original?: string;
     reference_range: string;
+    reference_range_original?: string;
+    reference_range_structured?: ReferenceRangeStructured;
     organ_id: string;
     severity: Severity;
     patient_advice: string;

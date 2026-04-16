@@ -474,9 +474,15 @@ function buildAnalysisContextForChat({ analysis, trendSnapshot }) {
     .slice(0, 12)
     .map((item) => ({
       indicator_name: item.indicator_name,
+      indicator_name_en: item.indicator_name_en,
+      indicator_name_original: item.indicator_name_original,
       value: item.value,
+      value_original: item.value_original,
       unit: item.unit,
+      unit_original: item.unit_original,
       reference_range: item.reference_range,
+      reference_range_original: item.reference_range_original,
+      reference_range_structured: item.reference_range_structured,
       organ_id: item.organ_id,
       severity: item.severity,
       patient_advice: item.patient_advice

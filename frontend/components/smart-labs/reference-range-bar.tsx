@@ -1,23 +1,45 @@
 import { useMemo } from 'react';
 
+import type { ReferenceRangeStructured } from '@/lib/types';
+
 interface ReferenceRangeBarProps {
     value: string;
     unit: string;
     referenceRange: string;
+    referenceRangeStructured?: ReferenceRangeStructured;
+    referenceRangeOriginal?: string;
     severity: string;
 }
 
-export function ReferenceRangeBar({ value, unit, referenceRange, severity }: ReferenceRangeBarProps) {
-    const visual = useMemo(() => buildReferenceRangeVisual(referenceRange, value), [referenceRange, value]);
+export function ReferenceRangeBar({
+    value,
+    unit,
+    referenceRange,
+    referenceRangeStructured,
+    referenceRangeOriginal,
+    severity
+}: ReferenceRangeBarProps) {
+    const visual = useMemo(
+        () => buildReferenceRangeVisual(referenceRange, value, referenceRangeStructured),
+        [referenceRange, value, referenceRangeStructured]
+    );
+    const qualitative = useMemo(
+        () => buildQualitativeVisual(referenceRangeStructured),
+        [referenceRangeStructured]
+    );
+    const displayReference = referenceRangeStructured?.normalized_text_en
+        || referenceRange
+        || referenceRangeOriginal
+        || 'N/A';
 
-    if (!visual) {
+    if (!visual && !qualitative) {
         return null;
     }
 
-    const normalLeft = toPercent(visual.normalMin, visual.domainMin, visual.domainMax);
-    const normalRight = toPercent(visual.normalMax, visual.domainMin, visual.domainMax);
-    const markerLeft = toPercent(visual.current, visual.domainMin, visual.domainMax);
-    const markerClass = visual.currentInNormal
+    const normalLeft = visual ? toPercent(visual.normalMin, visual.domainMin, visual.domainMax) : 0;
+    const normalRight = visual ? toPercent(visual.normalMax, visual.domainMin, visual.domainMax) : 0;
+    const markerLeft = visual ? toPercent(visual.current, visual.domainMin, visual.domainMax) : 0;
+    const markerClass = visual && visual.currentInNormal
         ? 'resultRangeMarker marker-normal'
         : severity === 'critical'
             ? 'resultRangeMarker marker-critical'
@@ -32,22 +54,33 @@ export function ReferenceRangeBar({ value, unit, referenceRange, severity }: Ref
         <div className="resultRangeBlock" aria-label="Reference range visualization">
             <div className="resultRangeHeader">
                 <span>Reference range</span>
-                <span>{referenceRange || 'N/A'}</span>
+                <span>{displayReference}</span>
             </div>
-            <div className="resultRangeTrack" role="img" aria-label={`Normal range between ${referenceRange}. Current value is ${value || 'N/A'} ${unit || ''}.`}>
-                <div
-                    className="resultRangeNormalBand"
-                    style={{ left: `${normalLeft}%`, width: `${Math.max(normalRight - normalLeft, 3)}%` }}
-                />
-                <div className={`resultRangeMarkerAnchor ${markerEdgeClass}`} style={{ left: `${markerLeft}%` }}>
-                    <div className={markerClass} />
+            {visual ? (
+                <>
+                    <div className="resultRangeTrack" role="img" aria-label={`Normal range between ${displayReference}. Current value is ${value || 'N/A'} ${unit || ''}.`}>
+                        <div
+                            className="resultRangeNormalBand"
+                            style={{ left: `${normalLeft}%`, width: `${Math.max(normalRight - normalLeft, 3)}%` }}
+                        />
+                        <div className={`resultRangeMarkerAnchor ${markerEdgeClass}`} style={{ left: `${markerLeft}%` }}>
+                            <div className={markerClass} />
+                        </div>
+                    </div>
+                    <div className="resultRangeLegend">
+                        <span>Low</span>
+                        <span>Normal</span>
+                        <span>High</span>
+                    </div>
+                </>
+            ) : null}
+
+            {!visual && qualitative ? (
+                <div className="resultRangeLegend" style={{ display: 'flex', justifyContent: 'space-between' }}>
+                    <span>Matched category</span>
+                    <span>{qualitative.matchedLabel || 'N/A'}</span>
                 </div>
-            </div>
-            <div className="resultRangeLegend">
-                <span>Low</span>
-                <span>Normal</span>
-                <span>High</span>
-            </div>
+            ) : null}
         </div>
     );
 }
@@ -73,10 +106,69 @@ function parseNumericValue(input: string) {
     return Number.isFinite(parsed) ? parsed : null;
 }
 
-function buildReferenceRangeVisual(referenceRange: string, value: string) {
+function buildReferenceRangeVisual(
+    referenceRange: string,
+    value: string,
+    structured?: ReferenceRangeStructured
+) {
     const current = parseNumericValue(value);
     if (current === null) {
         return null;
+    }
+
+    if (structured?.type === 'numeric' && structured.numeric) {
+        const minCandidate = structured.numeric.min;
+        const maxCandidate = structured.numeric.max;
+        if (minCandidate != null || maxCandidate != null) {
+            const min = minCandidate != null ? minCandidate : maxCandidate != null ? maxCandidate - 1 : 0;
+            const max = maxCandidate != null ? maxCandidate : minCandidate != null ? minCandidate + 1 : 1;
+            const lower = Math.min(min, max);
+            const upper = Math.max(min, max);
+            const span = Math.max(upper - lower, Math.max(Math.abs(upper), 1) * 0.25);
+            const pad = span * 0.35;
+
+            return {
+                domainMin: lower - pad,
+                domainMax: upper + pad,
+                normalMin: lower,
+                normalMax: upper,
+                current,
+                currentInNormal: current >= lower && current <= upper
+            };
+        }
+    }
+
+    if (structured?.type === 'threshold' && structured.threshold?.operator && structured.threshold.value != null) {
+        const thresholdValue = structured.threshold.value;
+        const operator = structured.threshold.operator;
+
+        if (operator === '<' || operator === '<=') {
+            const span = Math.max(Math.abs(thresholdValue) * 0.8, 1);
+            const domainMin = Math.min(0, thresholdValue - span);
+            const domainMax = thresholdValue + span * 0.4;
+            return {
+                domainMin,
+                domainMax,
+                normalMin: domainMin,
+                normalMax: thresholdValue,
+                current,
+                currentInNormal: current <= thresholdValue
+            };
+        }
+
+        if (operator === '>' || operator === '>=') {
+            const span = Math.max(Math.abs(thresholdValue) * 0.8, 1);
+            const domainMin = thresholdValue - span * 0.4;
+            const domainMax = thresholdValue + span;
+            return {
+                domainMin,
+                domainMax,
+                normalMin: thresholdValue,
+                normalMax: domainMax,
+                current,
+                currentInNormal: current >= thresholdValue
+            };
+        }
     }
 
     const text = String(referenceRange || '').replace(/,/g, '').trim();
@@ -150,4 +242,14 @@ function buildReferenceRangeVisual(referenceRange: string, value: string) {
     }
 
     return null;
+}
+
+function buildQualitativeVisual(structured?: ReferenceRangeStructured) {
+    if (!structured || structured.type !== 'qualitative' || !structured.qualitative) {
+        return null;
+    }
+
+    return {
+        matchedLabel: structured.qualitative.matched_label_en || structured.qualitative.matched_label_original
+    };
 }

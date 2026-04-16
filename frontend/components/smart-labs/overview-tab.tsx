@@ -81,6 +81,13 @@ export function OverviewTab({
         ? indicatorExplainCache[activeInfoResultKey]
         : undefined;
 
+    const activeReferenceDisplay = activeInfoResult
+        ? activeInfoResult.reference_range_structured?.normalized_text_en
+        || activeInfoResult.reference_range
+        || activeInfoResult.reference_range_original
+        || 'N/A'
+        : 'N/A';
+
     const indicatorExplainPending = Boolean(activeInfoResult && !activeModelExplanation && !indicatorExplainError);
 
     useEffect(() => {
@@ -107,7 +114,7 @@ export function OverviewTab({
                     organ_id: activeInfoResult.organ_id,
                     value: activeInfoResult.value,
                     unit: activeInfoResult.unit,
-                    reference_range: activeInfoResult.reference_range,
+                    reference_range: activeReferenceDisplay,
                     severity: activeInfoResult.severity
                 });
 
@@ -135,7 +142,7 @@ export function OverviewTab({
         return () => {
             disposed = true;
         };
-    }, [activeInfoResult, activeInfoResultKey, indicatorExplainCache, indicatorExplainRequestVersion]);
+    }, [activeInfoResult, activeInfoResultKey, indicatorExplainCache, indicatorExplainRequestVersion, activeReferenceDisplay]);
 
     useEffect(() => {
         if (!activeInfoResult) {
@@ -378,6 +385,8 @@ export function OverviewTab({
                                                     value={result.value}
                                                     unit={result.unit}
                                                     referenceRange={result.reference_range}
+                                                    referenceRangeStructured={result.reference_range_structured}
+                                                    referenceRangeOriginal={result.reference_range_original}
                                                     severity={result.severity}
                                                 />
                                             </div>
@@ -447,7 +456,7 @@ export function OverviewTab({
 
                         <div className="indicatorInfoMeta">
                             <span>Current: {activeInfoResult.value || 'N/A'} {activeInfoResult.unit || ''}</span>
-                            <span>Reference: {activeInfoResult.reference_range || 'N/A'}</span>
+                            <span>Reference: {activeReferenceDisplay}</span>
                         </div>
 
                         {activeModelExplanation && (

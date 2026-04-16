@@ -35,6 +35,7 @@ API_URL = os.environ.get(
     "https://dashscope-intl.aliyuncs.com/api/v1/services/aigc/multimodal-generation/generation",
 )
 MODEL = os.environ.get("DASHSCOPE_MODEL", "qwen-vl-max")
+PDF_PAGE_MAX_TOKENS = int(os.environ.get("ANALYSIS_PDF_PAGE_MAX_TOKENS", "5200"))
 
 SEVERITY_RANK = {
     "normal": 0,
@@ -330,12 +331,32 @@ def merge_results(page_results: list[dict]) -> dict:
 
     seen = set()
     unique = []
+
+    def range_signature(reference_range: object) -> str:
+        if isinstance(reference_range, dict):
+            return "|".join(
+                [
+                    str(reference_range.get("type", "")).strip().lower(),
+                    str(reference_range.get("numeric_min", "")).strip(),
+                    str(reference_range.get("numeric_max", "")).strip(),
+                    str(reference_range.get("raw_string_original", "")).strip().lower(),
+                    str(reference_range.get("raw_string_en", "")).strip().lower(),
+                    str(reference_range.get("optimal_text_en", "")).strip().lower(),
+                    str(reference_range.get("patient_category_text_en", ""))
+                    .strip()
+                    .lower(),
+                ]
+            )
+        return str(reference_range or "").strip().lower()
+
     for item in merged:
         key = (
-            str(item.get("indicator_name", "")).strip().lower(),
+            str(item.get("indicator_name_en") or item.get("indicator_name", ""))
+            .strip()
+            .lower(),
             str(item.get("value", "")).strip(),
             str(item.get("unit", "")).strip().lower(),
-            str(item.get("reference_range", "")).strip().lower(),
+            range_signature(item.get("reference_range")),
             str(item.get("organ_id", "")).strip().lower(),
             str(item.get("severity", "")).strip().lower(),
         )
@@ -476,7 +497,7 @@ def main():
                     "Read multilingual text robustly and normalize extracted values accurately."
                 ),
                 image_path,
-                max_tokens=2200,
+                max_tokens=PDF_PAGE_MAX_TOKENS,
                 temperature=0.0,
             )
             payload = extract_json(raw)

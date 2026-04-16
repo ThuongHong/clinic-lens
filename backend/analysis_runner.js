@@ -15,12 +15,30 @@ const MAX_TOKENS = Number(process.env.ANALYSIS_MAX_TOKENS || 4096);
 const TEMPERATURE = Number(process.env.ANALYSIS_TEMPERATURE || 0.05);
 const RETRIES = Number(process.env.ANALYSIS_RETRIES || 3);
 
-const ALLOWED_ORGANS = new Set(['kidneys', 'liver', 'heart', 'pancreas', 'thyroid', 'blood', 'bone', 'immune']);
-const ALLOWED_SEVERITY = new Set(['normal', 'abnormal_high', 'abnormal_low', 'unknown']);
+const ALLOWED_ORGANS = new Set(['kidneys', 'liver', 'heart', 'lungs', 'pancreas', 'thyroid', 'blood', 'bone', 'immune', 'other']);
+const ALLOWED_SEVERITY = new Set(['normal', 'abnormal_high', 'abnormal_low', 'critical', 'unknown']);
 const ALLOWED_ERRORS = new Set(['IMAGE_BLURRY', 'NOT_MEDICAL', 'UNSUPPORTED_FORMAT', 'PARTIAL_DATA']);
 const SUCCESS_KEYS = ['status', 'patient_name', 'analysis_date', 'results'];
 const ERROR_KEYS = ['status', 'error_code', 'error_message', 'results'];
-const RESULT_KEYS = ['indicator_name', 'value', 'unit', 'reference_range', 'organ_id', 'severity', 'patient_advice'];
+const RESULT_KEYS = [
+  'indicator_name_en',
+  'indicator_name_original',
+  'value',
+  'unit',
+  'organ_id',
+  'severity',
+  'patient_advice',
+  'reference_range'
+];
+const REFERENCE_RANGE_KEYS = [
+  'type',
+  'numeric_min',
+  'numeric_max',
+  'raw_string_original',
+  'raw_string_en',
+  'optimal_text_en',
+  'patient_category_text_en'
+];
 
 function hasExactKeys(obj, expectedKeys) {
   const keys = Object.keys(obj).sort();
@@ -112,11 +130,43 @@ function validateContract(payload) {
     RESULT_KEYS.forEach((k) => {
       if (!(k in item)) errors.push(`results[${i}] thieu ${k}`);
     });
-    ['indicator_name', 'value', 'unit', 'reference_range', 'patient_advice'].forEach((k) => {
+    ['indicator_name_en', 'indicator_name_original', 'unit', 'patient_advice'].forEach((k) => {
       if (k in item && (typeof item[k] !== 'string' || !item[k].trim())) {
         errors.push(`results[${i}].${k} phai la chuoi khong rong`);
       }
     });
+
+    if (typeof item.value !== 'number' || !Number.isFinite(item.value)) {
+      errors.push(`results[${i}].value phai la number hop le`);
+    }
+
+    if (!item.reference_range || typeof item.reference_range !== 'object') {
+      errors.push(`results[${i}].reference_range phai la object`);
+    } else {
+      const rr = item.reference_range;
+      if (!hasExactKeys(rr, REFERENCE_RANGE_KEYS)) {
+        errors.push(`results[${i}].reference_range phai dung chinh xac cac field contract`);
+      }
+
+      const rrType = String(rr.type || '');
+      if (!['numeric', 'threshold', 'qualitative'].includes(rrType)) {
+        errors.push(`results[${i}].reference_range.type khong hop le`);
+      }
+
+      if (!(rr.numeric_min === null || (typeof rr.numeric_min === 'number' && Number.isFinite(rr.numeric_min)))) {
+        errors.push(`results[${i}].reference_range.numeric_min phai la number|null`);
+      }
+      if (!(rr.numeric_max === null || (typeof rr.numeric_max === 'number' && Number.isFinite(rr.numeric_max)))) {
+        errors.push(`results[${i}].reference_range.numeric_max phai la number|null`);
+      }
+
+      ['raw_string_original', 'raw_string_en', 'optimal_text_en', 'patient_category_text_en'].forEach((k) => {
+        if (typeof rr[k] !== 'string') {
+          errors.push(`results[${i}].reference_range.${k} phai la chuoi`);
+        }
+      });
+    }
+
     if (!ALLOWED_ORGANS.has(item.organ_id)) errors.push(`results[${i}].organ_id khong hop le`);
     if (!ALLOWED_SEVERITY.has(item.severity)) errors.push(`results[${i}].severity khong hop le`);
   }
