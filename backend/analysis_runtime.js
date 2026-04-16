@@ -390,6 +390,127 @@ function parseThresholdFromText(text) {
   };
 }
 
+function inferSeverityFromStructuredRange(valueNumber, structuredRange) {
+  if (!structuredRange || typeof structuredRange !== 'object') {
+    return null;
+  }
+
+  if (structuredRange.type === 'numeric' && structuredRange.numeric && typeof structuredRange.numeric === 'object') {
+    const min = parseOptionalNumber(structuredRange.numeric.min);
+    const max = parseOptionalNumber(structuredRange.numeric.max);
+
+    if (min != null && valueNumber < min) {
+      return 'abnormal_low';
+    }
+    if (max != null && valueNumber > max) {
+      return 'abnormal_high';
+    }
+    if (min != null || max != null) {
+      return 'normal';
+    }
+  }
+
+  if (structuredRange.type === 'threshold' && structuredRange.threshold && typeof structuredRange.threshold === 'object') {
+    const operator = String(structuredRange.threshold.operator || '').trim();
+    const thresholdValue = parseOptionalNumber(structuredRange.threshold.value);
+    if (!operator || thresholdValue == null) {
+      return null;
+    }
+
+    if (operator === '<' || operator === '<=') {
+      return valueNumber <= thresholdValue ? 'normal' : 'abnormal_high';
+    }
+
+    if (operator === '>' || operator === '>=') {
+      return valueNumber >= thresholdValue ? 'normal' : 'abnormal_low';
+    }
+
+    if (operator === '=') {
+      const epsilon = 1e-9;
+      if (Math.abs(valueNumber - thresholdValue) <= epsilon) {
+        return 'normal';
+      }
+      return valueNumber > thresholdValue ? 'abnormal_high' : 'abnormal_low';
+    }
+  }
+
+  return null;
+}
+
+function inferSeverityFromRangeText(valueNumber, referenceRangeText) {
+  const source = String(referenceRangeText || '').replace(/,/g, '').trim();
+  if (!source) {
+    return null;
+  }
+
+  const betweenMatch = source.match(/(-?\d+(?:\.\d+)?)\s*(?:-|–|to|~)\s*(-?\d+(?:\.\d+)?)/i);
+  if (betweenMatch) {
+    const low = Number.parseFloat(betweenMatch[1]);
+    const high = Number.parseFloat(betweenMatch[2]);
+    if (Number.isFinite(low) && Number.isFinite(high)) {
+      const min = Math.min(low, high);
+      const max = Math.max(low, high);
+      if (valueNumber < min) {
+        return 'abnormal_low';
+      }
+      if (valueNumber > max) {
+        return 'abnormal_high';
+      }
+      return 'normal';
+    }
+  }
+
+  const threshold = parseThresholdFromText(source);
+  if (threshold) {
+    if (threshold.operator === '<' || threshold.operator === '<=') {
+      return valueNumber <= threshold.value ? 'normal' : 'abnormal_high';
+    }
+
+    if (threshold.operator === '>' || threshold.operator === '>=') {
+      return valueNumber >= threshold.value ? 'normal' : 'abnormal_low';
+    }
+
+    if (threshold.operator === '=') {
+      const epsilon = 1e-9;
+      if (Math.abs(valueNumber - threshold.value) <= epsilon) {
+        return 'normal';
+      }
+      return valueNumber > threshold.value ? 'abnormal_high' : 'abnormal_low';
+    }
+  }
+
+  return null;
+}
+
+function deriveSeverityFromValueAndRange({
+  reportedSeverity,
+  value,
+  referenceRange,
+  referenceRangeStructured
+}) {
+  const normalizedReported = normalizeSeverity(reportedSeverity);
+  if (normalizedReported === 'critical') {
+    return 'critical';
+  }
+
+  const valueNumber = parseOptionalNumber(value);
+  if (valueNumber == null) {
+    return normalizedReported;
+  }
+
+  const inferredFromStructured = inferSeverityFromStructuredRange(valueNumber, referenceRangeStructured);
+  if (inferredFromStructured) {
+    return inferredFromStructured;
+  }
+
+  const inferredFromText = inferSeverityFromRangeText(valueNumber, referenceRange);
+  if (inferredFromText) {
+    return inferredFromText;
+  }
+
+  return normalizedReported;
+}
+
 function normalizeReferenceRangeFromObject(rawReferenceRange) {
   const typeSource = String(rawReferenceRange?.type || '').trim().toLowerCase();
   const type = ['numeric', 'threshold', 'qualitative'].includes(typeSource) ? typeSource : 'unknown';
@@ -484,6 +605,13 @@ function normalizeResult(rawResult) {
     );
   }
 
+  const normalizedSeverity = deriveSeverityFromValueAndRange({
+    reportedSeverity: rawResult?.severity,
+    value,
+    referenceRange,
+    referenceRangeStructured
+  });
+
   return {
     indicator_name: indicatorNameEn,
     indicator_name_en: indicatorNameEn,
@@ -496,7 +624,7 @@ function normalizeResult(rawResult) {
     reference_range_original: referenceRangeOriginal,
     reference_range_structured: referenceRangeStructured,
     organ_id: normalizeOrganId(rawResult?.organ_id),
-    severity: normalizeSeverity(rawResult?.severity),
+    severity: normalizedSeverity,
     patient_advice: sanitizeEnglishText(rawResult?.patient_advice, '')
   };
 }

@@ -91,7 +91,8 @@ export function organAbbr(organId: string) {
 }
 
 export function displayStatusLabel(severity: string) {
-    return String(severity || '').toLowerCase() === 'normal' ? 'Normal' : 'Abnormal';
+    const normalized = String(severity || '').trim().toLowerCase();
+    return STATUS_LABELS[normalized] ?? 'Unknown';
 }
 
 export function displayStatusIcon(severity: string) {

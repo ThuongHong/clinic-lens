@@ -606,7 +606,30 @@ export default function SmartLabsApp() {
                 return [];
             }
 
-            return parsed as AnalysisHistoryEntry[];
+            return parsed
+                .filter((entry): entry is Record<string, unknown> => Boolean(entry) && typeof entry === 'object')
+                .map((entry) => {
+                    const analysisRaw = entry.analysis && typeof entry.analysis === 'object'
+                        ? entry.analysis as Record<string, unknown>
+                        : {};
+
+                    const normalizedAnalysis = parseAnalysis(analysisRaw);
+                    const id = String(entry.id || createId('analysis'));
+                    const createdAt = String(entry.created_at || new Date().toISOString());
+
+                    return {
+                        id,
+                        created_at: createdAt,
+                        object_key: entry.object_key ? String(entry.object_key) : undefined,
+                        file_url: entry.file_url ? String(entry.file_url) : undefined,
+                        source_file_name: entry.source_file_name ? String(entry.source_file_name) : undefined,
+                        analysis: {
+                            ...normalizedAnalysis,
+                            history_id: normalizedAnalysis.history_id || id,
+                            created_at: normalizedAnalysis.created_at || createdAt
+                        }
+                    };
+                });
         } catch (_) {
             return [];
         }

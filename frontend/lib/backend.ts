@@ -98,21 +98,33 @@ export function parseAnalysis(raw: Record<string, unknown>): LabAnalysis {
         status: String(raw.status || 'unknown'),
         analysis_date: String(raw.analysis_date || ''),
         patient_name: raw.patient_name ? String(raw.patient_name) : undefined,
-        results: results.map((item) => ({
-            indicator_name: String(item.indicator_name || item.indicator_name_en || ''),
-            indicator_name_en: item.indicator_name_en ? String(item.indicator_name_en) : undefined,
-            indicator_name_original: item.indicator_name_original ? String(item.indicator_name_original) : undefined,
-            value: String(item.value || ''),
-            value_original: item.value_original ? String(item.value_original) : undefined,
-            unit: String(item.unit || ''),
-            unit_original: item.unit_original ? String(item.unit_original) : undefined,
-            reference_range: String(item.reference_range || ''),
-            reference_range_original: item.reference_range_original ? String(item.reference_range_original) : undefined,
-            reference_range_structured: parseReferenceRangeStructured(item.reference_range_structured),
-            organ_id: String(item.organ_id || ''),
-            severity: String(item.severity || 'unknown') as LabAnalysis['results'][number]['severity'],
-            patient_advice: String(item.patient_advice || '')
-        })),
+        results: results.map((item) => {
+            const value = String(item.value || '');
+            const referenceRange = String(item.reference_range || '');
+            const referenceRangeStructured = parseReferenceRangeStructured(item.reference_range_structured);
+            const reportedSeverity = String(item.severity || 'unknown');
+
+            return {
+                indicator_name: String(item.indicator_name || item.indicator_name_en || ''),
+                indicator_name_en: item.indicator_name_en ? String(item.indicator_name_en) : undefined,
+                indicator_name_original: item.indicator_name_original ? String(item.indicator_name_original) : undefined,
+                value,
+                value_original: item.value_original ? String(item.value_original) : undefined,
+                unit: String(item.unit || ''),
+                unit_original: item.unit_original ? String(item.unit_original) : undefined,
+                reference_range: referenceRange,
+                reference_range_original: item.reference_range_original ? String(item.reference_range_original) : undefined,
+                reference_range_structured: referenceRangeStructured,
+                organ_id: String(item.organ_id || ''),
+                severity: deriveSeverityFromValueAndRange({
+                    reportedSeverity,
+                    value,
+                    referenceRange,
+                    referenceRangeStructured
+                }),
+                patient_advice: String(item.patient_advice || '')
+            };
+        }),
         summary: raw.summary && typeof raw.summary === 'object' ? (raw.summary as LabAnalysis['summary']) : undefined,
         advice: raw.advice && typeof raw.advice === 'object' ? (raw.advice as LabAnalysis['advice']) : undefined,
         error_code: raw.error_code ? String(raw.error_code) : undefined,
@@ -201,6 +213,155 @@ function parseMaybeNumber(raw: unknown) {
 
     const parsed = Number.parseFloat(normalized);
     return Number.isFinite(parsed) ? parsed : null;
+}
+
+function normalizeSeverity(raw: string): LabAnalysis['results'][number]['severity'] {
+    const value = String(raw || '').trim().toLowerCase();
+    if (value === 'critical' || value === 'abnormal_high' || value === 'abnormal_low' || value === 'normal' || value === 'unknown') {
+        return value;
+    }
+    return 'unknown';
+}
+
+function parseThresholdFromText(text: string) {
+    const source = String(text || '').replace(/,/g, '').trim();
+    if (!source) {
+        return null;
+    }
+
+    const match = source.match(/(<=|>=|<|>|=)\s*(-?\d+(?:\.\d+)?)/);
+    if (!match) {
+        return null;
+    }
+
+    const value = Number.parseFloat(match[2]);
+    if (!Number.isFinite(value)) {
+        return null;
+    }
+
+    return {
+        operator: match[1],
+        value
+    };
+}
+
+function inferSeverityFromStructuredRange(
+    valueNumber: number,
+    structured?: LabAnalysis['results'][number]['reference_range_structured']
+) {
+    if (!structured) {
+        return null;
+    }
+
+    if (structured.type === 'numeric' && structured.numeric) {
+        const min = structured.numeric.min;
+        const max = structured.numeric.max;
+
+        if (min != null && valueNumber < min) {
+            return 'abnormal_low';
+        }
+        if (max != null && valueNumber > max) {
+            return 'abnormal_high';
+        }
+        if (min != null || max != null) {
+            return 'normal';
+        }
+    }
+
+    if (structured.type === 'threshold' && structured.threshold?.operator && structured.threshold.value != null) {
+        const operator = structured.threshold.operator;
+        const thresholdValue = structured.threshold.value;
+
+        if (operator === '<' || operator === '<=') {
+            return valueNumber <= thresholdValue ? 'normal' : 'abnormal_high';
+        }
+        if (operator === '>' || operator === '>=') {
+            return valueNumber >= thresholdValue ? 'normal' : 'abnormal_low';
+        }
+        if (operator === '=') {
+            const epsilon = 1e-9;
+            if (Math.abs(valueNumber - thresholdValue) <= epsilon) {
+                return 'normal';
+            }
+            return valueNumber > thresholdValue ? 'abnormal_high' : 'abnormal_low';
+        }
+    }
+
+    return null;
+}
+
+function inferSeverityFromRangeText(valueNumber: number, referenceRange: string) {
+    const source = String(referenceRange || '').replace(/,/g, '').trim();
+    if (!source) {
+        return null;
+    }
+
+    const betweenMatch = source.match(/(-?\d+(?:\.\d+)?)\s*(?:-|–|to|~)\s*(-?\d+(?:\.\d+)?)/i);
+    if (betweenMatch) {
+        const low = Number.parseFloat(betweenMatch[1]);
+        const high = Number.parseFloat(betweenMatch[2]);
+        if (Number.isFinite(low) && Number.isFinite(high)) {
+            const min = Math.min(low, high);
+            const max = Math.max(low, high);
+            if (valueNumber < min) {
+                return 'abnormal_low';
+            }
+            if (valueNumber > max) {
+                return 'abnormal_high';
+            }
+            return 'normal';
+        }
+    }
+
+    const threshold = parseThresholdFromText(source);
+    if (!threshold) {
+        return null;
+    }
+
+    if (threshold.operator === '<' || threshold.operator === '<=') {
+        return valueNumber <= threshold.value ? 'normal' : 'abnormal_high';
+    }
+    if (threshold.operator === '>' || threshold.operator === '>=') {
+        return valueNumber >= threshold.value ? 'normal' : 'abnormal_low';
+    }
+    if (threshold.operator === '=') {
+        const epsilon = 1e-9;
+        if (Math.abs(valueNumber - threshold.value) <= epsilon) {
+            return 'normal';
+        }
+        return valueNumber > threshold.value ? 'abnormal_high' : 'abnormal_low';
+    }
+
+    return null;
+}
+
+function deriveSeverityFromValueAndRange(params: {
+    reportedSeverity: string;
+    value: string;
+    referenceRange: string;
+    referenceRangeStructured?: LabAnalysis['results'][number]['reference_range_structured'];
+}): LabAnalysis['results'][number]['severity'] {
+    const normalizedReported = normalizeSeverity(params.reportedSeverity);
+    if (normalizedReported === 'critical') {
+        return 'critical';
+    }
+
+    const valueNumber = parseMaybeNumber(params.value);
+    if (valueNumber == null) {
+        return normalizedReported;
+    }
+
+    const inferredFromStructured = inferSeverityFromStructuredRange(valueNumber, params.referenceRangeStructured);
+    if (inferredFromStructured) {
+        return inferredFromStructured;
+    }
+
+    const inferredFromText = inferSeverityFromRangeText(valueNumber, params.referenceRange);
+    if (inferredFromText) {
+        return inferredFromText;
+    }
+
+    return normalizedReported;
 }
 
 export function parseChatResult(raw: Record<string, unknown>): ChatResultEvent | null {
