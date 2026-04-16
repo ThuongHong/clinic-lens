@@ -1,61 +1,97 @@
-interface HomeTabProps {
-    patientName: string;
-    hasAnalysis: boolean;
-    totalIndicators: number;
-    abnormalIndicators: number;
-    onGoOverview: () => void;
-    onGoHistory: () => void;
-    onGoChat: () => void;
+import React from 'react';
+import {
+    LayoutDashboard,
+    History,
+    MessageSquare,
+    Sparkles,
+    ChevronRight
+} from 'lucide-react';
+
+export interface HomeTabProps {
+    patientName?: string;
+    hasAnalysis?: boolean;
+    totalIndicators?: number;
+    abnormalIndicators?: number;
+    onGoOverview?: () => void;
+    onGoHistory?: () => void;
+    onGoChat?: () => void;
 }
 
+/**
+ * HOME TAB COMPONENT
+ * Keep home visual language while using shared app page sizing.
+ */
 export function HomeTab({
-    patientName,
-    hasAnalysis,
-    totalIndicators,
-    abnormalIndicators,
-    onGoOverview,
-    onGoHistory,
-    onGoChat
+    patientName = '',
+    hasAnalysis = false,
+    totalIndicators = 0,
+    abnormalIndicators = 0,
+    onGoOverview = () => { },
+    onGoHistory = () => { },
+    onGoChat = () => { }
 }: HomeTabProps) {
+    const firstName = patientName?.trim().split(' ')[0] || '';
+
     return (
-        <section id="panel-home" className="workspaceGrid workspaceGridOverviewIdle" role="tabpanel" aria-labelledby="tab-home" tabIndex={0}>
+        <section
+            id="panel-home"
+            className="workspaceGrid workspaceGridOverviewIdle"
+            role="tabpanel"
+            aria-labelledby="tab-home"
+            tabIndex={0}
+        >
             <article className="panel">
                 <div className="panelInner homeTabPanel">
                     <div className="homeHero">
-                        <p className="homeEyebrow">Landing</p>
-                        <h2>Welcome to ClinicLens</h2>
+                        <div className="homeEyebrow">
+                            <Sparkles size={12} />
+                            ClinicLens Intelligence
+                        </div>
+                        <h1 className="homeTitle">
+                            Welcome to ClinicLens
+                        </h1>
+
                         <p className="homeLead">
-                            {patientName.trim()
-                                ? `Hi ${patientName.trim()}, use this home tab as your start point before analysis, history, and AI chat.`
-                                : 'Use this home tab as your start point before analysis, history, and AI chat.'}
+                            Smart health indicator analysis platform. Discover AI analysis tools, explore your medical
+                            history, or chat with an expert assistant.
                         </p>
                     </div>
 
-                    <div className="homeActionGrid" role="group" aria-label="Quick actions">
-                        <button type="button" className="btn btn-primary" onClick={onGoOverview}>
-                            Start New Analysis
-                        </button>
-                        <button type="button" className="btn btn-secondary" onClick={onGoHistory}>
-                            Open History
-                        </button>
-                        <button type="button" className="btn btn-secondary" onClick={onGoChat}>
-                            Open AI Chat
-                        </button>
-                    </div>
+                    <div className="homePlaceholderCard" role="status">
+                        <div className="flex justify-between items-start gap-3">
+                            <div className="grid gap-1">
+                                <div className="homePlaceholderTitle">System Status</div>
+                                <p>Home interface optimized for quick monitoring of your recent sessions.</p>
+                            </div>
+                            <div className={hasAnalysis ? 'badge accent' : 'badge'}>
+                                <span className="badgeDot" />
+                                {hasAnalysis ? 'Data Connected' : 'Ready'}
+                            </div>
+                        </div>
 
-                    <div className="homePlaceholderCard" role="status" aria-live="polite">
-                        <div className="homePlaceholderTitle">Placeholder status</div>
-                        <p>
-                            This Home tab is currently a landing placeholder. You can expand it later with onboarding,
-                            tutorial cards, or system announcements.
-                        </p>
+                        {/* <div className="divider" /> */}
+
                         {hasAnalysis ? (
-                            <p className="homePlaceholderMeta">
-                                Latest session snapshot: {totalIndicators} indicators, {abnormalIndicators} abnormal.
-                            </p>
+                            <div className="statsRow">
+                                <div className="statCell">
+                                    <span className="metricLabel">Total Indicators</span>
+                                    <span className="metricValueLarge text-teal-600">{totalIndicators}</span>
+                                </div>
+                                <div className="statCell">
+                                    <span className="metricLabel">Abnormal</span>
+                                    <span className={`metricValueLarge ${abnormalIndicators > 0 ? 'text-rose-500' : 'text-teal-600'}`}>
+                                        {abnormalIndicators}
+                                    </span>
+                                </div>
+                                <div className="md:col-span-2 flex items-center justify-end">
+                                    <button className="btn btn-ghost text-xs uppercase tracking-widest font-bold" onClick={onGoOverview}>
+                                        View Details <ChevronRight size={14} />
+                                    </button>
+                                </div>
+                            </div>
                         ) : (
-                            <p className="homePlaceholderMeta">
-                                No analysis loaded yet in this session.
+                            <p className="homePlaceholderMeta py-2 italic opacity-60">
+                                No analysis sessions performed today.
                             </p>
                         )}
                     </div>

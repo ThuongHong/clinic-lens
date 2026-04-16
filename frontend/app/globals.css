@@ -321,10 +321,20 @@ body::after {
     padding: 2px 10px;
 }
 
+.homeTitle,
 .homeHero h2 {
-    font-size: clamp(1.24rem, 2.4vw, 1.7rem);
-    line-height: 1.2;
-    letter-spacing: -0.02em;
+    margin: 0;
+    font-family: 'Cabinet Grotesk', sans-serif;
+    font-size: clamp(1.8rem, 4.2vw, 2.85rem);
+    line-height: 1.08;
+    letter-spacing: -0.035em;
+    font-weight: 900;
+    color: var(--text);
+    text-wrap: balance;
+    background: linear-gradient(135deg, #1c1712 0%, #0f766e 58%, #0d9488 100%);
+    -webkit-background-clip: text;
+    background-clip: text;
+    -webkit-text-fill-color: transparent;
 }
 
 .homeLead {
