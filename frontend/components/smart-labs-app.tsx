@@ -670,7 +670,7 @@ export default function SmartLabsApp() {
 
     const TAB_LABELS: Record<TabKey, string> = {
         home: 'Home',
-        overview: 'Overview',
+        overview: 'Analysis',
         chat: 'AI Chat',
         history: 'History'
     };
