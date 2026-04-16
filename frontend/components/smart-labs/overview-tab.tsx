@@ -90,6 +90,8 @@ export function OverviewTab({
         || 'N/A'
         : 'N/A';
 
+    const activePatientAdvice = activeInfoResult?.patient_advice?.trim() || '';
+
     const indicatorExplainPending = Boolean(activeInfoResult && !activeModelExplanation && !indicatorExplainError);
 
     useEffect(() => {
@@ -388,6 +390,7 @@ export function OverviewTab({
                                                     referenceRangeOriginal={result.reference_range_original}
                                                     severity={result.severity}
                                                 />
+
                                             </div>
                                         ))}
                                     </div>
@@ -458,31 +461,49 @@ export function OverviewTab({
                             <span>Reference: {activeReferenceDisplay}</span>
                         </div>
 
-                        {activeModelExplanation && (
-                            <>
-                                <div className="indicatorInfoSection">
-                                    <h4>What this indicator is</h4>
-                                    <p>{activeModelExplanation.what_is_it}</p>
+                        {activePatientAdvice && (
+                            <section className="indicatorInfoSection indicatorInfoSectionAdvice">
+                                <div className="indicatorInfoSectionHead">
+                                    <h4>Advice for this result</h4>
                                 </div>
+                                <p>{activePatientAdvice}</p>
+                            </section>
+                        )}
 
-                                <div className="indicatorInfoSection">
-                                    <h4>When to be concerned</h4>
+                        {activeModelExplanation && (
+                            <div className="indicatorInfoExplainGrid">
+                                <section className="indicatorInfoSection indicatorInfoSectionExplain">
+                                    <div className="indicatorInfoSectionHead">
+                                        <span className="indicatorInfoStep">01</span>
+                                        <h4>What this indicator means?</h4>
+                                    </div>
+                                    <p>{activeModelExplanation.what_is_it}</p>
+                                </section>
+
+                                <section className="indicatorInfoSection indicatorInfoSectionExplain">
+                                    <div className="indicatorInfoSectionHead">
+                                        <span className="indicatorInfoStep">02</span>
+                                        <h4>When to be concerned?</h4>
+                                    </div>
                                     <ul>
                                         {activeModelExplanation.when_to_be_concerned.map((item, index) => (
                                             <li key={`${item}-${index}`}>{item}</li>
                                         ))}
                                     </ul>
-                                </div>
+                                </section>
 
-                                <div className="indicatorInfoSection">
-                                    <h4>What to do next</h4>
+                                <section className="indicatorInfoSection indicatorInfoSectionExplain">
+                                    <div className="indicatorInfoSectionHead">
+                                        <span className="indicatorInfoStep">03</span>
+                                        <h4>What to do next?</h4>
+                                    </div>
                                     <ul>
                                         {activeModelExplanation.what_to_do_next.map((item, index) => (
                                             <li key={`${item}-${index}`}>{item}</li>
                                         ))}
                                     </ul>
-                                </div>
-                            </>
+                                </section>
+                            </div>
                         )}
 
                         {indicatorExplainPending && (
