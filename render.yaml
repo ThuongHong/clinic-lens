@@ -5,12 +5,14 @@ services:
     rootDir: backend
     plan: free
     autoDeploy: true
-    buildCommand: npm install
+    buildCommand: python3 -m pip install -r requirements.txt && npm install
     startCommand: npm start
     healthCheckPath: /health
     envVars:
       - key: NODE_ENV
         value: production
+      - key: PYTHON_BIN
+        value: python3
       - key: PORT
         value: 10000
       - key: ALI_ACCESS_KEY
@@ -26,10 +28,10 @@ services:
       - key: DASHSCOPE_API_KEY
         sync: false
       - key: DASHSCOPE_EXTRACT_MODEL
-        value: qwen-vl-plus
+        value: qwen3-vl-plus
       - key: DASHSCOPE_SUMMARY_MODEL
-        value: qwen-max
+        value: qwen3.6-flash
       - key: DASHSCOPE_CHAT_MODEL
-        value: qwen-plus
+        value: qwen3.6-flash
       - key: DASHSCOPE_INDICATOR_MODEL
         value: qwen-turbo
