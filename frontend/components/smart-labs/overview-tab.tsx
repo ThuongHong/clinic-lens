@@ -543,51 +543,51 @@ export function OverviewTab({
                                         {visibleResults.map((result, index) => {
                                             const resultKey = buildResultStableKey(result);
                                             return (
-                                            <div
-                                                key={resultKey}
-                                                ref={(node) => {
-                                                    resultCardRefs.current[resultKey] = node;
-                                                }}
-                                                className={`${getResultCardClass(result.severity)} resultCardEnter`}
-                                                style={{
-                                                    ['--result-enter-delay' as string]: `${Math.min(index, 12) * 36}ms`
-                                                }}
-                                            >
-                                                <div className="resultTopRow">
-                                                    <div className="resultNameRow">
-                                                        <div className="resultName">{result.indicator_name}</div>
-                                                        <button
-                                                            type="button"
-                                                            className="indicatorInfoButton"
-                                                            onClick={() => setActiveInfoResult(result)}
-                                                            aria-label={`Open indicator details for ${result.indicator_name}`}
-                                                            title="Open indicator details"
-                                                        >
-                                                            i
-                                                        </button>
-                                                    </div>
-                                                    <div className="resultTopMeta">
-                                                        <span className="resultMetaTag">{organLabel(result.organ_id)}</span>
-                                                        <div className={getSeverityClass(result.severity)} aria-label={`Status ${displayStatusLabel(result.severity)}`}>
-                                                            <span className="severityIcon" aria-hidden="true">{displayStatusIcon(result.severity)}</span>
-                                                            {displayStatusLabel(result.severity)}
+                                                <div
+                                                    key={resultKey}
+                                                    ref={(node) => {
+                                                        resultCardRefs.current[resultKey] = node;
+                                                    }}
+                                                    className={`${getResultCardClass(result.severity)} resultCardEnter`}
+                                                    style={{
+                                                        ['--result-enter-delay' as string]: `${Math.min(index, 14) * 48}ms`
+                                                    }}
+                                                >
+                                                    <div className="resultTopRow">
+                                                        <div className="resultNameRow">
+                                                            <div className="resultName">{result.indicator_name}</div>
+                                                            <button
+                                                                type="button"
+                                                                className="indicatorInfoButton"
+                                                                onClick={() => setActiveInfoResult(result)}
+                                                                aria-label={`Open indicator details for ${result.indicator_name}`}
+                                                                title="Open indicator details"
+                                                            >
+                                                                i
+                                                            </button>
+                                                        </div>
+                                                        <div className="resultTopMeta">
+                                                            <span className="resultMetaTag">{organLabel(result.organ_id)}</span>
+                                                            <div className={getSeverityClass(result.severity)} aria-label={`Status ${displayStatusLabel(result.severity)}`}>
+                                                                <span className="severityIcon" aria-hidden="true">{displayStatusIcon(result.severity)}</span>
+                                                                {displayStatusLabel(result.severity)}
+                                                            </div>
                                                         </div>
                                                     </div>
-                                                </div>
-                                                <div className="resultValueRow">
-                                                    <strong>{result.value || '—'}</strong>
-                                                    <span>{result.unit}</span>
-                                                </div>
-                                                <ReferenceRangeBar
-                                                    value={result.value}
-                                                    unit={result.unit}
-                                                    referenceRange={result.reference_range}
-                                                    referenceRangeStructured={result.reference_range_structured}
-                                                    referenceRangeOriginal={result.reference_range_original}
-                                                    severity={result.severity}
-                                                />
+                                                    <div className="resultValueRow">
+                                                        <strong>{result.value || '—'}</strong>
+                                                        <span>{result.unit}</span>
+                                                    </div>
+                                                    <ReferenceRangeBar
+                                                        value={result.value}
+                                                        unit={result.unit}
+                                                        referenceRange={result.reference_range}
+                                                        referenceRangeStructured={result.reference_range_structured}
+                                                        referenceRangeOriginal={result.reference_range_original}
+                                                        severity={result.severity}
+                                                    />
 
-                                            </div>
+                                                </div>
                                             );
                                         })}
                                     </div>
