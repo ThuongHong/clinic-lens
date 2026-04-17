@@ -123,7 +123,7 @@ function buildIndicatorPayload(item, index, total = null) {
   return payload;
 }
 
-async function emitIndicatorsInOriginalOrder(res, analysis) {
+async function emitIndicatorsInOriginalOrder(res, analysis, options = {}) {
   if (!analysis || analysis.status !== 'success' || !Array.isArray(analysis.results)) {
     return;
   }
@@ -133,9 +133,15 @@ async function emitIndicatorsInOriginalOrder(res, analysis) {
     return;
   }
 
-  const delayMs = Math.max(Number(process.env.ANALYSIS_INDICATOR_STREAM_DELAY_MS || 45), 0);
+  const startFrom = Math.max(Number(options.startFrom || 0), 0);
+  if (startFrom >= total) {
+    return;
+  }
 
-  for (let index = 0; index < analysis.results.length; index += 1) {
+  // Keep cadence perceptible in UI so users can see each indicator appear one by one.
+  const delayMs = Math.max(Number(process.env.ANALYSIS_INDICATOR_STREAM_DELAY_MS || 140), 0);
+
+  for (let index = startFrom; index < analysis.results.length; index += 1) {
     const item = analysis.results[index] || {};
     writeSseEvent(res, 'indicator', buildIndicatorPayload(item, index + 1, total));
 
@@ -1241,7 +1247,7 @@ async function persistAndEmitAnalysis({
   fileUrl,
   patientName,
   res,
-  skipIndicatorEmit = false
+  streamedIndicatorCount = 0
 }) {
   const normalizedAnalysis = normalizeAnalysisPayload(rawPayload);
   const sanitizedPatientName = typeof patientName === 'string'
@@ -1303,9 +1309,9 @@ async function persistAndEmitAnalysis({
   });
 
   // Stream indicators progressively in the same order as the model output.
-  if (!skipIndicatorEmit) {
-    await emitIndicatorsInOriginalOrder(res, entry.analysis);
-  }
+  await emitIndicatorsInOriginalOrder(res, entry.analysis, {
+    startFrom: streamedIndicatorCount
+  });
 
   writeSseEvent(res, 'result', {
     ...entry.analysis,
@@ -1568,7 +1574,7 @@ app.post('/api/analyze', async (req, res) => {
           fileUrl: originalFileUrl,
           patientName: requestedPatientName,
           res,
-          skipIndicatorEmit: liveIndicatorState.emittedCount > 0
+          streamedIndicatorCount: liveIndicatorState.emittedCount
         });
 
         finalized = true;

@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import type { ChangeEvent } from 'react';
 
 import { fetchIndicatorExplanation } from '@/lib/backend';
@@ -72,6 +72,8 @@ export function OverviewTab({
     const [indicatorExplainLoading, setIndicatorExplainLoading] = useState(false);
     const [indicatorExplainError, setIndicatorExplainError] = useState<string | null>(null);
     const [indicatorExplainRequestVersion, setIndicatorExplainRequestVersion] = useState(0);
+    const resultCardRefs = useRef<Record<string, HTMLDivElement | null>>({});
+    const previousCardPositionsRef = useRef<Record<string, DOMRect>>({});
 
     const activeInfoResultKey = useMemo(() => {
         if (!activeInfoResult) {
@@ -164,6 +166,68 @@ export function OverviewTab({
         window.addEventListener('keydown', onEscape);
         return () => window.removeEventListener('keydown', onEscape);
     }, [activeInfoResult]);
+
+    const buildResultStableKey = (result: LabAnalysis['results'][number]) => {
+        return [
+            String(result.indicator_name || '').trim(),
+            String(result.organ_id || '').trim(),
+            String(result.value || '').trim(),
+            String(result.unit || '').trim(),
+            String(result.reference_range || '').trim(),
+            String(result.severity || '').trim()
+        ].join('|');
+    };
+
+    useLayoutEffect(() => {
+        const nextPositions: Record<string, DOMRect> = {};
+        const activeKeys = new Set(visibleResults.map((result) => buildResultStableKey(result)));
+
+        Object.keys(resultCardRefs.current).forEach((key) => {
+            if (!activeKeys.has(key)) {
+                delete resultCardRefs.current[key];
+            }
+        });
+
+        for (const result of visibleResults) {
+            const cardKey = buildResultStableKey(result);
+            const node = resultCardRefs.current[cardKey];
+            if (!node) {
+                continue;
+            }
+
+            const currentRect = node.getBoundingClientRect();
+            const previousRect = previousCardPositionsRef.current[cardKey];
+
+            if (isReorderingResults && previousRect) {
+                const deltaX = previousRect.left - currentRect.left;
+                const deltaY = previousRect.top - currentRect.top;
+
+                if (Math.abs(deltaX) > 0.5 || Math.abs(deltaY) > 0.5) {
+                    node.style.transition = 'none';
+                    node.style.transform = `translate(${deltaX}px, ${deltaY}px)`;
+                    node.style.zIndex = '1';
+
+                    // Force layout before animating back to the natural position.
+                    node.getBoundingClientRect();
+
+                    node.style.transition = 'transform 520ms cubic-bezier(0.2, 0.72, 0.2, 1), box-shadow 360ms ease, opacity 280ms ease';
+                    node.style.transform = 'translate(0, 0)';
+
+                    window.setTimeout(() => {
+                        if (!resultCardRefs.current[cardKey]) {
+                            return;
+                        }
+                        node.style.transition = '';
+                        node.style.zIndex = '';
+                    }, 560);
+                }
+            }
+
+            nextPositions[cardKey] = currentRect;
+        }
+
+        previousCardPositionsRef.current = nextPositions;
+    }, [visibleResults, isReorderingResults]);
 
     return (
         <section id="panel-overview" className={currentAnalysis ? 'workspaceGrid workspaceGridOverviewReady' : 'workspaceGrid workspaceGridOverviewIdle'} role="tabpanel" aria-labelledby="tab-overview" tabIndex={0}>
@@ -357,8 +421,16 @@ export function OverviewTab({
                                     </div>
 
                                     <div className={isReorderingResults ? 'resultGrid resultGridReordering' : 'resultGrid'}>
-                                        {visibleResults.map((result, index) => (
-                                            <div key={`${result.indicator_name}-${result.organ_id}-${result.value}-${result.unit}-${index}`} className={getResultCardClass(result.severity)}>
+                                        {visibleResults.map((result) => {
+                                            const resultKey = buildResultStableKey(result);
+                                            return (
+                                            <div
+                                                key={resultKey}
+                                                ref={(node) => {
+                                                    resultCardRefs.current[resultKey] = node;
+                                                }}
+                                                className={getResultCardClass(result.severity)}
+                                            >
                                                 <div className="resultTopRow">
                                                     <div className="resultNameRow">
                                                         <div className="resultName">{result.indicator_name}</div>
@@ -394,7 +466,8 @@ export function OverviewTab({
                                                 />
 
                                             </div>
-                                        ))}
+                                            );
+                                        })}
                                     </div>
 
                                     {visibleResults.length === 0 && (
