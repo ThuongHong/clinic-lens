@@ -104,16 +104,34 @@ function sleep(ms) {
 }
 
 function buildIndicatorPayload(item, index, total = null) {
+  let normalizedItem = item;
+
+  try {
+    const normalizedPayload = normalizeAnalysisPayload({
+      status: 'success',
+      results: [item]
+    });
+
+    if (Array.isArray(normalizedPayload?.results) && normalizedPayload.results[0]) {
+      normalizedItem = normalizedPayload.results[0];
+    }
+  } catch (_) {
+    // Keep best-effort streaming even if a partial item cannot be normalized yet.
+  }
+
   const payload = {
     index,
-    indicator_name: String(item?.indicator_name || item?.indicator_name_en || item?.indicator_name_original || '').trim(),
-    value: String(item?.value || '').trim(),
-    unit: String(item?.unit || '').trim(),
-    reference_range: String(item?.reference_range || '').trim(),
-    reference_range_original: String(item?.reference_range_original || '').trim(),
-    severity: String(item?.severity || 'unknown').trim().toLowerCase(),
-    organ_id: String(item?.organ_id || 'other').trim().toLowerCase(),
-    patient_advice: String(item?.patient_advice || '').trim()
+    indicator_name: String(normalizedItem?.indicator_name || normalizedItem?.indicator_name_en || normalizedItem?.indicator_name_original || '').trim(),
+    value: String(normalizedItem?.value || '').trim(),
+    unit: String(normalizedItem?.unit || '').trim(),
+    reference_range: String(normalizedItem?.reference_range || '').trim(),
+    reference_range_original: String(normalizedItem?.reference_range_original || '').trim(),
+    reference_range_structured: normalizedItem?.reference_range_structured && typeof normalizedItem.reference_range_structured === 'object'
+      ? normalizedItem.reference_range_structured
+      : null,
+    severity: String(normalizedItem?.severity || 'unknown').trim().toLowerCase(),
+    organ_id: String(normalizedItem?.organ_id || 'other').trim().toLowerCase(),
+    patient_advice: String(normalizedItem?.patient_advice || '').trim()
   };
 
   if (Number.isFinite(total) && total > 0) {

@@ -434,6 +434,10 @@ export default function SmartLabsApp() {
                                     unit,
                                     reference_range: String(payload?.reference_range || '').trim(),
                                     reference_range_original: String(payload?.reference_range_original || '').trim() || undefined,
+                                    reference_range_structured: payload?.reference_range_structured
+                                        && typeof payload.reference_range_structured === 'object'
+                                        ? payload.reference_range_structured as LabAnalysis['results'][number]['reference_range_structured']
+                                        : undefined,
                                     organ_id: String(payload?.organ_id || 'other').trim().toLowerCase() || 'other',
                                     severity: ((): LabAnalysis['results'][number]['severity'] => {
                                         const normalized = severity.toLowerCase();
