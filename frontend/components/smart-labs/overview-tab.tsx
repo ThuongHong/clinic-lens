@@ -40,6 +40,7 @@ export interface OverviewTabProps {
     overviewTestDate: string;
     overviewSource: string;
     overviewUploadDateTime: string;
+    isReorderingResults: boolean;
     onStartNewUpload: () => void;
 }
 
@@ -63,6 +64,7 @@ export function OverviewTab({
     overviewTestDate,
     overviewSource,
     overviewUploadDateTime,
+    isReorderingResults,
     onStartNewUpload
 }: OverviewTabProps) {
     const [activeInfoResult, setActiveInfoResult] = useState<LabAnalysis['results'][number] | null>(null);
@@ -354,9 +356,9 @@ export function OverviewTab({
                                         </div>
                                     </div>
 
-                                    <div className="resultGrid">
-                                        {visibleResults.map((result) => (
-                                            <div key={`${result.indicator_name}-${result.organ_id}`} className={getResultCardClass(result.severity)}>
+                                    <div className={isReorderingResults ? 'resultGrid resultGridReordering' : 'resultGrid'}>
+                                        {visibleResults.map((result, index) => (
+                                            <div key={`${result.indicator_name}-${result.organ_id}-${result.value}-${result.unit}-${index}`} className={getResultCardClass(result.severity)}>
                                                 <div className="resultTopRow">
                                                     <div className="resultNameRow">
                                                         <div className="resultName">{result.indicator_name}</div>
