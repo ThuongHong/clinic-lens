@@ -2,9 +2,9 @@
 setlocal
 
 REM Start both backend and frontend for local development.
-set "ROOT_DIR=%~dp0"
-set "BACKEND_DIR=%ROOT_DIR%backend"
-set "FRONTEND_DIR=%ROOT_DIR%frontend"
+for %%I in ("%~dp0..") do set "ROOT_DIR=%%~fI"
+set "BACKEND_DIR=%ROOT_DIR%\backend"
+set "FRONTEND_DIR=%ROOT_DIR%\frontend"
 set "FRONTEND_PORT="
 
 echo [INFO] Root: %ROOT_DIR%

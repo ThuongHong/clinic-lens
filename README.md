@@ -89,64 +89,140 @@ sequenceDiagram
     Frontend->>User: Display insights & recommendations
 ```
 
-## Setup
+## Reproduce Locally
 
 ### Prerequisites
 
 - Node.js 20+
-- npm or yarn
+- npm 10+
+- Python 3.10+ (required by backend PDF analysis scripts)
 - Alibaba Cloud credentials (ALI_ACCESS_KEY, ALI_SECRET_KEY, ALI_ROLE_ARN)
 - DashScope API key (DASHSCOPE_API_KEY)
 
-### Local Development
-
-**1. Install dependencies:**
+### 1. Clone and install dependencies
 
 ```bash
-cd frontend && npm install
-cd ../backend && npm install
+git clone <your-fork-or-repo-url>
+cd qwen_build_day
+
+cd backend && npm install
+cd ../frontend && npm install
 ```
 
-**2. Configure environment variables:**
-Create `.env` in the repository root:
+### 1.1 Create Python virtual environment (recommended)
 
-```env
-ALI_ACCESS_KEY=your_access_key
-ALI_SECRET_KEY=your_secret_key
-ALI_ROLE_ARN=arn:the-role
-OSS_REGION=oss-cn-hangzhou
-OSS_BUCKET_NAME=your_bucket
-DASHSCOPE_API_KEY=your_api_key
+```bash
+python3 -m venv backend/.venv
+source backend/.venv/bin/activate
+pip install -r backend/requirements.txt
 ```
 
-**3. Run the backend:**
+If you do not use venv, install the same requirements into your current Python environment.
 
-Open a terminal in the project root and start the API server:
+### 2. Configure environment variables
+
+Copy [.env.example](.env.example) to .env at repository root and fill real values:
+
+```bash
+cp .env.example .env
+```
+
+Required keys:
+
+- ALI_ACCESS_KEY
+- ALI_SECRET_KEY
+- ALI_ROLE_ARN
+- OSS_REGION
+- OSS_BUCKET_NAME
+- DASHSCOPE_API_KEY
+
+Optional runtime keys:
+
+- PORT (default: 9000)
+- DASHSCOPE_MODEL
+- DASHSCOPE_EXTRACT_MODEL
+- DASHSCOPE_SUMMARY_MODEL
+- DASHSCOPE_CHAT_MODEL
+- DASHSCOPE_INDICATOR_MODEL
+
+Backend env lookup order is root .env first, then backend/.env.
+
+### 3. Start backend (Terminal A)
 
 ```bash
 cd backend
-npm start
+PORT=9000 npm start
 ```
 
-Backend runs on `http://localhost:9000`
+Expected log includes server listening on port 9000.
 
-**4. Run the frontend:**
-
-Open a second terminal and start the web app:
+### 4. Start frontend (Terminal B)
 
 ```bash
 cd frontend
 npm run dev
 ```
 
-Frontend runs on `http://localhost:3000`
+Open <http://localhost:3000>.
 
-If you want to use a different port for the frontend, pass it explicitly:
+### 5. Smoke checks
+
+Backend health:
+
+```bash
+curl -sS http://127.0.0.1:9000/health
+```
+
+Frontend production build:
 
 ```bash
 cd frontend
-npm run dev -- --port 5174
+npm run build
 ```
+
+### 6. Optional backend validation scripts
+
+```bash
+cd backend
+npm run analysis:test
+npm run chat:smoke
+npm run chat:test
+```
+
+### Linux quick start
+
+```bash
+chmod +x ./scripts/start-local.sh
+./scripts/start-local.sh
+```
+
+The Linux script auto-creates backend/.venv and installs backend/requirements.txt into it.
+
+### Windows quick start
+
+PowerShell (recommended, includes backend .venv setup):
+
+```powershell
+powershell -ExecutionPolicy Bypass -File .\scripts\start-local.ps1
+```
+
+Batch alternative:
+
+```bat
+scripts\start-local.bat
+```
+
+### Troubleshooting
+
+- Warning about vm2 coffee-script during frontend build:
+  - Symptom: Module not found: Can't resolve coffee-script in vm2/lib/compiler.js
+  - Cause: transitive dependency chain from ali-oss -> urllib -> proxy-agent -> pac-resolver -> degenerator -> vm2 references optional CoffeeScript parser.
+  - Impact: usually warning-only; build can still complete.
+- Backend warns missing environment variables:
+  - Ensure required keys are present in root .env.
+- Upload succeeds but analysis fails:
+  - Verify OSS region format like oss-cn-hangzhou and bucket permissions.
+  - Verify Python deps are installed from [backend/requirements.txt](backend/requirements.txt).
 
 ## API Endpoints
 
@@ -174,7 +250,10 @@ npm run dev -- --port 5174
 │   ├── prompts/                 # AI system prompts
 │   └── data/                    # History files
 ├── render.yaml                  # Render Blueprint config
-└── docker-compose.yml           # Local orchestration
+└── scripts/                     # Local launcher scripts
+  ├── start-local.sh           # Linux local launcher
+  ├── start-local.ps1          # Windows PowerShell launcher
+  └── start-local.bat          # Windows batch launcher
 ```
 
 ## Design System
@@ -202,14 +281,10 @@ Supported organs and indicators:
 ## Testing
 
 ```bash
-# Backend smoke test
-./test-backend.sh http://localhost:9000
-
-# Analysis pipeline test
-cd backend && npm run analysis:test
-
-# Chat feature test
-cd backend && npm run chat:test
+cd backend
+npm run analysis:test
+npm run chat:smoke
+npm run chat:test
 ```
 
 ## Performance & Constraints
