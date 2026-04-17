@@ -1018,8 +1018,32 @@ body::after {
     gap: 8px;
 }
 
+@keyframes resultCardPopIn {
+    0% {
+        opacity: 0;
+        transform: translateY(12px) scale(0.975);
+        filter: blur(3px) saturate(0.96);
+    }
+
+    62% {
+        opacity: 1;
+        transform: translateY(-1px) scale(1.006);
+        filter: blur(0) saturate(1.01);
+    }
+
+    100% {
+        opacity: 1;
+        transform: translateY(0) scale(1);
+        filter: blur(0) saturate(1);
+    }
+}
+
 .resultGrid.resultGridReordering .resultCard {
     will-change: transform;
+}
+
+.resultGrid.resultGridReordering .resultCardEnter {
+    animation: none;
 }
 
 .resultCard {
@@ -1036,6 +1060,12 @@ body::after {
         box-shadow var(--dur) var(--ease-out),
         transform 260ms cubic-bezier(0.2, 0.72, 0.2, 1),
         filter 260ms ease;
+}
+
+.resultCardEnter {
+    --result-enter-delay: 0ms;
+    animation: resultCardPopIn 420ms cubic-bezier(0.2, 0.84, 0.2, 1) both;
+    animation-delay: var(--result-enter-delay);
 }
 
 .resultCard.resultCardSeverity-normal {
@@ -1069,6 +1099,12 @@ body::after {
         inset 0 1px 0 rgba(255, 255, 255, 0.94);
     transform: translateY(-6px) scale(1.015);
     filter: saturate(1.02);
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .resultCardEnter {
+        animation: none;
+    }
 }
 
 .resultTopRow {

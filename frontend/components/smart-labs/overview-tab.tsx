@@ -540,7 +540,7 @@ export function OverviewTab({
                                     </div>
 
                                     <div className={isReorderingResults ? 'resultGrid resultGridReordering' : 'resultGrid'}>
-                                        {visibleResults.map((result) => {
+                                        {visibleResults.map((result, index) => {
                                             const resultKey = buildResultStableKey(result);
                                             return (
                                             <div
@@ -548,7 +548,10 @@ export function OverviewTab({
                                                 ref={(node) => {
                                                     resultCardRefs.current[resultKey] = node;
                                                 }}
-                                                className={getResultCardClass(result.severity)}
+                                                className={`${getResultCardClass(result.severity)} resultCardEnter`}
+                                                style={{
+                                                    ['--result-enter-delay' as string]: `${Math.min(index, 12) * 36}ms`
+                                                }}
                                             >
                                                 <div className="resultTopRow">
                                                     <div className="resultNameRow">
