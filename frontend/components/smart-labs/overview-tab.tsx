@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import type { ChangeEvent } from 'react';
 
 import { fetchIndicatorExplanation } from '@/lib/backend';
@@ -40,6 +40,7 @@ export interface OverviewTabProps {
     overviewTestDate: string;
     overviewSource: string;
     overviewUploadDateTime: string;
+    isReorderingResults: boolean;
     onStartNewUpload: () => void;
 }
 
@@ -63,6 +64,7 @@ export function OverviewTab({
     overviewTestDate,
     overviewSource,
     overviewUploadDateTime,
+    isReorderingResults,
     onStartNewUpload
 }: OverviewTabProps) {
     const [activeInfoResult, setActiveInfoResult] = useState<LabAnalysis['results'][number] | null>(null);
@@ -70,6 +72,9 @@ export function OverviewTab({
     const [indicatorExplainLoading, setIndicatorExplainLoading] = useState(false);
     const [indicatorExplainError, setIndicatorExplainError] = useState<string | null>(null);
     const [indicatorExplainRequestVersion, setIndicatorExplainRequestVersion] = useState(0);
+    const resultCardRefs = useRef<Record<string, HTMLDivElement | null>>({});
+    const previousCardPositionsRef = useRef<Record<string, DOMRect>>({});
+    const reorderAnimationFrameRef = useRef<number | null>(null);
 
     const activeInfoResultKey = useMemo(() => {
         if (!activeInfoResult) {
@@ -162,6 +167,186 @@ export function OverviewTab({
         window.addEventListener('keydown', onEscape);
         return () => window.removeEventListener('keydown', onEscape);
     }, [activeInfoResult]);
+
+    useEffect(() => {
+        return () => {
+            if (reorderAnimationFrameRef.current != null) {
+                window.cancelAnimationFrame(reorderAnimationFrameRef.current);
+                reorderAnimationFrameRef.current = null;
+            }
+        };
+    }, []);
+
+    const buildResultStableKey = (result: LabAnalysis['results'][number]) => {
+        return [
+            String(result.indicator_name || '').trim(),
+            String(result.organ_id || '').trim(),
+            String(result.value || '').trim(),
+            String(result.unit || '').trim(),
+            String(result.reference_range || '').trim(),
+            String(result.severity || '').trim()
+        ].join('|');
+    };
+
+    useLayoutEffect(() => {
+        if (reorderAnimationFrameRef.current != null) {
+            window.cancelAnimationFrame(reorderAnimationFrameRef.current);
+            reorderAnimationFrameRef.current = null;
+        }
+
+        const nextPositions: Record<string, DOMRect> = {};
+        const activeKeys = new Set(visibleResults.map((result) => buildResultStableKey(result)));
+        const movingParticles: Array<{
+            key: string;
+            node: HTMLDivElement;
+            x: number;
+            y: number;
+            vx: number;
+            vy: number;
+            cx: number;
+            cy: number;
+            radius: number;
+        }> = [];
+
+        Object.keys(resultCardRefs.current).forEach((key) => {
+            if (!activeKeys.has(key)) {
+                delete resultCardRefs.current[key];
+            }
+        });
+
+        for (const result of visibleResults) {
+            const cardKey = buildResultStableKey(result);
+            const node = resultCardRefs.current[cardKey];
+            if (!node) {
+                continue;
+            }
+
+            const currentRect = node.getBoundingClientRect();
+            const previousRect = previousCardPositionsRef.current[cardKey];
+
+            if (isReorderingResults && previousRect) {
+                const deltaX = previousRect.left - currentRect.left;
+                const deltaY = previousRect.top - currentRect.top;
+
+                if (Math.abs(deltaX) > 0.5 || Math.abs(deltaY) > 0.5) {
+                    movingParticles.push({
+                        key: cardKey,
+                        node,
+                        x: deltaX,
+                        y: deltaY,
+                        vx: 0,
+                        vy: 0,
+                        cx: currentRect.left + currentRect.width / 2,
+                        cy: currentRect.top + currentRect.height / 2,
+                        radius: Math.min(currentRect.width, currentRect.height) * 0.3
+                    });
+
+                    node.style.transition = 'none';
+                    node.style.transform = `translate(${deltaX}px, ${deltaY}px)`;
+                    node.style.zIndex = '1';
+                    node.style.willChange = 'transform';
+
+                    // Force layout after inversion before physics loop begins.
+                    node.getBoundingClientRect();
+                }
+            }
+
+            nextPositions[cardKey] = currentRect;
+        }
+
+        previousCardPositionsRef.current = nextPositions;
+
+        if (movingParticles.length > 0 && isReorderingResults) {
+            let frames = 0;
+            const stiffness = 0.16;
+            const damping = 0.82;
+            const repelFactor = 0.19;
+            const gap = 10;
+            const maxFrames = 84;
+
+            const finish = () => {
+                for (const particle of movingParticles) {
+                    particle.node.style.transform = 'translate(0, 0)';
+                    particle.node.style.transition = 'transform 220ms ease-out';
+                    particle.node.style.zIndex = '';
+                    particle.node.style.willChange = '';
+                }
+
+                window.setTimeout(() => {
+                    for (const particle of movingParticles) {
+                        if (resultCardRefs.current[particle.key]) {
+                            particle.node.style.transition = '';
+                        }
+                    }
+                }, 240);
+            };
+
+            const step = () => {
+                frames += 1;
+
+                for (const particle of movingParticles) {
+                    particle.vx = (particle.vx - stiffness * particle.x) * damping;
+                    particle.vy = (particle.vy - stiffness * particle.y) * damping;
+                }
+
+                for (let i = 0; i < movingParticles.length; i += 1) {
+                    for (let j = i + 1; j < movingParticles.length; j += 1) {
+                        const a = movingParticles[i];
+                        const b = movingParticles[j];
+                        const dx = (a.cx + a.x) - (b.cx + b.x);
+                        const dy = (a.cy + a.y) - (b.cy + b.y);
+                        const dist = Math.max(Math.hypot(dx, dy), 0.001);
+                        const minDist = a.radius + b.radius + gap;
+
+                        if (dist < minDist) {
+                            const nx = dx / dist;
+                            const ny = dy / dist;
+                            const overlap = minDist - dist;
+                            const impulse = overlap * repelFactor;
+
+                            a.vx += nx * impulse;
+                            a.vy += ny * impulse;
+                            b.vx -= nx * impulse;
+                            b.vy -= ny * impulse;
+                        }
+                    }
+                }
+
+                let totalMotion = 0;
+                for (const particle of movingParticles) {
+                    particle.x += particle.vx;
+                    particle.y += particle.vy;
+                    totalMotion += Math.abs(particle.x) + Math.abs(particle.y) + Math.abs(particle.vx) + Math.abs(particle.vy);
+                    particle.node.style.transform = `translate(${particle.x}px, ${particle.y}px)`;
+                }
+
+                const settled = totalMotion < movingParticles.length * 0.16;
+                if (settled || frames >= maxFrames) {
+                    finish();
+                    reorderAnimationFrameRef.current = null;
+                    return;
+                }
+
+                reorderAnimationFrameRef.current = window.requestAnimationFrame(step);
+            };
+
+            reorderAnimationFrameRef.current = window.requestAnimationFrame(step);
+            return;
+        }
+
+        for (const result of visibleResults) {
+            const cardKey = buildResultStableKey(result);
+            const node = resultCardRefs.current[cardKey];
+            if (!node) {
+                continue;
+            }
+
+            node.style.transform = '';
+            node.style.transition = '';
+            node.style.zIndex = '';
+            node.style.willChange = '';
+        }
+    }, [visibleResults, isReorderingResults]);
 
     return (
         <section id="panel-overview" className={currentAnalysis ? 'workspaceGrid workspaceGridOverviewReady' : 'workspaceGrid workspaceGridOverviewIdle'} role="tabpanel" aria-labelledby="tab-overview" tabIndex={0}>
@@ -354,9 +539,17 @@ export function OverviewTab({
                                         </div>
                                     </div>
 
-                                    <div className="resultGrid">
-                                        {visibleResults.map((result) => (
-                                            <div key={`${result.indicator_name}-${result.organ_id}`} className={getResultCardClass(result.severity)}>
+                                    <div className={isReorderingResults ? 'resultGrid resultGridReordering' : 'resultGrid'}>
+                                        {visibleResults.map((result) => {
+                                            const resultKey = buildResultStableKey(result);
+                                            return (
+                                            <div
+                                                key={resultKey}
+                                                ref={(node) => {
+                                                    resultCardRefs.current[resultKey] = node;
+                                                }}
+                                                className={getResultCardClass(result.severity)}
+                                            >
                                                 <div className="resultTopRow">
                                                     <div className="resultNameRow">
                                                         <div className="resultName">{result.indicator_name}</div>
@@ -392,7 +585,8 @@ export function OverviewTab({
                                                 />
 
                                             </div>
-                                        ))}
+                                            );
+                                        })}
                                     </div>
 
                                     {visibleResults.length === 0 && (

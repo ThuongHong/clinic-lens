@@ -99,6 +99,153 @@ function writeSseEvent(res, eventName, payload) {
   res.write(`data: ${JSON.stringify(payload)}\n\n`);
 }
 
+function sleep(ms) {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+function buildIndicatorPayload(item, index, total = null) {
+  const payload = {
+    index,
+    indicator_name: String(item?.indicator_name || item?.indicator_name_en || item?.indicator_name_original || '').trim(),
+    value: String(item?.value || '').trim(),
+    unit: String(item?.unit || '').trim(),
+    reference_range: String(item?.reference_range || '').trim(),
+    reference_range_original: String(item?.reference_range_original || '').trim(),
+    severity: String(item?.severity || 'unknown').trim().toLowerCase(),
+    organ_id: String(item?.organ_id || 'other').trim().toLowerCase(),
+    patient_advice: String(item?.patient_advice || '').trim()
+  };
+
+  if (Number.isFinite(total) && total > 0) {
+    payload.total = total;
+  }
+
+  return payload;
+}
+
+async function emitIndicatorsInOriginalOrder(res, analysis, options = {}) {
+  if (!analysis || analysis.status !== 'success' || !Array.isArray(analysis.results)) {
+    return;
+  }
+
+  const total = analysis.results.length;
+  if (total <= 0) {
+    return;
+  }
+
+  const startFrom = Math.max(Number(options.startFrom || 0), 0);
+  if (startFrom >= total) {
+    return;
+  }
+
+  // Keep cadence perceptible in UI so users can see each indicator appear one by one.
+  const delayMs = Math.max(Number(process.env.ANALYSIS_INDICATOR_STREAM_DELAY_MS || 140), 0);
+
+  for (let index = startFrom; index < analysis.results.length; index += 1) {
+    const item = analysis.results[index] || {};
+    writeSseEvent(res, 'indicator', buildIndicatorPayload(item, index + 1, total));
+
+    if (delayMs > 0 && index < analysis.results.length - 1) {
+      // Keep a tiny cadence so users can perceive sequential streaming in UI.
+      await sleep(delayMs);
+    }
+  }
+}
+
+function createLiveIndicatorStreamState() {
+  return {
+    inResultsArray: false,
+    scanningDone: false,
+    scanIndex: 0,
+    depth: 0,
+    inString: false,
+    escaped: false,
+    objectStart: -1,
+    emittedCount: 0
+  };
+}
+
+function findResultsArrayStartIndex(text) {
+  const markerIndex = text.indexOf('"results"');
+  if (markerIndex < 0) {
+    return -1;
+  }
+
+  return text.indexOf('[', markerIndex);
+}
+
+function emitLiveIndicatorsFromAggregatedText({ aggregatedText, state, res }) {
+  if (!aggregatedText || state.scanningDone) {
+    return;
+  }
+
+  if (!state.inResultsArray) {
+    const arrayStartIndex = findResultsArrayStartIndex(aggregatedText);
+    if (arrayStartIndex < 0) {
+      return;
+    }
+
+    state.inResultsArray = true;
+    state.scanIndex = arrayStartIndex + 1;
+  }
+
+  for (let index = state.scanIndex; index < aggregatedText.length; index += 1) {
+    const char = aggregatedText[index];
+
+    if (state.escaped) {
+      state.escaped = false;
+      continue;
+    }
+
+    if (char === '\\') {
+      state.escaped = true;
+      continue;
+    }
+
+    if (char === '"') {
+      state.inString = !state.inString;
+      continue;
+    }
+
+    if (state.inString) {
+      continue;
+    }
+
+    if (char === ']' && state.depth === 0 && state.objectStart < 0) {
+      state.scanningDone = true;
+      state.scanIndex = index + 1;
+      return;
+    }
+
+    if (char === '{') {
+      if (state.depth === 0) {
+        state.objectStart = index;
+      }
+      state.depth += 1;
+      continue;
+    }
+
+    if (char === '}' && state.depth > 0) {
+      state.depth -= 1;
+
+      if (state.depth === 0 && state.objectStart >= 0) {
+        const objectText = aggregatedText.slice(state.objectStart, index + 1);
+        state.objectStart = -1;
+
+        try {
+          const item = JSON.parse(objectText);
+          state.emittedCount += 1;
+          writeSseEvent(res, 'indicator', buildIndicatorPayload(item, state.emittedCount));
+        } catch (_) {
+          // Ignore incomplete or non-standard partial objects until full finalize stage.
+        }
+      }
+    }
+
+    state.scanIndex = index + 1;
+  }
+}
+
 function buildDashScopeResponseFormat() {
   if (!DASHSCOPE_RESPONSE_FORMAT_MODE) {
     return null;
@@ -1099,7 +1246,8 @@ async function persistAndEmitAnalysis({
   objectKey,
   fileUrl,
   patientName,
-  res
+  res,
+  streamedIndicatorCount = 0
 }) {
   const normalizedAnalysis = normalizeAnalysisPayload(rawPayload);
   const sanitizedPatientName = typeof patientName === 'string'
@@ -1158,6 +1306,11 @@ async function persistAndEmitAnalysis({
     analysis: persistedAnalysis,
     objectKey,
     fileUrl
+  });
+
+  // Stream indicators progressively in the same order as the model output.
+  await emitIndicatorsInOriginalOrder(res, entry.analysis, {
+    startFrom: streamedIndicatorCount
   });
 
   writeSseEvent(res, 'result', {
@@ -1406,6 +1559,7 @@ app.post('/api/analyze', async (req, res) => {
     let streamBuffer = '';
     let aggregatedText = '';
     let streamCompleted = false;
+    const liveIndicatorState = createLiveIndicatorStreamState();
 
     const finalizeStructuredResult = async ({ emitError = false } = {}) => {
       if (finalized || !aggregatedText.trim()) {
@@ -1419,7 +1573,8 @@ app.post('/api/analyze', async (req, res) => {
           objectKey: normalizedObjectKey,
           fileUrl: originalFileUrl,
           patientName: requestedPatientName,
-          res
+          res,
+          streamedIndicatorCount: liveIndicatorState.emittedCount
         });
 
         finalized = true;
@@ -1484,6 +1639,12 @@ app.post('/api/analyze', async (req, res) => {
             writeSseEvent(res, 'token', {
               text: content,
               snapshot: aggregatedText
+            });
+
+            emitLiveIndicatorsFromAggregatedText({
+              aggregatedText,
+              state: liveIndicatorState,
+              res
             });
           }
         } catch (parseError) {

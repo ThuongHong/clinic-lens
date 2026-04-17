@@ -60,8 +60,11 @@ export default function SmartLabsApp() {
     const [selectedOrganId, setSelectedOrganId] = useState<string>('all');
     const [uploadValidationError, setUploadValidationError] = useState<string | null>(null);
     const [isDraftNewUpload, setIsDraftNewUpload] = useState(false);
+    const [resultOrderMode, setResultOrderMode] = useState<'stream' | 'severity'>('severity');
+    const [isReorderingResults, setIsReorderingResults] = useState(false);
 
     const chatEndRef = useRef<HTMLDivElement | null>(null);
+    const reorderTimerRef = useRef<number | null>(null);
 
     const selectedHistory = useMemo(
         () => history.find((entry) => entry.id === selectedHistoryId) ?? null,
@@ -162,6 +165,10 @@ export default function SmartLabsApp() {
             ? currentResults
             : currentResults.filter((result) => String(result.organ_id || '').toLowerCase() === selectedOrganId);
 
+        if (resultOrderMode === 'stream') {
+            return filtered;
+        }
+
         const severityRank = (severity: string) => {
             if (severity === 'critical') return 0;
             if (severity === 'abnormal_high' || severity === 'abnormal_low') return 1;
@@ -179,7 +186,15 @@ export default function SmartLabsApp() {
                 return a.index - b.index;
             })
             .map(({ result }) => result);
-    }, [currentResults, selectedOrganId]);
+    }, [currentResults, selectedOrganId, resultOrderMode]);
+
+    useEffect(() => {
+        return () => {
+            if (reorderTimerRef.current != null) {
+                window.clearTimeout(reorderTimerRef.current);
+            }
+        };
+    }, []);
 
     useEffect(() => { void loadHistory(); }, []);
 
@@ -335,6 +350,12 @@ export default function SmartLabsApp() {
         setChatContextHistoryIds([]);
         setAnalysis(null);
         setAnalysisLogs([]);
+        setResultOrderMode('stream');
+        setIsReorderingResults(false);
+        if (reorderTimerRef.current != null) {
+            window.clearTimeout(reorderTimerRef.current);
+            reorderTimerRef.current = null;
+        }
         setStatus('Requesting STS token...');
         setActiveTab('overview');
 
@@ -374,12 +395,73 @@ export default function SmartLabsApp() {
                     appendLog(String(payload?.message || 'Backend warning'));
                     continue;
                 }
+                if (event.event === 'indicator') {
+                    const payload = parseEventPayload(event);
+                    const index = Number(payload?.index || 0);
+                    const total = Number(payload?.total || 0);
+                    const name = String(payload?.indicator_name || 'Unnamed indicator').trim();
+                    const value = String(payload?.value || '').trim();
+                    const unit = String(payload?.unit || '').trim();
+                    const severity = String(payload?.severity || 'unknown').trim();
+
+                    const progressPrefix = index > 0 && total > 0
+                        ? `[${index}/${total}] `
+                        : '';
+                    const valueText = [value, unit].filter(Boolean).join(' ').trim();
+
+                    if (index === 1) {
+                        appendLog('Streaming lab indicators into the result panel...');
+                    }
+
+                    setIsDraftNewUpload(false);
+                    setAnalysis((prev) => {
+                        const base: LabAnalysis = prev && prev.status === 'success'
+                            ? prev
+                            : {
+                                status: 'success',
+                                analysis_date: new Date().toISOString().slice(0, 10),
+                                patient_name: patientName.trim() || undefined,
+                                results: []
+                            };
+
+                        return {
+                            ...base,
+                            results: [
+                                ...base.results,
+                                {
+                                    indicator_name: name,
+                                    value,
+                                    unit,
+                                    reference_range: String(payload?.reference_range || '').trim(),
+                                    reference_range_original: String(payload?.reference_range_original || '').trim() || undefined,
+                                    organ_id: String(payload?.organ_id || 'other').trim().toLowerCase() || 'other',
+                                    severity: ((): LabAnalysis['results'][number]['severity'] => {
+                                        const normalized = severity.toLowerCase();
+                                        if (normalized === 'critical' || normalized === 'abnormal_high' || normalized === 'abnormal_low' || normalized === 'normal' || normalized === 'unknown') {
+                                            return normalized;
+                                        }
+                                        return 'unknown';
+                                    })(),
+                                    patient_advice: String(payload?.patient_advice || '').trim()
+                                }
+                            ]
+                        };
+                    });
+
+                    if (index > 0 && total > 0) {
+                        setStatus(`Streaming indicators (${index}/${total})...`);
+                    } else {
+                        setStatus('Streaming indicators...');
+                    }
+                    continue;
+                }
                 if (event.event === 'result') {
                     const payload = parseEventPayload(event);
                     if (payload) {
                         const parsed = parseAnalysis(payload);
                         setIsDraftNewUpload(false);
                         setAnalysis(parsed);
+                        setResultOrderMode('stream');
                         nextHistoryId = String(payload.history_id || parsed.history_id || createId('analysis'));
                         const createdAt = String(payload.created_at || parsed.created_at || new Date().toISOString());
                         upsertSessionHistoryEntry({
@@ -405,7 +487,18 @@ export default function SmartLabsApp() {
                     }
                     continue;
                 }
-                if (event.event === 'done') { setStatus('Analysis complete'); }
+                if (event.event === 'done') {
+                    setResultOrderMode('severity');
+                    setIsReorderingResults(true);
+                    if (reorderTimerRef.current != null) {
+                        window.clearTimeout(reorderTimerRef.current);
+                    }
+                    reorderTimerRef.current = window.setTimeout(() => {
+                        setIsReorderingResults(false);
+                        reorderTimerRef.current = null;
+                    }, 700);
+                    setStatus('Analysis complete');
+                }
             }
         } catch (error) {
             setStatus('Analysis failed');
@@ -584,6 +677,8 @@ export default function SmartLabsApp() {
 
     function selectHistory(entry: AnalysisHistoryEntry) {
         setIsDraftNewUpload(false);
+        setResultOrderMode('severity');
+        setIsReorderingResults(false);
         setSelectedHistoryId(entry.id);
         setChatContextHistoryIds([entry.id]);
         setAnalysis(entry.analysis);
@@ -771,6 +866,7 @@ export default function SmartLabsApp() {
                         overviewTestDate={overviewTestDate}
                         overviewSource={overviewSource}
                         overviewUploadDateTime={overviewUploadDateTime}
+                        isReorderingResults={isReorderingResults}
                         onStartNewUpload={startNewUpload}
                     />
                 )}

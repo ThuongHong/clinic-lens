@@ -1018,6 +1018,10 @@ body::after {
     gap: 8px;
 }
 
+.resultGrid.resultGridReordering .resultCard {
+    will-change: transform;
+}
+
 .resultCard {
     padding: 11px;
     border-radius: var(--r-md);
@@ -1030,7 +1034,8 @@ body::after {
     transition:
         border-color var(--dur) var(--ease-out),
         box-shadow var(--dur) var(--ease-out),
-        transform var(--dur-fast) var(--ease-out);
+        transform 260ms cubic-bezier(0.2, 0.72, 0.2, 1),
+        filter 260ms ease;
 }
 
 .resultCard.resultCardSeverity-normal {
@@ -1057,9 +1062,13 @@ body::after {
 }
 
 .resultCard:hover {
-    border-color: var(--border-md);
-    box-shadow: var(--shadow-sm), inset 0 1px 0 rgba(255, 255, 255, 0.9);
-    transform: translateY(-1px);
+    border-color: rgba(13, 148, 136, 0.36);
+    box-shadow:
+        0 10px 22px rgba(15, 23, 42, 0.14),
+        0 4px 8px rgba(15, 23, 42, 0.08),
+        inset 0 1px 0 rgba(255, 255, 255, 0.94);
+    transform: translateY(-6px) scale(1.015);
+    filter: saturate(1.02);
 }
 
 .resultTopRow {
